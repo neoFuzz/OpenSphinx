@@ -1,0 +1,10 @@
+{
+  "name": "laser-chess-ts",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client",
+    "shared"
+  ],
+  "license": "MIT"
+}
