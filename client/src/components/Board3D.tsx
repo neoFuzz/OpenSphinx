@@ -1,0 +1,456 @@
+﻿import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, Line, useGLTF } from '@react-three/drei';
+import { useGame } from '../state/game';
+import { COLS, ROWS } from '../../../shared/src/constants';
+import type { Cell, Dir, GameState, Pos } from '../../../shared/src/types';
+import * as THREE from 'three';
+
+// --- layout constants ---
+const TILE_SIZE = 1;          // 1 unit per square
+const GAP = 0.02;             // small gap between tiles
+const BOARD_W = COLS * TILE_SIZE;
+const BOARD_H = ROWS * TILE_SIZE;
+
+// World origin will be centre of the board:
+const ORIGIN_X = -BOARD_W / 2 + TILE_SIZE / 2;
+const ORIGIN_Z = -BOARD_H / 2 + TILE_SIZE / 2;
+
+function gridToWorld(r: number, c: number) {
+    return new THREE.Vector3(
+        ORIGIN_X + c * TILE_SIZE,
+        0,
+        ORIGIN_Z + r * TILE_SIZE
+    );
+}
+function worldToGrid(x: number, z: number): Pos | null {
+    // invert gridToWorld (approx, with bounds)
+    const c = Math.round((x - ORIGIN_X) / TILE_SIZE);
+    const r = Math.round((z - ORIGIN_Z) / TILE_SIZE);
+    if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return null;
+    return { r, c };
+}
+
+/**
+ * 
+ * @param scene
+ */
+function withShadows(scene: THREE.Object3D) {
+    scene.traverse((o: any) => {
+        if (o.isMesh) {
+            o.castShadow = true;
+            o.receiveShadow = true;
+            // o.material.envMapIntensity = 1; // optional PBR boost
+        }
+    });
+}
+
+/**
+  * helper: convert Dir to Y rotation 
+  * 
+  * @param facing facing direction
+  * @returns
+  */
+function dirToY(facing?: Dir) {
+    switch (facing) {
+        case 'N': return 0;
+        case 'E': return Math.PI / 2;
+        case 'S': return Math.PI;
+        case 'W': return -Math.PI / 2;
+        default: return 0;
+    }
+}
+
+
+/**
+ * 
+ * @returns the Pharaoh model
+ */
+function PharaohGLTF() {
+    const { scene } = useGLTF('/models/pharaoh.glb');
+    useEffect(() => withShadows(scene), [scene]);
+    return <primitive object={scene} scale={0.5} />;
+}
+
+/**
+ * 
+ * @returns the pyramid model
+ */
+function PyramidGLTF() {
+    const { scene } = useGLTF('/models/pyramid.glb');
+    useEffect(() => withShadows(scene), [scene]);
+    return <primitive object={scene} scale={0.5} />;
+}
+
+/**
+ * 
+ * @returns the Djed model
+ */
+function DjedGLTF() {
+    const { scene } = useGLTF('/models/djed.glb');
+    useEffect(() => withShadows(scene), [scene]);
+    return <primitive object={scene} scale={0.5} />;
+}
+
+/**
+ * 
+ * @returns the Sphinx laser model
+ */
+function LaserGLTF() {
+    const { scene } = useGLTF('/models/laser.glb');
+    useEffect(() => withShadows(scene), [scene]);
+    return <primitive object={scene} scale={0.5} />;
+}
+
+/**
+ * 
+ * @returns the Obelisk model
+ */
+function ObeliskGLTF() {
+    const { scene } = useGLTF('/models/obelisk.glb');
+    useEffect(() => withShadows(scene), [scene]);
+    return <primitive object={scene} scale={0.5} />;
+}
+
+// --- PIECE MESHES (simple primitives; swap for GLTF later) ---
+function PharaohMesh(props: JSX.IntrinsicElements['group']) {
+    // a gold cylinder
+    return (
+        <group {...props}>
+            <mesh castShadow receiveShadow>
+                <cylinderGeometry args={[0.35, 0.35, 0.6, 24]} />
+                <meshStandardMaterial color="#c7a83c" metalness={0.6} roughness={0.4} />
+            </mesh>
+        </group>
+    );
+}
+
+function ObeliskMesh(props: JSX.IntrinsicElements['group']) {
+    return (
+        <group {...props}>
+            <mesh castShadow receiveShadow>
+                <boxGeometry args={[0.7, 0.9, 0.7]} />
+                <meshStandardMaterial color="#666" metalness={0.1} roughness={0.9} />
+            </mesh>
+        </group>
+    );
+}
+
+function PyramidMesh({ mirror }: { mirror?: '/' | '\\' }) {
+    // represent mirror orientation as wedge rotation
+    // we'll use a triangular prism-like wedge
+    const rotY = mirror === '/' ? 0 : Math.PI / 2; // arbitrary mapping
+    return (
+        <group rotation-y={rotY}>
+            <mesh castShadow receiveShadow rotation={[0, 0, 0]}>
+                {/* A thin wedge: make by extruding a triangle, but we'll fake with a box + clipping shape */}
+                <coneGeometry args={[0.45, 0.35, 3]} />
+                <meshStandardMaterial color="#888" metalness={0.2} roughness={0.8} />
+            </mesh>
+            {/* mirror face hint */}
+            <mesh position={[0, 0.18, 0]} rotation={[0, 0, 0]}>
+                <planeGeometry args={[0.4, 0.25]} />
+                <meshStandardMaterial color="#b0e0ff" metalness={1.0} roughness={0.1} envMapIntensity={1} />
+            </mesh>
+        </group>
+    );
+}
+
+function DjedMesh({ mirror }: { mirror?: '/' | '\\' }) {
+    // treat as double-sided mirror block
+    const rotY = mirror === '/' ? 0 : Math.PI / 2;
+    return (
+        <group rotation-y={rotY}>
+            <mesh castShadow receiveShadow>
+                <boxGeometry args={[0.65, 0.4, 0.65]} />
+                <meshStandardMaterial color="#9aa" metalness={0.5} roughness={0.4} />
+            </mesh>
+            {/* mirror hints on two faces */}
+            <mesh position={[0, 0.22, 0.32]}>
+                <planeGeometry args={[0.55, 0.25]} />
+                <meshStandardMaterial color="#b0e0ff" metalness={1.0} roughness={0.1} />
+            </mesh>
+            <mesh position={[0, 0.22, -0.32]} rotation={[0, Math.PI, 0]}>
+                <planeGeometry args={[0.55, 0.25]} />
+                <meshStandardMaterial color="#b0e0ff" metalness={1.0} roughness={0.1} />
+            </mesh>
+        </group>
+    );
+}
+
+function LaserMesh({ facing, owner }: { facing?: Dir; owner: 'RED' | 'SILVER' }) {
+    const rotY = facing === 'N' ? 0
+        : facing === 'E' ? Math.PI / 2
+            : facing === 'S' ? Math.PI
+                : facing === 'W' ? -Math.PI / 2
+                    : 0;
+
+    return (
+        <group rotation-y={rotY}>
+            {/* base */}
+            <mesh castShadow receiveShadow>
+                <cylinderGeometry args={[0.3, 0.35, 0.25, 20]} />
+                <meshStandardMaterial color={owner === 'RED' ? '#cc4444' : '#8888cc'} />
+            </mesh>
+            {/* emitter tube */}
+            <mesh position={[0, 0.35, 0]}>
+                <cylinderGeometry args={[0.12, 0.12, 0.7, 12]} />
+                <meshStandardMaterial color="#444" metalness={0.3} roughness={0.7} />
+            </mesh>
+        </group>
+    );
+}
+
+function Piece3D({ r, c, cell, selected, onSelect }:
+    { r: number; c: number; cell: NonNullable<Cell>; selected: boolean; onSelect: (pos: Pos) => void }) {
+    const pos = gridToWorld(r, c);
+    const colour = cell.owner === 'RED' ? '#ff6b6b' : '#6b8bff';
+    const outline = selected ? 0.06 : 0;
+
+
+    // mirror-based Y rotation for Pyramid and Djed (matches previous primitive logic)
+    const mirrorRotY = cell.mirror === '/' ? 0 : Math.PI / 2;
+
+    return (
+        <group
+            position={[pos.x, 0.2, pos.z]}
+            onPointerDown={(e) => {
+                e.stopPropagation();
+                onSelect({ r, c });
+            }}
+        >
+            {/* pedestals to make selection more visible */}
+            {outline > 0 && (
+                <mesh position={[0, 0.01, 0]} rotation-x={-Math.PI / 2}>
+                    <ringGeometry args={[0.35, 0.35 + outline, 32]} />
+                    <meshBasicMaterial color={cell.owner === 'RED' ? '#ffaaaa' : '#aaccff'} transparent opacity={0.8} />
+                </mesh>
+            )}
+
+            {/* coloured base token under each piece */}
+            <mesh position={[0, 0.01, 0]} rotation-x={-Math.PI / 2}>
+                <ringGeometry args={[0.28, 0.32, 24]} />
+                <meshBasicMaterial color={colour} />
+            </mesh>
+
+            {/* actual piece */}
+            {//cell.kind === 'PHARAOH' && <PharaohMesh />
+            }
+            {//cell.kind === 'OBELISK' && <ObeliskMesh />
+            }
+            {//cell.kind === 'PYRAMID' && <PyramidMesh mirror={cell.mirror} />
+            }
+            {//cell.kind === 'DJED' && <DjedMesh mirror={cell.mirror} />
+            }
+            {//cell.kind === 'LASER' && <LaserMesh facing={cell.facing} owner={cell.owner} />
+            }
+
+            {/* GLTF models with orientation */}
+            {cell.kind === 'PHARAOH' && <PharaohGLTF />}
+
+            {cell.kind === 'OBELISK' && <ObeliskGLTF />}
+
+            {cell.kind === 'PYRAMID' && (
+                <group rotation-y={mirrorRotY}>
+                    <PyramidGLTF />
+                </group>
+            )}
+
+            {cell.kind === 'DJED' && (
+                <group rotation-y={mirrorRotY}>
+                    <DjedGLTF />
+                </group>
+            )}
+
+            {cell.kind === 'LASER' && (
+                <group rotation-y={dirToY(cell.facing)}>
+                    <LaserGLTF />
+                </group>
+            )}
+        </group>
+    );
+}
+
+function Tiles({
+    state,
+    onTileClick,
+}: {
+    state: GameState;
+    onTileClick: (pos: Pos) => void;
+}) {
+    const tiles = useMemo(() => {
+        const acc: { key: string; r: number; c: number; color: string }[] = [];
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                const even = (r + c) % 2 === 0;
+                acc.push({
+                    key: `${r}-${c}`,
+                    r, c,
+                    color: even ? '#ececec' : '#d6d6d6'
+                });
+            }
+        }
+        return acc;
+    }, []);
+
+    return (
+        <group>
+            {tiles.map((t) => {
+                const pos = gridToWorld(t.r, t.c);
+                return (
+                    <mesh
+                        key={t.key}
+                        position={[pos.x, 0, pos.z]}
+                        rotation-x={-Math.PI / 2}
+                        onPointerDown={(e) => {
+                            e.stopPropagation();
+                            onTileClick({ r: t.r, c: t.c });
+                        }}
+                        receiveShadow
+                    >
+                        <planeGeometry args={[TILE_SIZE - GAP, TILE_SIZE - GAP]} />
+                        <meshStandardMaterial color={t.color} />
+                    </mesh>
+                );
+            })}
+        </group>
+    );
+}
+
+function LaserPath3D({ path }: { path: Pos[] | undefined }) {
+    if (!path || path.length === 0) return null;
+
+    const points = path.map(p => {
+        const v = gridToWorld(p.r, p.c);
+        return [v.x, 0.35, v.z];
+    });
+
+    return (
+        <Line
+            points={points as unknown as [number, number, number][]}
+            color="#ff3333"
+            linewidth={3}
+            transparent
+            opacity={0.9}
+        />
+    );
+}
+
+export function Board3D() {
+    const state = useGame(s => s.state);
+    const color = useGame(s => s.color);
+    const sendMove = useGame(s => s.sendMove);
+
+    const [selected, setSelected] = useState<Pos | null>(null);
+
+    const isMyTurn = state && color && state.turn === color;
+
+    const onSelectPiece = useCallback((pos: Pos) => {
+        if (!isMyTurn) return;
+        const cell = state?.board[pos.r][pos.c];
+        if (!cell || cell.owner !== color) return;
+        setSelected(pos);
+    }, [state, color, isMyTurn]);
+
+    const onTileClick = useCallback((to: Pos) => {
+        if (!isMyTurn || !selected || !state) return;
+        const dr = Math.abs(to.r - selected.r);
+        const dc = Math.abs(to.c - selected.c);
+        if (dr + dc !== 1) {
+            // must be orthogonal 1 step
+            setSelected(null);
+            return;
+        }
+        // ensure dest empty (client-side optimistic check; server is authoritative)
+        if (state.board[to.r][to.c]) {
+            setSelected(null);
+            return;
+        }
+        sendMove({ type: 'MOVE', from: selected, to });
+        setSelected(null);
+    }, [isMyTurn, selected, state, sendMove]);
+
+    const onRotateSelected = useCallback((delta: 90 | -90) => {
+        if (!isMyTurn || !selected) return;
+        sendMove({ type: 'ROTATE', from: selected, rotation: delta });
+        setSelected(null);
+    }, [isMyTurn, selected, sendMove]);
+
+    if (!state) return <div>Waiting for state…</div>;
+
+    useGLTF.preload('/models/pharaoh.glb');
+    useGLTF.preload('/models/pyramid.glb');
+    useGLTF.preload('/models/djed.glb');
+    useGLTF.preload('/models/obelisk.glb');
+    useGLTF.preload('/models/laser.glb');
+
+    return (
+        <div style={{ height: 600, border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden' }}>
+            <Canvas
+                shadows
+                camera={{ position: [0, 8, 10], fov: 45, near: 0.1, far: 100 }}
+            >
+                {/* Lights */}
+                <ambientLight intensity={0.6} />
+                <directionalLight
+                    position={[8, 12, 6]}
+                    intensity={0.9}
+                    castShadow
+                    shadow-mapSize-width={2048}
+                    shadow-mapSize-height={2048}
+                />
+
+                {/* Ground/board shadow catcher */}
+                <mesh rotation-x={-Math.PI / 2} position={[0, -0.001, 0]} receiveShadow>
+                    <planeGeometry args={[BOARD_W + 2, BOARD_H + 2]} />
+                    <shadowMaterial opacity={0.25} />
+                </mesh>
+
+                {/* Board plane (tiles) */}
+                <Tiles state={state} onTileClick={onTileClick} />
+
+                {/* Pieces */}
+                <group>
+                    {state.board.map((row, r) =>
+                        row.map((cell, c) =>
+                            cell ? (
+                                <Piece3D
+                                    key={`${r}-${c}-${cell.id}`}
+                                    r={r}
+                                    c={c}
+                                    cell={cell}
+                                    selected={selected?.r === r && selected?.c === c}
+                                    onSelect={onSelectPiece}
+                                />
+                            ) : null
+                        )
+                    )}
+                </group>
+
+                {/* Laser path visualisation */}
+                <LaserPath3D path={state.lastLaserPath} />
+
+                <OrbitControls
+                    enablePan
+                    enableRotate
+                    enableZoom
+                    minDistance={5}
+                    maxDistance={30}
+                    target={[0, 0, 0]}
+                />
+            </Canvas>
+
+            {/* Simple HUD for rotate */}
+            <div style={{ display: 'flex', gap: 8, padding: 8, background: '#f7f7f7', borderTop: '1px solid #eee' }}>
+                <div style={{ flex: 1 }}>
+                    <b>Turn:</b> {state.turn} {isMyTurn ? '(your move)' : ''}
+                    {selected && isMyTurn && <span style={{ marginLeft: 12 }}>Selected: {selected.r},{selected.c}</span>}
+                </div>
+                <div>
+                    <button disabled={!isMyTurn || !selected} onClick={() => onRotateSelected(-90)}>Rotate ⟲</button>
+                    <button disabled={!isMyTurn || !selected} onClick={() => onRotateSelected(90)}>Rotate ⟳</button>
+                </div>
+            </div>
+        </div>
+    );
+}
