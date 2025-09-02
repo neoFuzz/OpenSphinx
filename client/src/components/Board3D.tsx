@@ -32,15 +32,31 @@ function worldToGrid(x: number, z: number): Pos | null {
 }
 
 /**
- * 
+ * Apply shadows and color tinting to a scene with deep material cloning
  * @param scene
+ * @param owner
  */
-function withShadows(scene: THREE.Object3D) {
+function withShadowsAndColor(scene: THREE.Object3D, owner: 'RED' | 'SILVER') {
+    const baseColor = owner === 'RED' ? new THREE.Color('#cc4444') : new THREE.Color('#8888cc');
+
     scene.traverse((o: any) => {
         if (o.isMesh) {
             o.castShadow = true;
             o.receiveShadow = true;
-            // o.material.envMapIntensity = 1; // optional PBR boost
+
+            // Deep clone materials to prevent sharing between instances
+            if (o.material) {
+                if (Array.isArray(o.material)) {
+                    o.material = o.material.map((mat: any) => {
+                        const clonedMat = mat.clone();
+                        clonedMat.color = baseColor.clone();
+                        return clonedMat;
+                    });
+                } else {
+                    o.material = o.material.clone();
+                    o.material.color = baseColor.clone();
+                }
+            }
         }
     });
 }
@@ -61,58 +77,80 @@ function dirToY(facing?: Dir) {
     }
 }
 
+// --- GLTF model components with owner-based coloring ---
 
 /**
+ * Returns the Pharaoh model
  * 
- * @returns the Pharaoh model
+ * @param param0 the owner JSON object
+ * @returns A themed Pharaoh model
  */
-function PharaohGLTF() {
+function PharaohGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     const { scene } = useGLTF('/models/pharaoh.glb');
-    useEffect(() => withShadows(scene), [scene]);
-    return <primitive object={scene} scale={0.5} />;
+    const clonedScene = useMemo(() => {
+        if (scene) {
+            const clone = scene.clone();
+            withShadowsAndColor(clone, owner);
+            return clone;
+        }
+        return null;
+    }, [scene, owner]);
+    return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
-/**
- * 
- * @returns the pyramid model
- */
-function PyramidGLTF() {
+function PyramidGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     const { scene } = useGLTF('/models/pyramid.glb');
-    useEffect(() => withShadows(scene), [scene]);
-    return <primitive object={scene} scale={0.5} />;
+    const clonedScene = useMemo(() => {
+        if (scene) {
+            const clone = scene.clone();
+            withShadowsAndColor(clone, owner);
+            return clone;
+        }
+        return null;
+    }, [scene, owner]);
+    return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
-/**
- * 
- * @returns the Djed model
- */
-function DjedGLTF() {
+function DjedGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     const { scene } = useGLTF('/models/djed.glb');
-    useEffect(() => withShadows(scene), [scene]);
-    return <primitive object={scene} scale={0.5} />;
+    const clonedScene = useMemo(() => {
+        if (scene) {
+            const clone = scene.clone();
+            withShadowsAndColor(clone, owner);
+            return clone;
+        }
+        return null;
+    }, [scene, owner]);
+    return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
-/**
- * 
- * @returns the Sphinx laser model
- */
-function LaserGLTF() {
+function LaserGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     const { scene } = useGLTF('/models/laser.glb');
-    useEffect(() => withShadows(scene), [scene]);
-    return <primitive object={scene} scale={0.5} />;
+    const clonedScene = useMemo(() => {
+        if (scene) {
+            const clone = scene.clone();
+            withShadowsAndColor(clone, owner);
+            return clone;
+        }
+        return null;
+    }, [scene, owner]);
+    return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
-/**
- * 
- * @returns the Obelisk model
- */
-function ObeliskGLTF() {
+function ObeliskGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     const { scene } = useGLTF('/models/obelisk.glb');
-    useEffect(() => withShadows(scene), [scene]);
-    return <primitive object={scene} scale={0.5} />;
+    const clonedScene = useMemo(() => {
+        if (scene) {
+            const clone = scene.clone();
+            withShadowsAndColor(clone, owner);
+            return clone;
+        }
+        return null;
+    }, [scene, owner]);
+    return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
-// --- PIECE MESHES (simple primitives; swap for GLTF later) ---
+// --- PIECE MESHES (simple primitives) ---
 function PharaohMesh(props: JSX.IntrinsicElements['group']) {
     // a gold cylinder
     return (
@@ -201,12 +239,11 @@ function LaserMesh({ facing, owner }: { facing?: Dir; owner: 'RED' | 'SILVER' })
     );
 }
 
-function Piece3D({ r, c, cell, selected, onSelect }:
-    { r: number; c: number; cell: NonNullable<Cell>; selected: boolean; onSelect: (pos: Pos) => void }) {
+function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
+    { r: number; c: number; cell: NonNullable<Cell>; selected: boolean; onSelect: (pos: Pos) => void; debugMode: boolean }) {
     const pos = gridToWorld(r, c);
     const colour = cell.owner === 'RED' ? '#ff6b6b' : '#6b8bff';
     const outline = selected ? 0.06 : 0;
-
 
     // mirror-based Y rotation for Pyramid and Djed (matches previous primitive logic)
     const mirrorRotY = cell.mirror === '/' ? 0 : Math.PI / 2;
@@ -233,38 +270,47 @@ function Piece3D({ r, c, cell, selected, onSelect }:
                 <meshBasicMaterial color={colour} />
             </mesh>
 
-            {/* actual piece */}
-            {//cell.kind === 'PHARAOH' && <PharaohMesh />
-            }
-            {//cell.kind === 'OBELISK' && <ObeliskMesh />
-            }
-            {//cell.kind === 'PYRAMID' && <PyramidMesh mirror={cell.mirror} />
-            }
-            {//cell.kind === 'DJED' && <DjedMesh mirror={cell.mirror} />
-            }
-            {//cell.kind === 'LASER' && <LaserMesh facing={cell.facing} owner={cell.owner} />
-            }
+            {/* Debug wireframe box */}
+            {debugMode && (
+                <mesh position={[0, 0.8, 0]}>
+                    <boxGeometry args={[0.2, 0.2, 0.2]} />
+                    <meshBasicMaterial
+                        color={cell.owner === 'RED' ? '#ff0000' : '#0000ff'}
+                        wireframe
+                        transparent
+                        opacity={0.7}
+                    />
+                </mesh>
+            )}
 
-            {/* GLTF models with orientation */}
-            {cell.kind === 'PHARAOH' && <PharaohGLTF />}
+            {/* GLTF models with orientation and owner-based coloring */}
+            {cell.kind === 'PHARAOH' && (
+                <group position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
+                    <PharaohGLTF owner={cell.owner} />
+                </group>
+            )}
 
-            {cell.kind === 'OBELISK' && <ObeliskGLTF />}
+            {cell.kind === 'OBELISK' && (
+                <group position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
+                    <ObeliskGLTF owner={cell.owner} />
+                </group>
+            )}
 
             {cell.kind === 'PYRAMID' && (
-                <group rotation-y={mirrorRotY}>
-                    <PyramidGLTF />
+                <group rotation-y={mirrorRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
+                    <PyramidGLTF owner={cell.owner} />
                 </group>
             )}
 
             {cell.kind === 'DJED' && (
-                <group rotation-y={mirrorRotY}>
-                    <DjedGLTF />
+                <group rotation-y={mirrorRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
+                    <DjedGLTF owner={cell.owner} />
                 </group>
             )}
 
             {cell.kind === 'LASER' && (
-                <group rotation-y={dirToY(cell.facing)}>
-                    <LaserGLTF />
+                <group rotation-y={dirToY(cell.facing)} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
+                    <LaserGLTF owner={cell.owner} />
                 </group>
             )}
         </group>
@@ -286,7 +332,7 @@ function Tiles({
                 acc.push({
                     key: `${r}-${c}`,
                     r, c,
-                    color: even ? '#ececec' : '#d6d6d6'
+                    color: even ? '#d4a574' : '#8b4513'
                 });
             }
         }
@@ -300,16 +346,16 @@ function Tiles({
                 return (
                     <mesh
                         key={t.key}
-                        position={[pos.x, 0, pos.z]}
-                        rotation-x={-Math.PI / 2}
+                        position={[pos.x, 0.05, pos.z]}
                         onPointerDown={(e) => {
                             e.stopPropagation();
                             onTileClick({ r: t.r, c: t.c });
                         }}
                         receiveShadow
+                        castShadow
                     >
-                        <planeGeometry args={[TILE_SIZE - GAP, TILE_SIZE - GAP]} />
-                        <meshStandardMaterial color={t.color} />
+                        <boxGeometry args={[TILE_SIZE - GAP,0.2,TILE_SIZE - GAP]} />
+                        <meshStandardMaterial color={t.color} roughness={0.8} metalness={0.1} />
                     </mesh>
                 );
             })}
@@ -342,15 +388,37 @@ export function Board3D() {
     const sendMove = useGame(s => s.sendMove);
 
     const [selected, setSelected] = useState<Pos | null>(null);
+    const [debugMode, setDebugMode] = useState(false);
+
+    useEffect(() => {
+        const handleKeyPress = (e: KeyboardEvent) => {
+            if (e.key.toLowerCase() === 'd') {
+                setDebugMode(prev => !prev);
+            }
+        };
+        window.addEventListener('keydown', handleKeyPress);
+        return () => window.removeEventListener('keydown', handleKeyPress);
+    }, []);
 
     const isMyTurn = state && color && state.turn === color;
 
     const onSelectPiece = useCallback((pos: Pos) => {
-        if (!isMyTurn) return;
+        if (debugMode) {
+            console.log('onSelectPiece called:', pos, 'isMyTurn:', isMyTurn, 'color:', color);
+        }
+        if (!isMyTurn) {
+            if (debugMode) console.log('Not my turn, ignoring selection');
+            return;
+        }
         const cell = state?.board[pos.r][pos.c];
-        if (!cell || cell.owner !== color) return;
+        if (debugMode) console.log('Cell at position:', cell);
+        if (!cell || cell.owner !== color) {
+            if (debugMode) console.log('Cell empty or not owned by player');
+            return;
+        }
+        if (debugMode) console.log('Setting selected to:', pos);
         setSelected(pos);
-    }, [state, color, isMyTurn]);
+    }, [state, color, isMyTurn, debugMode]);
 
     const onTileClick = useCallback((to: Pos) => {
         if (!isMyTurn || !selected || !state) return;
@@ -385,10 +453,36 @@ export function Board3D() {
     useGLTF.preload('/models/laser.glb');
 
     return (
-        <div style={{ height: 600, border: '1px solid #ddd', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ height: 600, border: '1px solid #ddd', borderRadius: '0.5rem 0.5rem 0 0', overflow: 'hidden', position: 'relative' }}>
+            {/* HUD for rotate */}
+            <div style={{ display: 'flex', gap: 8, padding: 8, background: '#f7f7f7', borderBottom: '1px solid #eee', position: 'relative', zIndex: 10, color: '#000' }}>
+                <div style={{ flex: 1, color: '#000' }}>
+                    <b style={{ color: '#000' }}>Turn:</b> <span style={{ color: '#000' }}>{state.turn} {isMyTurn ? '(your move)' : ''}</span>
+                    {selected && <span style={{ marginLeft: 12, color: '#000' }}>Selected: {selected.r},{selected.c}</span>}
+                    {debugMode && <span style={{ marginLeft: 12, fontSize: '12px', color: '#666' }}>Debug: selected={selected ? 'yes' : 'no'}, isMyTurn={isMyTurn ? 'yes' : 'no'}</span>}
+                </div>
+                <div>
+                    <button 
+                        disabled={!isMyTurn || !selected} 
+                        onClick={() => onRotateSelected(-90)}
+                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', padding: '4px 8px' }}
+                    >
+                        Rotate ⟲
+                    </button>
+                    <button 
+                        disabled={!isMyTurn || !selected} 
+                        onClick={() => onRotateSelected(90)}
+                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', padding: '4px 8px', marginLeft: '4px' }}
+                    >
+                        Rotate ⟳
+                    </button>
+                </div>
+            </div>
+
             <Canvas
                 shadows
                 camera={{ position: [0, 8, 10], fov: 45, near: 0.1, far: 100 }}
+                style={{ background: '#000000', height: 'calc(100% - 50px)' }}
             >
                 {/* Lights */}
                 <ambientLight intensity={0.6} />
@@ -421,6 +515,7 @@ export function Board3D() {
                                     cell={cell}
                                     selected={selected?.r === r && selected?.c === c}
                                     onSelect={onSelectPiece}
+                                    debugMode={debugMode}
                                 />
                             ) : null
                         )
@@ -439,18 +534,6 @@ export function Board3D() {
                     target={[0, 0, 0]}
                 />
             </Canvas>
-
-            {/* Simple HUD for rotate */}
-            <div style={{ display: 'flex', gap: 8, padding: 8, background: '#f7f7f7', borderTop: '1px solid #eee' }}>
-                <div style={{ flex: 1 }}>
-                    <b>Turn:</b> {state.turn} {isMyTurn ? '(your move)' : ''}
-                    {selected && isMyTurn && <span style={{ marginLeft: 12 }}>Selected: {selected.r},{selected.c}</span>}
-                </div>
-                <div>
-                    <button disabled={!isMyTurn || !selected} onClick={() => onRotateSelected(-90)}>Rotate ⟲</button>
-                    <button disabled={!isMyTurn || !selected} onClick={() => onRotateSelected(90)}>Rotate ⟳</button>
-                </div>
-            </div>
         </div>
     );
 }
