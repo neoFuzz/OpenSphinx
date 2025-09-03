@@ -16,6 +16,20 @@ function reflect(dir: Dir, mirror: '/' | '\\'): Dir {
   return mirror === '/' ? reflectSlash[dir] : reflectBackslash[dir];
 }
 
+function canReflectFromPyramid(laserDir: Dir, pyramidOrientation: Dir): boolean {
+  // Pyramid can only reflect when laser hits the hypotenuse face
+  // The hypotenuse face is opposite to the orientation direction
+  const oppositeDir: Record<Dir, Dir> = { N: 'S', S: 'N', E: 'W', W: 'E' };
+  return laserDir === oppositeDir[pyramidOrientation];
+}
+
+function reflectFromPyramid(laserDir: Dir, pyramidOrientation: Dir): Dir {
+  // Pyramid reflects like a '/' or '\' mirror depending on orientation
+  // N/S orientation acts like '/', E/W orientation acts like '\'
+  const mirror = (pyramidOrientation === 'N' || pyramidOrientation === 'S') ? '/' : '\\';
+  return reflect(laserDir, mirror);
+}
+
 export interface LaserResult {
   path: Pos[];
   destroyed?: { pos: Pos; piece: NonNullable<Cell> };
@@ -72,7 +86,18 @@ export function fireLaser(state: GameState): LaserResult {
       };
     }
 
-    if (cell.kind === 'PYRAMID' || cell.kind === 'DJED') {
+    if (cell.kind === 'PYRAMID') {
+      if (!cell.orientation || !canReflectFromPyramid(dir, cell.orientation)) {
+        return { path, destroyed: { pos: { r, c }, piece: cell } };
+      }
+      // Reflect from hypotenuse face
+      dir = reflectFromPyramid(dir, cell.orientation);
+      [dr, dc] = dirStep[dir];
+      r += dr; c += dc;
+      continue;
+    }
+
+    if (cell.kind === 'DJED') {
       if (!cell.mirror) {
         return { path, destroyed: { pos: { r, c }, piece: cell } };
       }

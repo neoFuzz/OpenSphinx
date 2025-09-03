@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Line, useGLTF } from '@react-three/drei';
 import { useGame } from '../state/game';
@@ -240,13 +240,104 @@ function LaserMesh({ facing, owner }: { facing?: Dir; owner: 'RED' | 'SILVER' })
     );
 }
 
+function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
+    const color = '#ffffff';
+    
+    if (cell.kind === 'PYRAMID') {
+        // Right-angle triangle showing where laser can hit (hypotenuse face)
+        // Hypotenuse faces opposite to orientation direction
+        const oppositeDir: Record<Dir, Dir> = { N: 'S', S: 'N', E: 'W', W: 'E' };
+        const hypotenuseFacing = cell.orientation ? oppositeDir[cell.orientation] : 'N';
+        const rotation = dirToY(hypotenuseFacing);
+        return (
+            <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
+                <group rotation-z={rotation}>
+                    <mesh position={[0, 0.1, 0]}>
+                        <coneGeometry args={[0.15, 0.3, 3]} />
+                        <meshBasicMaterial color={color} wireframe />
+                    </mesh>
+                </group>
+            </group>
+        );
+    }
+    
+    if (cell.kind === 'DJED') {
+        // Diagonal slash line for mirror - viewed from above
+        return (
+            <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
+                {cell.mirror === '/' ? (
+                    <mesh position={[0, 0, 0]} rotation-z={-Math.PI }>
+                        <boxGeometry args={[0.4, 0.05, 0.05]} />
+                        <meshBasicMaterial color={color} />
+                    </mesh>
+                ) : (
+                    <mesh position={[0, 0, 0]} rotation-z={Math.PI }>
+                        <boxGeometry args={[0.4, 0.05, 0.05]} />
+                        <meshBasicMaterial color={color} />
+                    </mesh>
+                )}
+            </group>
+        );
+    }
+    
+    if (cell.kind === 'PHARAOH') {
+        // Square
+        return (
+            <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
+                <mesh>
+                    <planeGeometry args={[0.3, 0.3]} />
+                    <meshBasicMaterial color={color} wireframe />
+                </mesh>
+            </group>
+        );
+    }
+    
+    if (cell.kind === 'OBELISK') {
+        // U shape viewed from above
+        return (
+            <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
+                <mesh position={[-0.1, 0, 0]}>
+                    <planeGeometry args={[0.05, 0.3]} />
+                    <meshBasicMaterial color={color} />
+                </mesh>
+                <mesh position={[0.1, 0, 0]}>
+                    <planeGeometry args={[0.05, 0.3]} />
+                    <meshBasicMaterial color={color} />
+                </mesh>
+                <mesh position={[0, -0.125, 0]}>
+                    <planeGeometry args={[0.2, 0.05]} />
+                    <meshBasicMaterial color={color} />
+                </mesh>
+            </group>
+        );
+    }
+    
+    if (cell.kind === 'LASER') {
+        // Arrow pointing in facing direction
+        const rotation = dirToY(cell.facing);
+        return (
+            <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
+                <group rotation-z={rotation}>
+                    <mesh position={[0, 0.1, 0]}>
+                        <coneGeometry args={[0.1, 0.2, 3]} />
+                        <meshBasicMaterial color={color} />
+                    </mesh>
+                </group>
+            </group>
+        );
+    }
+    
+    return null;
+}
+
 function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
     { r: number; c: number; cell: NonNullable<Cell>; selected: boolean; onSelect: (pos: Pos) => void; debugMode: boolean }) {
     const pos = gridToWorld(r, c);
     const colour = cell.owner === 'RED' ? '#ff6b6b' : '#6b8bff';
     const outline = selected ? 0.06 : 0;
 
-    // mirror-based Y rotation for Pyramid and Djed (matches previous primitive logic)
+    // orientation-based Y rotation for Pyramid, mirror-based for Djed
+    const pyramidRotY = cell.kind === 'PYRAMID' && cell.orientation ? dirToY(cell.orientation) : 0;
     const mirrorRotY = cell.mirror === '/' ? 0 : Math.PI / 2;
 
     return (
@@ -271,18 +362,8 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
                 <meshBasicMaterial color={colour} />
             </mesh>
 
-            {/* Debug wireframe box */}
-            {debugMode && (
-                <mesh position={[0, 0.8, 0]}>
-                    <boxGeometry args={[0.2, 0.2, 0.2]} />
-                    <meshBasicMaterial
-                        color={cell.owner === 'RED' ? '#ff0000' : '#0000ff'}
-                        wireframe
-                        transparent
-                        opacity={0.7}
-                    />
-                </mesh>
-            )}
+            {/* Debug overlay */}
+            {debugMode && <DebugOverlay cell={cell} />}
 
             {/* GLTF models with orientation and owner-based coloring */}
             {cell.kind === 'PHARAOH' && (
@@ -327,7 +408,7 @@ function Tiles({ state, onTileClick, }: { state: GameState; onTileClick: (pos: P
                 acc.push({
                     key: `${r}-${c}`,
                     r, c,
-                    color: even ? '#d4a574' : '#8b4513'
+                    color: even ? '#ececec' : '#d6d6d6'
                 });
             }
         }
@@ -448,26 +529,26 @@ export function Board3D() {
     useGLTF.preload('/models/laser.glb');
 
     return (
-        <div style={{ height: 600, border: '1px solid #ddd', borderRadius: '0.5rem 0.5rem 0 0', overflow: 'hidden', position: 'relative' }}>
+        <div className="border rounded" style={{ height: 600, overflow: 'hidden', position: 'relative' }}>
             {/* HUD for rotate */}
-            <div style={{ display: 'flex', gap: 8, padding: 8, background: '#f7f7f7', borderBottom: '1px solid #eee', position: 'relative', zIndex: 10, color: '#000' }}>
-                <div style={{ flex: 1, color: '#000' }}>
-                    <b style={{ color: '#000' }}>Turn:</b> <span style={{ color: '#000' }}>{state.turn} {isMyTurn ? '(your move)' : ''}</span>
-                    {selected && <span style={{ marginLeft: 12, color: '#000' }}>Selected: {selected.r},{selected.c}</span>}
-                    {debugMode && <span style={{ marginLeft: 12, fontSize: '12px', color: '#666' }}>Debug: selected={selected ? 'yes' : 'no'}, isMyTurn={isMyTurn ? 'yes' : 'no'}</span>}
+            <div className="d-flex align-items-center p-2 bg-light border-bottom" style={{ position: 'relative', zIndex: 10 }}>
+                <div className="flex-grow-1">
+                    <strong>Turn:</strong> <span className="text-primary">{state.turn}</span> {isMyTurn && <span className="badge bg-success ms-1">Your move</span>}
+                    {selected && <span className="ms-3 text-muted">Selected: {selected.r},{selected.c}</span>}
+                    {debugMode && <span className="ms-3 small text-secondary">Debug: selected={selected ? 'yes' : 'no'}, isMyTurn={isMyTurn ? 'yes' : 'no'}</span>}
                 </div>
-                <div>
+                <div className="btn-group">
                     <button
+                        className="btn btn-outline-secondary btn-sm"
                         disabled={!isMyTurn || !selected}
                         onClick={() => onRotateSelected(-90)}
-                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', padding: '4px 8px' }}
                     >
                         Rotate ⟲
                     </button>
                     <button
+                        className="btn btn-outline-secondary btn-sm"
                         disabled={!isMyTurn || !selected}
                         onClick={() => onRotateSelected(90)}
-                        style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', padding: '4px 8px', marginLeft: '4px' }}
                     >
                         Rotate ⟳
                     </button>

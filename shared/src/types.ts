@@ -15,6 +15,7 @@ export interface Piece {
   kind: PieceKind;
   facing?: Dir;         // for LASER emitters
   mirror?: MirrorShape; // for mirror-bearing pieces
+  orientation?: Dir;    // for pyramids - which direction the hypotenuse faces
 }
 
 export type Cell = Piece | null;

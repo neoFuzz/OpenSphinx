@@ -27,7 +27,9 @@ export function applyMove(state: GameState, move: Move): GameState {
   } else if (move.type === 'ROTATE') {
     if (!move.rotation || (move.rotation !== 90 && move.rotation !== -90)) return s;
 
-    if (piece.mirror) {
+    if (piece.kind === 'PYRAMID' && piece.orientation) {
+      piece.orientation = rotateDir(piece.orientation, move.rotation);
+    } else if (piece.mirror) {
       piece.mirror = piece.mirror === '/' ? '\\' : '/';
     }
     if (piece.facing) {

@@ -16,9 +16,9 @@ export function createInitialState(): GameState {
   board[0][5] = { id: 'P_SIL', owner: 'SILVER', kind: 'PHARAOH' };
 
   // Mirrors and obelisks
-  board[6][2] = { id: 'R1', owner: 'RED', kind: 'PYRAMID', mirror: '/' };
+  board[6][2] = { id: 'R1', owner: 'RED', kind: 'PYRAMID', orientation: 'N' };
   board[6][7] = { id: 'R2', owner: 'RED', kind: 'DJED', mirror: '\\' };
-  board[1][2] = { id: 'S1', owner: 'SILVER', kind: 'PYRAMID', mirror: '\\' };
+  board[1][2] = { id: 'S1', owner: 'SILVER', kind: 'PYRAMID', orientation: 'S' };
   board[1][7] = { id: 'S2', owner: 'SILVER', kind: 'DJED', mirror: '/' };
   board[5][5] = { id: 'B1', owner: 'RED', kind: 'OBELISK' };
   board[2][4] = { id: 'B2', owner: 'SILVER', kind: 'OBELISK' };

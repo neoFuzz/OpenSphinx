@@ -7,9 +7,12 @@ interface GameStore {
     roomId?: string;
     color?: 'RED' | 'SILVER';
     state?: GameState;
+    modal?: { title: string; message: string };
     connectRoom: (roomId: string, name: string) => void;
     sendMove: (move: Move) => void;
     createRoom: (onCreated?: (id: string) => void) => void;
+    showModal: (title: string, message: string) => void;
+    hideModal: () => void;
 }
 
 let listenersBound = false;
@@ -28,7 +31,7 @@ export const useGame = create<GameStore>((set, get) => ({
             socket.on('connect', () => console.log('socket connected', socket.id));
             socket.on('room:state', (payload) => set({ state: payload.state }));
             socket.on('game:state', (payload) => set({ state: payload.state }));
-            socket.on('game:end', (payload) => alert(`Winner: ${payload.winner}`));
+            socket.on('game:end', (payload) => get().showModal('Game Over', `Winner: ${payload.winner}`));
             listenersBound = true;
         }
 
@@ -36,7 +39,7 @@ export const useGame = create<GameStore>((set, get) => ({
             if (res?.ok) {
                 set({ roomId, color: res.color });
             } else if (res?.error) {
-                alert(res.error); // e.g., "Room not found"
+                get().showModal('Error', res.error);
             }
         });
     },
@@ -47,4 +50,7 @@ export const useGame = create<GameStore>((set, get) => ({
         if (!roomId) return;
         socket.emit('game:move', { roomId, move });
     },
+
+    showModal: (title, message) => set({ modal: { title, message } }),
+    hideModal: () => set({ modal: undefined }),
 }));
