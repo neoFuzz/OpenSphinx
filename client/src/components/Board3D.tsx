@@ -43,6 +43,7 @@ function withShadowsAndColor(scene: THREE.Object3D, owner: 'RED' | 'SILVER') {
         if (o.isMesh) {
             o.castShadow = true;
             o.receiveShadow = true;
+            o.material.envMapIntensity = 1; // PBR boost
 
             // Deep clone materials to prevent sharing between instances
             if (o.material) {
@@ -317,13 +318,7 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
     );
 }
 
-function Tiles({
-    state,
-    onTileClick,
-}: {
-    state: GameState;
-    onTileClick: (pos: Pos) => void;
-}) {
+function Tiles({ state, onTileClick, }: { state: GameState; onTileClick: (pos: Pos) => void; }) {
     const tiles = useMemo(() => {
         const acc: { key: string; r: number; c: number; color: string }[] = [];
         for (let r = 0; r < ROWS; r++) {
@@ -354,7 +349,7 @@ function Tiles({
                         receiveShadow
                         castShadow
                     >
-                        <boxGeometry args={[TILE_SIZE - GAP,0.2,TILE_SIZE - GAP]} />
+                        <boxGeometry args={[TILE_SIZE - GAP, 0.2, TILE_SIZE - GAP]} />
                         <meshStandardMaterial color={t.color} roughness={0.8} metalness={0.1} />
                     </mesh>
                 );
@@ -462,15 +457,15 @@ export function Board3D() {
                     {debugMode && <span style={{ marginLeft: 12, fontSize: '12px', color: '#666' }}>Debug: selected={selected ? 'yes' : 'no'}, isMyTurn={isMyTurn ? 'yes' : 'no'}</span>}
                 </div>
                 <div>
-                    <button 
-                        disabled={!isMyTurn || !selected} 
+                    <button
+                        disabled={!isMyTurn || !selected}
                         onClick={() => onRotateSelected(-90)}
                         style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', padding: '4px 8px' }}
                     >
                         Rotate ⟲
                     </button>
-                    <button 
-                        disabled={!isMyTurn || !selected} 
+                    <button
+                        disabled={!isMyTurn || !selected}
                         onClick={() => onRotateSelected(90)}
                         style={{ color: '#000', backgroundColor: '#fff', border: '1px solid #ccc', padding: '4px 8px', marginLeft: '4px' }}
                     >

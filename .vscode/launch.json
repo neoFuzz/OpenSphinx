@@ -1,0 +1,58 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Server",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}\\server\\src\\index.ts",
+            "outFiles": [
+                "${workspaceFolder}/**/*.js"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Client",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "program": "${workspaceFolder}\\client\\src\\index.ts",
+            "outFiles": [
+                "${workspaceFolder}/**/*.js"
+            ]
+        },
+        {
+            "name": "Debug Server",
+            "type": "node",
+            "request": "launch",
+            "preLaunchTask": "Run Server", // Ensure server task is run first
+            "runtimeExecutable": "npm",
+            "runtimeArgs": [
+                "run",
+                "dev",
+                "--workspace",
+                "server"
+            ],
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "port": 9229, // Debugger listens on port 9229
+        },
+        {
+            "name": "Debug Client",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:3000", // Adjust this URL to match your client server
+            "webRoot": "${workspaceFolder}/client", // Adjust to the correct client folder
+            "preLaunchTask": "Run Client",
+            "breakOnLoad": true
+        }
+    ]
+}

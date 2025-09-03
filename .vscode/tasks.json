@@ -1,0 +1,45 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Server",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "dev",
+        "--workspace",
+        "server"
+      ],
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "group": "server"
+      },
+      "isBackground": true,
+      "debuggerPort": 9229,
+      "runtimeArgs": [
+        "--inspect-brk"
+      ]
+    },
+    {
+      "label": "Run Client",
+      "type": "shell",
+      "command": "npm",
+      "args": [
+        "run",
+        "dev",
+        "--workspace",
+        "client"
+      ],
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": {
+        "panel": "dedicated",
+        "group": "client"
+      },
+      "isBackground": true
+    }
+  ]
+}
