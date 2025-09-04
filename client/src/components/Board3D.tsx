@@ -242,36 +242,56 @@ function LaserMesh({ facing, owner }: { facing?: Dir; owner: 'RED' | 'SILVER' })
 
 function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
     const color = '#ffffff';
-    
+
     if (cell.kind === 'PYRAMID') {
-        // Right-angle triangle showing where laser can hit (hypotenuse face)
-        // Hypotenuse faces opposite to orientation direction
-        const oppositeDir: Record<Dir, Dir> = { N: 'S', S: 'N', E: 'W', W: 'E' };
-        const hypotenuseFacing = cell.orientation ? oppositeDir[cell.orientation] : 'N';
-        const rotation = dirToY(hypotenuseFacing);
+        //console.log(`Pyramid cell:`, JSON.stringify(cell, null, 2));
+        //console.log(`Pyramid - orientation: ${cell.orientation}, has debug: ${!!cell.debug}`);
+        
+        // Fix missing orientation
+        if (!cell.orientation) {
+            console.log('WARNING: Pyramid missing orientation, using default N');
+            cell.orientation = 'N';
+        }
+        
+        const rotation = dirToY(cell.orientation);
+
+        // Create flat triangle showing mirror facing orientation
+        const triangleVertices = new Float32Array([
+            -0.2, -0.2, 0,   // bottom left
+            0.2, -0.2, 0,    // bottom right
+            0.2, 0.1, 0      // top right
+        ]);
+
         return (
-            <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
-                <group rotation-z={rotation}>
-                    <mesh position={[0, 0.1, 0]}>
-                        <coneGeometry args={[0.15, 0.3, 3]} />
-                        <meshBasicMaterial color={color} wireframe />
+            <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2} >
+                <group rotation-z={rotation} >
+                    <mesh>
+                        <bufferGeometry>
+                            <bufferAttribute
+                                attach="attributes-position"
+                                count={3}
+                                array={triangleVertices}
+                                itemSize={3}
+                            />
+                        </bufferGeometry>
+                        <meshBasicMaterial color={color} side={2} />
                     </mesh>
                 </group>
             </group>
         );
     }
-    
+
     if (cell.kind === 'DJED') {
         // Diagonal slash line for mirror - viewed from above
         return (
             <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
                 {cell.mirror === '/' ? (
-                    <mesh position={[0, 0, 0]} rotation-z={-Math.PI }>
+                    <mesh position={[0, 0, 0]} rotation-z={-Math.PI / 1.45}>
                         <boxGeometry args={[0.4, 0.05, 0.05]} />
                         <meshBasicMaterial color={color} />
                     </mesh>
                 ) : (
-                    <mesh position={[0, 0, 0]} rotation-z={Math.PI }>
+                    <mesh position={[0, 0, 0]} rotation-z={Math.PI / 1.45}>
                         <boxGeometry args={[0.4, 0.05, 0.05]} />
                         <meshBasicMaterial color={color} />
                     </mesh>
@@ -279,7 +299,7 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
             </group>
         );
     }
-    
+
     if (cell.kind === 'PHARAOH') {
         // Square
         return (
@@ -291,7 +311,7 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
             </group>
         );
     }
-    
+
     if (cell.kind === 'OBELISK') {
         // U shape viewed from above
         return (
@@ -311,7 +331,7 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
             </group>
         );
     }
-    
+
     if (cell.kind === 'LASER') {
         // Arrow pointing in facing direction
         const rotation = dirToY(cell.facing);
@@ -326,7 +346,7 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
             </group>
         );
     }
-    
+
     return null;
 }
 
@@ -336,6 +356,11 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
     const colour = cell.owner === 'RED' ? '#ff6b6b' : '#6b8bff';
     const outline = selected ? 0.06 : 0;
 
+    // Debug logging for piece rendering
+    if (cell.kind === 'PYRAMID') {
+        console.log(`Rendering pyramid at ${r},${c}:`); //, JSON.stringify(cell, null, 2)
+    }
+    
     // orientation-based Y rotation for Pyramid, mirror-based for Djed
     const pyramidRotY = cell.kind === 'PYRAMID' && cell.orientation ? dirToY(cell.orientation) : 0;
     const mirrorRotY = cell.mirror === '/' ? 0 : Math.PI / 2;
@@ -364,6 +389,32 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
 
             {/* Debug overlay */}
             {debugMode && <DebugOverlay cell={cell} />}
+            
+            {/* Compass - only show on one piece to avoid clutter */}
+            {debugMode && r === 0 && c === 0 && (
+                <group position={[0, 1.2, 0]}>
+                    {/* N */}
+                    <mesh position={[0, 0, -0.3]}>
+                        <boxGeometry args={[0.02, 0.02, 0.2]} />
+                        <meshBasicMaterial color="#ff0000" />
+                    </mesh>
+                    {/* E */}
+                    <mesh position={[0.3, 0, 0]}>
+                        <boxGeometry args={[0.2, 0.02, 0.02]} />
+                        <meshBasicMaterial color="#00ff00" />
+                    </mesh>
+                    {/* S */}
+                    <mesh position={[0, 0, 0.3]}>
+                        <boxGeometry args={[0.02, 0.02, 0.2]} />
+                        <meshBasicMaterial color="#0000ff" />
+                    </mesh>
+                    {/* W */}
+                    <mesh position={[-0.3, 0, 0]}>
+                        <boxGeometry args={[0.2, 0.02, 0.02]} />
+                        <meshBasicMaterial color="#ffff00" />
+                    </mesh>
+                </group>
+            )}
 
             {/* GLTF models with orientation and owner-based coloring */}
             {cell.kind === 'PHARAOH' && (
@@ -379,7 +430,7 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
             )}
 
             {cell.kind === 'PYRAMID' && (
-                <group rotation-y={mirrorRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
+                <group rotation-y={pyramidRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
                     <PyramidGLTF owner={cell.owner} />
                 </group>
             )}

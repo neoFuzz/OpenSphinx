@@ -7,27 +7,72 @@ const dirStep: Record<Dir, [number, number]> = {
   E: [0, 1],
   S: [1, 0],
   W: [0, -1],
+  O: [0, 0] // flag to destroy piece
 };
 
-const reflectSlash: Record<Dir, Dir> = { N: 'E', E: 'N', S: 'W', W: 'S' };
-const reflectBackslash: Record<Dir, Dir> = { N: 'W', W: 'N', S: 'E', E: 'S' };
+const reflectSlash: Record<Dir, Dir> = {
+  N: 'E', E: 'N', S: 'W', W: 'S', O: 'O'
+};
+const reflectBackslash: Record<Dir, Dir> = {
+  N: 'W', W: 'N', S: 'E', E: 'S', O: 'O'
+};
 
 function reflect(dir: Dir, mirror: '/' | '\\'): Dir {
   return mirror === '/' ? reflectSlash[dir] : reflectBackslash[dir];
 }
 
 function canReflectFromPyramid(laserDir: Dir, pyramidOrientation: Dir): boolean {
-  // Pyramid can only reflect when laser hits the hypotenuse face
-  // The hypotenuse face is opposite to the orientation direction
-  const oppositeDir: Record<Dir, Dir> = { N: 'S', S: 'N', E: 'W', W: 'E' };
-  return laserDir === oppositeDir[pyramidOrientation];
+  // Pyramid reflection rules:
+  // N: north ↔ east reflection
+  // E: east ↔ south reflection  
+  // S: west ↔ south reflection
+  // W: west ↔ north reflection
+  const reflectMap: Record<Dir, Dir[]> = {
+    N: ['S', 'W'], // N orientation: reflects S->E, W->N
+    E: ['N', 'W'], // E orientation: reflects N->E, W->S
+    S: ['E', 'N'], // S orientation: reflects E->S, N->W
+    W: ['S', 'E'], // W orientation: reflects S->W, E->N
+    O: [] // flag to destroy piece
+  };
+  return reflectMap[pyramidOrientation].includes(laserDir);
 }
 
 function reflectFromPyramid(laserDir: Dir, pyramidOrientation: Dir): Dir {
-  // Pyramid reflects like a '/' or '\' mirror depending on orientation
-  // N/S orientation acts like '/', E/W orientation acts like '\'
-  const mirror = (pyramidOrientation === 'N' || pyramidOrientation === 'S') ? '/' : '\\';
-  return reflect(laserDir, mirror);
+  // Pyramid reflection based on orientation rules
+  const reflections: Record<Dir, Record<Dir, Dir>> = {
+    N: {
+      S: 'E', W: 'N',
+      N: 'O',
+      E: 'O',
+      O: 'O'
+    }, // N orientation: S->E, W->N
+    E: {
+      N: 'E', W: 'S',
+      E: 'O',
+      S: 'O',
+      O: 'O'
+    }, // E orientation: N->E, W->S
+    S: {
+      E: 'S', N: 'W',
+      S: 'O',
+      W: 'O',
+      O: 'O'
+    }, // S orientation: E->S, N->W
+    W: {
+      S: 'W', E: 'N',
+      N: 'O',
+      W: 'O',
+      O: 'O'
+    } // W orientation: S->W, E->N
+    ,
+    O: {
+      S: 'O', E: 'O',
+      N: 'O',
+      W: 'O',
+      O: 'O'
+    }
+  };
+  return reflections[pyramidOrientation][laserDir];
 }
 
 export interface LaserResult {
@@ -75,10 +120,12 @@ export function fireLaser(state: GameState): LaserResult {
     }
 
     if (cell.kind === 'OBELISK') {
+      console.log(`DESTROYED: ${cell.owner} OBELISK at ${r},${c} by laser from ${dir}`);
       return { path, destroyed: { pos: { r, c }, piece: cell } };
     }
 
     if (cell.kind === 'PHARAOH') {
+      console.log(`DESTROYED: ${cell.owner} PHARAOH at ${r},${c} by laser from ${dir} - GAME OVER`);
       return {
         path,
         destroyed: { pos: { r, c }, piece: cell },
@@ -87,10 +134,17 @@ export function fireLaser(state: GameState): LaserResult {
     }
 
     if (cell.kind === 'PYRAMID') {
-      if (!cell.orientation || !canReflectFromPyramid(dir, cell.orientation)) {
+      // Fix missing orientation
+      if (!cell.orientation) {
+        console.log('WARNING: Pyramid missing orientation in laser logic, using default N');
+        cell.orientation = 'N';
+      }
+      if (!canReflectFromPyramid(dir, cell.orientation)) {
+        console.log(`DESTROYED: ${cell.owner} PYRAMID at ${r},${c} (orientation: ${cell.orientation}) by laser traveling ${dir}`);
         return { path, destroyed: { pos: { r, c }, piece: cell } };
       }
-      // Reflect from hypotenuse face
+      console.log(`REFLECTED: ${cell.owner} PYRAMID at ${r},${c} (orientation: ${cell.orientation}) reflects laser traveling ${dir} -> ${reflectFromPyramid(dir, cell.orientation)}`);
+      // Reflect from L-shaped mirror
       dir = reflectFromPyramid(dir, cell.orientation);
       [dr, dc] = dirStep[dir];
       r += dr; c += dc;

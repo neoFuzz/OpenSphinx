@@ -70,6 +70,7 @@ export function createRoomsManager(io: Server) {
 
     const next = applyMove(room.state, payload.move);
     room.state = next;
+    
     io.to(room.id).emit('game:state', { state: next, ack: payload.move.clientMoveId });
 
     if (next.winner) {

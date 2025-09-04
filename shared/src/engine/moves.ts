@@ -6,6 +6,24 @@ import { fireLaser } from './laser';
 export function applyMove(state: GameState, move: Move): GameState {
   // simple deep clone for safety
   const s: GameState = JSON.parse(JSON.stringify(state));
+  // Clean up pyramids to ensure they only have orientation
+  s.board.forEach((row, r) => {
+    row.forEach((cell, c) => {
+      if (cell?.kind === 'PYRAMID') {
+        //console.log(`After JSON clone - Pyramid at ${r},${c}: orientation=${cell.orientation}, mirror=${cell.mirror}`);
+        // Remove any incorrect mirror property
+        if ((cell as any).mirror) {
+          console.log(`WARNING: Pyramid at ${r},${c} has mirror property, removing it`);
+          delete (cell as any).mirror;
+        }
+        // Fix missing orientation after cloning
+        if (!cell.orientation) {
+          console.log(`WARNING: Pyramid at ${r},${c} missing orientation after clone, setting default`);
+          cell.orientation = r < 4 ? 'S' : 'N'; // Silver pyramids face S, Red pyramids face N
+        }
+      }
+    });
+  });
   if (s.winner) return s;
 
   const { board, turn } = s;
@@ -27,8 +45,19 @@ export function applyMove(state: GameState, move: Move): GameState {
   } else if (move.type === 'ROTATE') {
     if (!move.rotation || (move.rotation !== 90 && move.rotation !== -90)) return s;
 
-    if (piece.kind === 'PYRAMID' && piece.orientation) {
-      piece.orientation = rotateDir(piece.orientation, move.rotation);
+    console.log(`Before rotation - Piece:`, JSON.stringify(piece, null, 2));
+    
+    if (piece.kind === 'PYRAMID') {
+      // Ensure pyramids always have orientation, never mirror
+      if (!piece.orientation) {
+        console.log('WARNING: Pyramid missing orientation, setting default N');
+        piece.orientation = 'N';
+      }
+      const newOrientation = rotateDir(piece.orientation, move.rotation);
+      piece.orientation = newOrientation;
+      board[from.r][from.c] = piece; // Ensure board reference is updated
+      delete (piece as any).mirror;
+      console.log(`After rotation - Pyramid orientation: ${piece.orientation}`);
     } else if (piece.mirror) {
       piece.mirror = piece.mirror === '/' ? '\\' : '/';
     }
@@ -53,7 +82,8 @@ export function applyMove(state: GameState, move: Move): GameState {
   return s;
 }
 
-function rotateDir(d: 'N'|'E'|'S'|'W', rot: 90 | -90): 'N'|'E'|'S'|'W' {
+function rotateDir(d: 'N'|'E'|'S'|'W'|'O', rot: 90 | -90): 'N'|'E'|'S'|'W'|'O' {
+  if (d === 'O') return 'O';
   const order: ('N'|'E'|'S'|'W')[] = ['N', 'E', 'S', 'W'];
   let i = order.indexOf(d);
   i = (i + (rot === 90 ? 1 : 3)) % 4;
