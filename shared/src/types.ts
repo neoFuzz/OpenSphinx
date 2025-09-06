@@ -4,7 +4,7 @@ export type Dir = 'N' | 'E' | 'S' | 'W'| 'O';
 
 export interface Pos { r: number; c: number; }
 
-export type PieceKind = 'PHARAOH' | 'PYRAMID' | 'DJED' | 'OBELISK' | 'LASER';
+export type PieceKind = 'PHARAOH' | 'PYRAMID' | 'DJED' | 'OBELISK' | 'ANUBIS' | 'LASER';
 
 export type MirrorShape = '/' | '\\';
 export interface Piece {

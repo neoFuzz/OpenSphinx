@@ -31,8 +31,8 @@ export function createInitialState(): GameState {
   board[3][4] = createPiece({ id: 'R_DJED1', owner: 'RED', kind: 'DJED', mirror: '\\' });
   board[3][5] = createPiece({ id: 'R_DJED2', owner: 'RED', kind: 'DJED', mirror: '/' });
   
-  board[0][4] = createPiece({ id: 'R_OBE1', owner: 'RED', kind: 'OBELISK', orientation: 'S' });
-  board[0][6] = createPiece({ id: 'R_OBE2', owner: 'RED', kind: 'OBELISK', orientation: 'S' });
+  board[0][4] = createPiece({ id: 'R_ANB1', owner: 'RED', kind: 'ANUBIS', orientation: 'S' });
+  board[0][6] = createPiece({ id: 'R_ANB2', owner: 'RED', kind: 'ANUBIS', orientation: 'S' });
 
   // SILVER pieces
   board[2][3] = createPiece({ id: 'S_PYR1', owner: 'SILVER', kind: 'PYRAMID', orientation: 'W' });
@@ -46,8 +46,8 @@ export function createInitialState(): GameState {
   board[4][4] = createPiece({ id: 'S_DJED2', owner: 'SILVER', kind: 'DJED', mirror: '/' });
   board[4][5] = createPiece({ id: 'S_DJED1', owner: 'SILVER', kind: 'DJED', mirror: '\\' });
   
-  board[7][3] = createPiece({ id: 'S_OBE1', owner: 'SILVER', kind: 'OBELISK', orientation: 'N' });
-  board[7][5] = createPiece({ id: 'S_OBE2', owner: 'SILVER', kind: 'OBELISK', orientation: 'N' });
+  board[7][3] = createPiece({ id: 'S_ANB1', owner: 'SILVER', kind: 'ANUBIS', orientation: 'N' });
+  board[7][5] = createPiece({ id: 'S_ANB2', owner: 'SILVER', kind: 'ANUBIS', orientation: 'N' });
 
   return { board, turn: 'RED' };
 }

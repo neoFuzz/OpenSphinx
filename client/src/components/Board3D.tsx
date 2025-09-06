@@ -151,6 +151,19 @@ function ObeliskGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
+function AnubisGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
+    const { scene } = useGLTF('/models/anubis.glb');
+    const clonedScene = useMemo(() => {
+        if (scene) {
+            const clone = scene.clone();
+            withShadowsAndColor(clone, owner);
+            return clone;
+        }
+        return null;
+    }, [scene, owner]);
+    return clonedScene ? <primitive object={clonedScene} /> : null;
+}
+
 // --- PIECE MESHES (simple primitives) ---
 function PharaohMesh(props: JSX.IntrinsicElements['group']) {
     // a gold cylinder
@@ -244,27 +257,37 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
     const color = '#ffffff';
 
     if (cell.kind === 'PYRAMID') {
-        //console.log(`Pyramid cell:`, JSON.stringify(cell, null, 2));
-        //console.log(`Pyramid - orientation: ${cell.orientation}, has debug: ${!!cell.debug}`);
-        
         // Fix missing orientation
         if (!cell.orientation) {
             console.log('WARNING: Pyramid missing orientation, using default N');
             cell.orientation = 'N';
         }
         
-        const rotation = dirToY(cell.orientation);
-
-        // Create flat triangle showing mirror facing orientation
+        // Triangle with hypotenuse as reflective face
+        // Orientation determines which corner the pyramid points to
         const triangleVertices = new Float32Array([
             -0.2, -0.2, 0,   // bottom left
-            0.2, -0.2, 0,    // bottom right
-            0.2, 0.1, 0      // top right
+            0.2, -0.2, 0,    // bottom right  
+            0.2, 0.2, 0      // top right
         ]);
+        
+        // Rotate triangle so the hypotenuse faces the correct direction
+        // N: hypotenuse faces NE (default) |\
+        // E: hypotenuse faces SE  |/
+        // S: hypotenuse faces SW \|
+        // W: hypotenuse faces NW /|
+        const rotationMap = {
+            N: -Math.PI / 2,
+            E: Math.PI,
+            S: Math.PI / 2,
+            W: 0
+        };
+        
+        const rotation = rotationMap[cell.orientation] || 0;
 
         return (
-            <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2} >
-                <group rotation-z={rotation} >
+            <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
+                <group rotation-z={rotation}>
                     <mesh>
                         <bufferGeometry>
                             <bufferAttribute
@@ -332,6 +355,29 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
         );
     }
 
+    if (cell.kind === 'ANUBIS') {
+        // U shape rotated to show vulnerable sides (opening faces away from protected front)
+        const rotation = dirToY(cell.orientation) + Math.PI; // Rotate 180° so opening faces away from protected front
+        return (
+            <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
+                <group rotation-z={rotation}>
+                    <mesh position={[-0.1, 0, 0]}>
+                        <planeGeometry args={[0.05, 0.3]} />
+                        <meshBasicMaterial color={color} />
+                    </mesh>
+                    <mesh position={[0.1, 0, 0]}>
+                        <planeGeometry args={[0.05, 0.3]} />
+                        <meshBasicMaterial color={color} />
+                    </mesh>
+                    <mesh position={[0, -0.125, 0]}>
+                        <planeGeometry args={[0.2, 0.05]} />
+                        <meshBasicMaterial color={color} />
+                    </mesh>
+                </group>
+            </group>
+        );
+    }
+
     if (cell.kind === 'LASER') {
         // Arrow pointing in facing direction
         const rotation = dirToY(cell.facing);
@@ -361,8 +407,15 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
         console.log(`Rendering pyramid at ${r},${c}:`); //, JSON.stringify(cell, null, 2)
     }
     
+    let pyramidAngle;
+    if (cell.orientation == 'N' || cell.orientation == 'S') {
+         pyramidAngle = Math.PI / 2;
+    } else {
+        pyramidAngle = -Math.PI / 2;
+    }
+    
     // orientation-based Y rotation for Pyramid, mirror-based for Djed
-    const pyramidRotY = cell.kind === 'PYRAMID' && cell.orientation ? dirToY(cell.orientation) : 0;
+    const pyramidRotY = cell.kind === 'PYRAMID' && cell.orientation ? dirToY(cell.orientation) + pyramidAngle : 0;
     const mirrorRotY = cell.mirror === '/' ? 0 : Math.PI / 2;
 
     return (
@@ -441,9 +494,21 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
                 </group>
             )}
 
+            {cell.kind === 'OBELISK' && (
+                <group rotation-y={dirToY(cell.orientation)} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
+                    <ObeliskGLTF owner={cell.owner} />
+                </group>
+            )}
+
             {cell.kind === 'LASER' && (
                 <group rotation-y={dirToY(cell.facing)} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
                     <LaserGLTF owner={cell.owner} />
+                </group>
+            )}
+
+            {cell.kind === 'ANUBIS' && (
+                <group rotation-y={dirToY(cell.orientation) + Math.PI} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
+                    <AnubisGLTF owner={cell.owner} />
                 </group>
             )}
         </group>
@@ -578,6 +643,7 @@ export function Board3D() {
     useGLTF.preload('/models/djed.glb');
     useGLTF.preload('/models/obelisk.glb');
     useGLTF.preload('/models/laser.glb');
+    useGLTF.preload('/models/anubis.glb');
 
     return (
         <div className="border rounded" style={{ height: 600, overflow: 'hidden', position: 'relative' }}>

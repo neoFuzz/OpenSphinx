@@ -58,6 +58,11 @@ export function applyMove(state: GameState, move: Move): GameState {
       board[from.r][from.c] = piece; // Ensure board reference is updated
       delete (piece as any).mirror;
       console.log(`After rotation - Pyramid orientation: ${piece.orientation}`);
+    } else if (piece.kind === 'ANUBIS') {
+      if (!piece.orientation) {
+        piece.orientation = 'N';
+      }
+      piece.orientation = rotateDir(piece.orientation, move.rotation);
     } else if (piece.mirror) {
       piece.mirror = piece.mirror === '/' ? '\\' : '/';
     }

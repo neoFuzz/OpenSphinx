@@ -124,6 +124,16 @@ export function fireLaser(state: GameState): LaserResult {
       return { path, destroyed: { pos: { r, c }, piece: cell } };
     }
 
+    if (cell.kind === 'ANUBIS') {
+      // Anubis can't be destroyed when hit from the front (orientation direction)
+      if (cell.orientation && cell.orientation === dir) {
+        console.log(`BLOCKED: ${cell.owner} ANUBIS at ${r},${c} blocks laser from front (${dir})`);
+        return { path };
+      }
+      console.log(`DESTROYED: ${cell.owner} ANUBIS at ${r},${c} by laser from ${dir}`);
+      return { path, destroyed: { pos: { r, c }, piece: cell } };
+    }
+
     if (cell.kind === 'PHARAOH') {
       console.log(`DESTROYED: ${cell.owner} PHARAOH at ${r},${c} by laser from ${dir} - GAME OVER`);
       return {
@@ -144,7 +154,7 @@ export function fireLaser(state: GameState): LaserResult {
         return { path, destroyed: { pos: { r, c }, piece: cell } };
       }
       console.log(`REFLECTED: ${cell.owner} PYRAMID at ${r},${c} (orientation: ${cell.orientation}) reflects laser traveling ${dir} -> ${reflectFromPyramid(dir, cell.orientation)}`);
-      // Reflect from L-shaped mirror
+      // Reflect from mirror
       dir = reflectFromPyramid(dir, cell.orientation);
       [dr, dc] = dirStep[dir];
       r += dr; c += dc;
