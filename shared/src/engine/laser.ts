@@ -144,7 +144,7 @@ export function fireLaser(state: GameState): LaserResult {
         return { path, destroyed: { pos: { r, c }, piece: cell } };
       }
       console.log(`REFLECTED: ${cell.owner} PYRAMID at ${r},${c} (orientation: ${cell.orientation}) reflects laser traveling ${dir} -> ${reflectFromPyramid(dir, cell.orientation)}`);
-      // Reflect from L-shaped mirror
+      // Reflect from mirror
       dir = reflectFromPyramid(dir, cell.orientation);
       [dr, dc] = dirStep[dir];
       r += dr; c += dc;

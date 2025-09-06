@@ -244,27 +244,37 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
     const color = '#ffffff';
 
     if (cell.kind === 'PYRAMID') {
-        //console.log(`Pyramid cell:`, JSON.stringify(cell, null, 2));
-        //console.log(`Pyramid - orientation: ${cell.orientation}, has debug: ${!!cell.debug}`);
-        
         // Fix missing orientation
         if (!cell.orientation) {
             console.log('WARNING: Pyramid missing orientation, using default N');
             cell.orientation = 'N';
         }
         
-        const rotation = dirToY(cell.orientation);
-
-        // Create flat triangle showing mirror facing orientation
+        // Triangle with hypotenuse as reflective face
+        // Orientation determines which corner the pyramid points to
         const triangleVertices = new Float32Array([
             -0.2, -0.2, 0,   // bottom left
-            0.2, -0.2, 0,    // bottom right
-            0.2, 0.1, 0      // top right
+            0.2, -0.2, 0,    // bottom right  
+            0.2, 0.2, 0      // top right
         ]);
+        
+        // Rotate triangle so the hypotenuse faces the correct direction
+        // N: hypotenuse faces NE (default)
+        // E: hypotenuse faces SE  
+        // S: hypotenuse faces SW
+        // W: hypotenuse faces NW
+        const rotationMap = {
+            N: -Math.PI / 2,
+            E: Math.PI,
+            S: Math.PI / 2,
+            W: 0
+        };
+        
+        const rotation = rotationMap[cell.orientation] || 0;
 
         return (
-            <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2} >
-                <group rotation-z={rotation} >
+            <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
+                <group rotation-z={rotation}>
                     <mesh>
                         <bufferGeometry>
                             <bufferAttribute
