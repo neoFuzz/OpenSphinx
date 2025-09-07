@@ -31,6 +31,9 @@ export function applyMove(state: GameState, move: Move): GameState {
   if (!inBounds(from.r, from.c)) return s;
   const piece = board[from.r][from.c];
   if (!piece || piece.owner !== turn) return s;
+  
+  // Prevent LASER pieces from moving
+  if (move.type === 'MOVE' && piece.kind === 'LASER') return s;
 
   if (move.type === 'MOVE') {
     if (!move.to || !inBounds(move.to.r, move.to.c)) return s;
@@ -82,7 +85,17 @@ export function applyMove(state: GameState, move: Move): GameState {
       piece.mirror = piece.mirror === '/' ? '\\' : '/';
     }
     if (piece.facing) {
-      piece.facing = rotateDir(piece.facing, move.rotation);
+      const newFacing = rotateDir(piece.facing, move.rotation);
+      // Prevent Sphinx (LASER) from facing off the board
+      if (piece.kind === 'LASER') {
+        const isValidFacing = isValidLaserFacing(from, newFacing);
+        if (isValidFacing) {
+          piece.facing = newFacing;
+        }
+        // If rotation would face off board, don't rotate
+      } else {
+        piece.facing = newFacing;
+      }
     }
   }
 
@@ -108,4 +121,17 @@ function rotateDir(d: 'N'|'E'|'S'|'W'|'O', rot: 90 | -90): 'N'|'E'|'S'|'W'|'O' {
   let i = order.indexOf(d);
   i = (i + (rot === 90 ? 1 : 3)) % 4;
   return order[i];
+}
+
+function isValidLaserFacing(pos: { r: number; c: number }, facing: 'N'|'E'|'S'|'W'|'O'): boolean {
+  // RED laser at (0,0) can only face S or E (into the board)
+  if (pos.r === 0 && pos.c === 0) {
+    return facing === 'S' || facing === 'E';
+  }
+  // SILVER laser at (7,9) can only face N or W (into the board)
+  if (pos.r === 7 && pos.c === 9) {
+    return facing === 'N' || facing === 'W';
+  }
+  // For any other position (shouldn't happen in normal game), allow all directions
+  return true;
 }
