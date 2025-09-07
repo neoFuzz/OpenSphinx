@@ -16,7 +16,7 @@ export default function App() {
 
     return (
         <div className="container-fluid p-3">
-            <h1 className="mb-3">Laser Chess (Online)</h1>
+            <h1 className="mb-3">OpenSphinx - Laser Chess</h1>
             <div className="d-flex gap-2 align-items-center mb-3">
                 <input className="form-control" placeholder="Room ID" value={roomId} onChange={e => setRoomId(e.target.value)} style={{ width: '150px' }} />
                 <input className="form-control" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} style={{ width: '150px' }} />

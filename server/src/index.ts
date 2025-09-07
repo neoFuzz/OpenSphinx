@@ -3,9 +3,11 @@ import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import helmet from 'helmet';
 import { createRoomsManager } from './rooms';
 
 const app = express();
+app.use(helmet({ hidePoweredBy: true }));
 app.use(cors({ origin: true, credentials: true }));
 app.get('/health', (_req, res) => res.json({ ok: true }));
 

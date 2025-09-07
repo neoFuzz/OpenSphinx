@@ -16,6 +16,12 @@ const BOARD_H = ROWS * TILE_SIZE;
 const ORIGIN_X = -BOARD_W / 2 + TILE_SIZE / 2;
 const ORIGIN_Z = -BOARD_H / 2 + TILE_SIZE / 2;
 
+/**
+ * Convert grid co-ordinates to world co-ordinates.
+ * @param r Board row number
+ * @param c Board column number
+ * @returns Vector3 with converted co-ordinates
+ */
 function gridToWorld(r: number, c: number) {
     return new THREE.Vector3(
         ORIGIN_X + c * TILE_SIZE,
@@ -23,6 +29,13 @@ function gridToWorld(r: number, c: number) {
         ORIGIN_Z + r * TILE_SIZE
     );
 }
+
+/**
+ * Convert world co-ordinates to the Board's grid.
+ * @param x X co-ordinate
+ * @param z Y co-ordinate
+ * @returns Row and column Pos object
+ */
 function worldToGrid(x: number, z: number): Pos | null {
     // invert gridToWorld (approx, with bounds)
     const c = Math.round((x - ORIGIN_X) / TILE_SIZE);
@@ -32,10 +45,10 @@ function worldToGrid(x: number, z: number): Pos | null {
 }
 
 /**
- * Apply shadows and color tinting to a scene with deep material cloning
- * @param scene
- * @param owner
- */
+* Apply shadows and color tinting to a scene with deep material cloning
+* @param scene The THREE.Object3D scene to apply shadows and colors to
+* @param owner The owner ('RED' or 'SILVER') determining the color tinting
+*/
 function withShadowsAndColor(scene: THREE.Object3D, owner: 'RED' | 'SILVER') {
     const baseColor = owner === 'RED' ? new THREE.Color('#cc4444') : new THREE.Color('#8888cc');
 
@@ -63,11 +76,10 @@ function withShadowsAndColor(scene: THREE.Object3D, owner: 'RED' | 'SILVER') {
 }
 
 /**
-  * helper: convert Dir to Y rotation 
-  * 
-  * @param facing facing direction
-  * @returns
-  */
+ * Converts a cardinal direction to a Y-axis rotation angle in radians
+ * @param facing The cardinal direction ('N', 'E', 'S', 'W')
+ * @returns The Y-axis rotation angle in radians (0 for North, π/2 for East, π for South, -π/2 for West)
+ */
 function dirToY(facing?: Dir) {
     switch (facing) {
         case 'N': return 0;
@@ -81,9 +93,8 @@ function dirToY(facing?: Dir) {
 // --- GLTF model components with owner-based coloring ---
 
 /**
- * Returns the Pharaoh model
- * 
- * @param param0 the owner JSON object
+ * Draw the Pharaoh model
+ * @param owner The owner ('RED' or 'SILVER') determining the color tinting
  * @returns A themed Pharaoh model
  */
 function PharaohGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
@@ -99,6 +110,11 @@ function PharaohGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
+/**
+ * Draw the Pyramid model
+ * @param owner The owner ('RED' or 'SILVER') determining the color tinting
+ * @returns A themed Pyramid model
+ */
 function PyramidGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     const { scene } = useGLTF('/models/pyramid.glb');
     const clonedScene = useMemo(() => {
@@ -112,6 +128,11 @@ function PyramidGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
+/**
+ * Draw the Djed model
+ * @param owner The owner ('RED' or 'SILVER') determining the color tinting
+ * @returns A themed Djed model
+ */
 function DjedGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     const { scene } = useGLTF('/models/djed.glb');
     const clonedScene = useMemo(() => {
@@ -125,6 +146,11 @@ function DjedGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
+/**
+ * Draw the Laser (Sphinx) model
+ * @param owner The owner ('RED' or 'SILVER') determining the color tinting
+ * @returns A themed Laser model
+ */
 function LaserGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     const { scene } = useGLTF('/models/laser.glb');
     const clonedScene = useMemo(() => {
@@ -138,8 +164,13 @@ function LaserGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
+/**
+ * Draw the Obelisk model
+ * @param owner The owner ('RED' or 'SILVER') determining the color tinting
+ * @returns A themed Obelisk model
+ */
 function ObeliskGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
-    const { scene } = useGLTF('/models/obelisk.glb');
+    const { scene } = useGLTF('/models/obelisk.glb'); // TODO: make Obelisk model
     const clonedScene = useMemo(() => {
         if (scene) {
             const clone = scene.clone();
@@ -151,6 +182,11 @@ function ObeliskGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
+/**
+ * Draw the Anubis model
+ * @param owner The owner ('RED' or 'SILVER') determining the color tinting
+ * @returns A themed Anubis model
+ */
 function AnubisGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     const { scene } = useGLTF('/models/anubis.glb');
     const clonedScene = useMemo(() => {
@@ -165,6 +201,11 @@ function AnubisGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
 }
 
 // --- PIECE MESHES (simple primitives) ---
+/**
+ * Draw the Pharaoh mesh
+ * @param props The group props
+ * @returns A React component with the Pharaoh mesh
+ */
 function PharaohMesh(props: JSX.IntrinsicElements['group']) {
     // a gold cylinder
     return (
@@ -177,6 +218,11 @@ function PharaohMesh(props: JSX.IntrinsicElements['group']) {
     );
 }
 
+/**
+ * Draw the Obelisk mesh
+ * @param props The group props
+ * @returns A React component with the Obelisk mesh
+ */
 function ObeliskMesh(props: JSX.IntrinsicElements['group']) {
     return (
         <group {...props}>
@@ -188,6 +234,11 @@ function ObeliskMesh(props: JSX.IntrinsicElements['group']) {
     );
 }
 
+/**
+ * Draw the Pyramid mesh
+ * @param mirror The mirror shape ('/' or '\')
+ * @returns A React component with the Pyramid mesh
+ */
 function PyramidMesh({ mirror }: { mirror?: '/' | '\\' }) {
     // represent mirror orientation as wedge rotation
     // we'll use a triangular prism-like wedge
@@ -208,6 +259,11 @@ function PyramidMesh({ mirror }: { mirror?: '/' | '\\' }) {
     );
 }
 
+/**
+ * Draw the Djed mesh
+ * @param mirror The mirror shape ('/' or '\')
+ * @returns A React component with the Djed mesh
+ */
 function DjedMesh({ mirror }: { mirror?: '/' | '\\' }) {
     // treat as double-sided mirror block
     const rotY = mirror === '/' ? 0 : Math.PI / 2;
@@ -230,6 +286,12 @@ function DjedMesh({ mirror }: { mirror?: '/' | '\\' }) {
     );
 }
 
+/**
+ * Draw the laser emitter mesh
+ * @param facing The facing direction of the laser emitter
+ * @param owner The owner of the laser emitter
+ * @returns A React component with the laser emitter mesh
+ */
 function LaserMesh({ facing, owner }: { facing?: Dir; owner: 'RED' | 'SILVER' }) {
     const rotY = facing === 'N' ? 0
         : facing === 'E' ? Math.PI / 2
@@ -253,6 +315,11 @@ function LaserMesh({ facing, owner }: { facing?: Dir; owner: 'RED' | 'SILVER' })
     );
 }
 
+/**
+ * Draw the debug overlay for a cell
+ * @param cell The cell to draw the debug overlay for
+ * @returns A React component with the debug overlay
+ */
 function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
     const color = '#ffffff';
 
@@ -262,7 +329,7 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
             console.log('WARNING: Pyramid missing orientation, using default N');
             cell.orientation = 'N';
         }
-        
+
         // Triangle with hypotenuse as reflective face
         // Orientation determines which corner the pyramid points to
         const triangleVertices = new Float32Array([
@@ -270,7 +337,7 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
             0.2, -0.2, 0,    // bottom right  
             0.2, 0.2, 0      // top right
         ]);
-        
+
         // Rotate triangle so the hypotenuse faces the correct direction
         // N: hypotenuse faces NE (default) |\
         // E: hypotenuse faces SE  |/
@@ -280,9 +347,10 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
             N: -Math.PI / 2,
             E: Math.PI,
             S: Math.PI / 2,
-            W: 0
+            W: 0,
+            O: 0
         };
-        
+
         const rotation = rotationMap[cell.orientation] || 0;
 
         return (
@@ -396,6 +464,16 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
     return null;
 }
 
+/**
+ * Render a piece on the board.
+ * @param r row piece is on
+ * @param c column piece is on
+ * @param cell piece to render
+ * @param selected if piece is selected
+ * @param onSelect callback when piece is selected
+ * @param debugMode if true, render debug overlay
+ * @returns 3D mesh for the piece
+ */
 function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
     { r: number; c: number; cell: NonNullable<Cell>; selected: boolean; onSelect: (pos: Pos) => void; debugMode: boolean }) {
     const pos = gridToWorld(r, c);
@@ -406,14 +484,14 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
     if (cell.kind === 'PYRAMID') {
         console.log(`Rendering pyramid at ${r},${c}:`); //, JSON.stringify(cell, null, 2)
     }
-    
+
     let pyramidAngle;
     if (cell.orientation == 'N' || cell.orientation == 'S') {
-         pyramidAngle = Math.PI / 2;
+        pyramidAngle = Math.PI / 2;
     } else {
         pyramidAngle = -Math.PI / 2;
     }
-    
+
     // orientation-based Y rotation for Pyramid, mirror-based for Djed
     const pyramidRotY = cell.kind === 'PYRAMID' && cell.orientation ? dirToY(cell.orientation) + pyramidAngle : 0;
     const mirrorRotY = cell.mirror === '/' ? 0 : Math.PI / 2;
@@ -442,7 +520,7 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
 
             {/* Debug overlay */}
             {debugMode && <DebugOverlay cell={cell} />}
-            
+
             {/* Compass - only show on one piece to avoid clutter */}
             {debugMode && r === 0 && c === 0 && (
                 <group position={[0, 1.2, 0]}>
@@ -515,6 +593,12 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
     );
 }
 
+/**
+ * Renders the 3D board tiles with alternating colors and click handlers
+ * 
+ * @param state - Current game state
+ * @param onTileClick - Callback when a tile is clicked with position
+ */
 function Tiles({ state, onTileClick, }: { state: GameState; onTileClick: (pos: Pos) => void; }) {
     const tiles = useMemo(() => {
         const acc: { key: string; r: number; c: number; color: string }[] = [];
@@ -555,6 +639,11 @@ function Tiles({ state, onTileClick, }: { state: GameState; onTileClick: (pos: P
     );
 }
 
+/**
+ * LaserPath3D component
+ * @param path to render
+ * @returns JSX.Element | null
+ */
 function LaserPath3D({ path }: { path: Pos[] | undefined }) {
     if (!path || path.length === 0) return null;
 
@@ -574,6 +663,11 @@ function LaserPath3D({ path }: { path: Pos[] | undefined }) {
     );
 }
 
+/**
+ * Board3D component
+ * Renders the 3D board with pieces and laser paths
+ * @returns JSX.Element | null
+ */
 export function Board3D() {
     const state = useGame(s => s.state);
     const color = useGame(s => s.color);
