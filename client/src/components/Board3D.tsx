@@ -609,6 +609,14 @@ function Tiles({ state, onTileClick, selected, getValidMoves }: { state: GameSta
                 const even = (r + c) % 2 === 0;
                 const moveHighlight = validMoves.find(m => m.r === r && m.c === c);
                 let color = even ? '#ececec' : '#d6d6d6';
+                
+                // Color tiles based on player zones
+                if (c === 0 || (c === 8 && (r === 0 || r === 7))) {
+                    color = '#ffcccc'; // RED zone
+                } else if (c === 9 || (c === 1 && (r === 0 || r === 7))) {
+                    color = '#ccccff'; // SILVER zone
+                }
+                
                 if (moveHighlight?.type === 'move') color = '#4caf50';
                 else if (moveHighlight?.type === 'swap') color = '#ffc107';
                 
@@ -707,6 +715,14 @@ export function Board3D() {
                 const newR = pos.r + dr;
                 const newC = pos.c + dc;
                 if (newR >= 0 && newR < ROWS && newC >= 0 && newC < COLS) {
+                    // Check zone restrictions
+                    const isRedZone = newC === 0 || (newC === 8 && (newR === 0 || newR === 7));
+                    const isSilverZone = newC === 9 || (newC === 1 && (newR === 0 || newR === 7));
+                    
+                    if ((piece.owner === 'RED' && isSilverZone) || (piece.owner === 'SILVER' && isRedZone)) {
+                        continue; // Can't move into opponent's zone
+                    }
+                    
                     const targetPiece = state.board[newR][newC];
                     if (!targetPiece) {
                         moves.push({ r: newR, c: newC, type: 'move' });

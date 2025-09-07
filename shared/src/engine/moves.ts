@@ -41,6 +41,14 @@ export function applyMove(state: GameState, move: Move): GameState {
     const dc = Math.abs(move.to.c - from.c);
     if (dr > 1 || dc > 1 || (dr === 0 && dc === 0)) return s; // 1 step in any direction
     
+    // Check zone restrictions
+    const isRedZone = move.to.c === 0 || (move.to.c === 8 && (move.to.r === 0 || move.to.r === 7));
+    const isSilverZone = move.to.c === 9 || (move.to.c === 1 && (move.to.r === 0 || move.to.r === 7));
+    
+    if ((piece.owner === 'RED' && isSilverZone) || (piece.owner === 'SILVER' && isRedZone)) {
+      return s; // Can't move into opponent's zone
+    }
+    
     const targetPiece = board[move.to.r][move.to.c];
     
     if (targetPiece) {
