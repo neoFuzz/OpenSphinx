@@ -599,21 +599,28 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
  * @param state - Current game state
  * @param onTileClick - Callback when a tile is clicked with position
  */
-function Tiles({ state, onTileClick, }: { state: GameState; onTileClick: (pos: Pos) => void; }) {
+function Tiles({ state, onTileClick, selected, getValidMoves }: { state: GameState; onTileClick: (pos: Pos) => void; selected: Pos | null; getValidMoves: (pos: Pos) => Array<{r: number, c: number, type: string}> }) {
+    const validMoves = selected ? getValidMoves(selected) : [];
+    
     const tiles = useMemo(() => {
         const acc: { key: string; r: number; c: number; color: string }[] = [];
         for (let r = 0; r < ROWS; r++) {
             for (let c = 0; c < COLS; c++) {
                 const even = (r + c) % 2 === 0;
+                const moveHighlight = validMoves.find(m => m.r === r && m.c === c);
+                let color = even ? '#ececec' : '#d6d6d6';
+                if (moveHighlight?.type === 'move') color = '#4caf50';
+                else if (moveHighlight?.type === 'swap') color = '#ffc107';
+                
                 acc.push({
                     key: `${r}-${c}`,
                     r, c,
-                    color: even ? '#ececec' : '#d6d6d6'
+                    color
                 });
             }
         }
         return acc;
-    }, []);
+    }, [validMoves]);
 
     return (
         <group>
@@ -688,6 +695,31 @@ export function Board3D() {
 
     const isMyTurn = state && color && state.turn === color;
 
+    const getValidMoves = useCallback((pos: Pos) => {
+        if (!state) return [];
+        const piece = state.board[pos.r][pos.c];
+        if (!piece) return [];
+        
+        const moves = [];
+        for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+                if (dr === 0 && dc === 0) continue;
+                const newR = pos.r + dr;
+                const newC = pos.c + dc;
+                if (newR >= 0 && newR < ROWS && newC >= 0 && newC < COLS) {
+                    const targetPiece = state.board[newR][newC];
+                    if (!targetPiece) {
+                        moves.push({ r: newR, c: newC, type: 'move' });
+                    } else if (piece.kind === 'DJED' && 
+                               (targetPiece.kind === 'PYRAMID' || targetPiece.kind === 'OBELISK' || targetPiece.kind === 'ANUBIS')) {
+                        moves.push({ r: newR, c: newC, type: 'swap' });
+                    }
+                }
+            }
+        }
+        return moves;
+    }, [state]);
+
     const onSelectPiece = useCallback((pos: Pos) => {
         if (debugMode) {
             console.log('onSelectPiece called:', pos, 'isMyTurn:', isMyTurn, 'color:', color);
@@ -710,19 +742,27 @@ export function Board3D() {
         if (!isMyTurn || !selected || !state) return;
         const dr = Math.abs(to.r - selected.r);
         const dc = Math.abs(to.c - selected.c);
-        if (dr + dc !== 1) {
-            // must be orthogonal 1 step
+        if (dr > 1 || dc > 1 || (dr === 0 && dc === 0)) {
+            // must be 1 step in any direction
             setSelected(null);
             return;
         }
-        // ensure dest empty (client-side optimistic check; server is authoritative)
-        if (state.board[to.r][to.c]) {
-            setSelected(null);
-            return;
+        
+        const targetPiece = state.board[to.r][to.c];
+        const selectedPiece = state.board[selected.r][selected.c];
+        
+        if (targetPiece) {
+            // Allow Djed swap with enemy pieces
+            if (selectedPiece?.kind === 'DJED' && 
+                (targetPiece.kind === 'PYRAMID' || targetPiece.kind === 'OBELISK' || targetPiece.kind === 'ANUBIS')) {
+                sendMove({ type: 'MOVE', from: selected, to });
+            }
+        } else {
+            // Regular move to empty space
+            sendMove({ type: 'MOVE', from: selected, to });
         }
-        sendMove({ type: 'MOVE', from: selected, to });
         setSelected(null);
-    }, [isMyTurn, selected, state, sendMove]);
+    }, [isMyTurn, selected, state, sendMove, color]);
 
     const onRotateSelected = useCallback((delta: 90 | -90) => {
         if (!isMyTurn || !selected) return;
@@ -788,7 +828,7 @@ export function Board3D() {
                 </mesh>
 
                 {/* Board plane (tiles) */}
-                <Tiles state={state} onTileClick={onTileClick} />
+                <Tiles state={state} onTileClick={onTileClick} selected={selected} getValidMoves={getValidMoves} />
 
                 {/* Pieces */}
                 <group>

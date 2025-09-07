@@ -36,11 +36,26 @@ export function applyMove(state: GameState, move: Move): GameState {
     if (!move.to || !inBounds(move.to.r, move.to.c)) return s;
     const dr = Math.abs(move.to.r - from.r);
     const dc = Math.abs(move.to.c - from.c);
-    if ((dr + dc) !== 1) return s; // orthogonal 1 step
-    if (board[move.to.r][move.to.c]) return s; // occupied
-
-    board[move.to.r][move.to.c] = piece;
-    board[from.r][from.c] = null;
+    if (dr > 1 || dc > 1 || (dr === 0 && dc === 0)) return s; // 1 step in any direction
+    
+    const targetPiece = board[move.to.r][move.to.c];
+    
+    if (targetPiece) {
+      // Only Djed can swap with other pieces
+      if (piece.kind !== 'DJED') return s;
+      // Can't swap with own pieces or enemy Pharaoh/Laser
+      if (targetPiece.owner === piece.owner || 
+          targetPiece.kind === 'PHARAOH' || 
+          targetPiece.kind === 'LASER') return s;
+      
+      // Perform swap
+      board[move.to.r][move.to.c] = piece;
+      board[from.r][from.c] = targetPiece;
+    } else {
+      // Regular move to empty space
+      board[move.to.r][move.to.c] = piece;
+      board[from.r][from.c] = null;
+    }
 
   } else if (move.type === 'ROTATE') {
     if (!move.rotation || (move.rotation !== 90 && move.rotation !== -90)) return s;
