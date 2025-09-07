@@ -2,12 +2,14 @@
 import { Server, Socket } from 'socket.io';
 import { GameState, Move } from '../../shared/src/types';
 import { applyMove, createInitialState } from '../../shared/src/engine';
+import { database } from './database';
 
 interface Room {
   id: string;
   players: { socketId: string; name: string; color: 'RED'|'SILVER' }[];
   state: GameState;
   spectators: Set<string>;
+  savedName?: string;
 }
 
 const makeId = () => Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -101,5 +103,41 @@ export function createRoomsManager(io: Server) {
     socketToRooms.set(socketId, set);
   }
 
-  return { createRoom, joinRoom, handleMove, leaveAll };
+  async function saveGame(socket: Socket, payload: { roomId: string; name: string }) {
+    const room = rooms.get(payload.roomId);
+    if (!room) return;
+
+    const player = room.players.find(p => p.socketId === socket.id);
+    if (!player) return;
+
+    try {
+      await database.saveGame(payload.roomId, payload.name, room.state);
+      socket.emit('game:saved', { success: true });
+    } catch (error) {
+      socket.emit('game:saved', { success: false, error: 'Failed to save game' });
+    }
+  }
+
+  async function loadGame(socket: Socket, payload: { gameId: string }, ack?: Function) {
+    try {
+      const savedGame = await database.loadGame(payload.gameId);
+      if (!savedGame) {
+        return ack?.({ error: 'Game not found' });
+      }
+
+      const roomId = makeId();
+      rooms.set(roomId, {
+        id: roomId,
+        players: [],
+        spectators: new Set(),
+        state: savedGame.gameState,
+      });
+
+      ack?.({ roomId, name: savedGame.name });
+    } catch (error) {
+      ack?.({ error: 'Failed to load game' });
+    }
+  }
+
+  return { createRoom, joinRoom, handleMove, leaveAll, saveGame, loadGame };
 }

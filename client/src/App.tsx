@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { useGame } from './state/game';
+import { SavedGames } from './components/SavedGames';
 
 const Board2D = React.lazy(() => import('./components/Board').then(m => ({ default: m.Board })));
 const Board3D = React.lazy(() => import('./components/Board3D').then(m => ({ default: m.Board3D })));
@@ -24,6 +25,7 @@ export default function App() {
                 {'createRoom' in (useGame.getState() as any) && (
                     <button className="btn btn-success" onClick={() => createRoom((id: string) => setRoomId(id))}>Create</button>
                 )}
+                <SavedGames />
                 <div className="form-check ms-auto">
                     <input className="form-check-input" type="checkbox" checked={useThree} onChange={e => setUseThree(e.target.checked)} id="use3d" />
                     <label className="form-check-label" htmlFor="use3d">Use 3D</label>

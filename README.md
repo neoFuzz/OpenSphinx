@@ -34,7 +34,27 @@ laser-chess-ts/
 └─ shared/
 ```
 
+## Features
+- **Game Persistence**: Save and load games using SQLite database
+- **Networking**: Simple room system; up to 2 players + spectators
+- **Rules**: Basic laser chess variant — move one orthogonal step or rotate 90°, then fire the active player's laser. Pharaoh hit ends the game
+- **Save/Load**: Games can be saved with custom names and resumed later
+- **Game Management**: View, load, and delete saved games through the UI
+
+## Game Save/Load
+- Click "Save Game" during an active game to save the current state
+- Click "Load Game" to view and load previously saved games
+- Saved games include the complete board state and can be resumed from any point
+- Games are stored in SQLite database (`games.db`) on the server
+
+## API Endpoints
+- `GET /api/games` - List all saved games
+- `DELETE /api/games/:id` - Delete a saved game
+
+## Socket Events
+- `game:save` - Save current game state
+- `game:load` - Load a saved game
+- `game:saved` - Confirmation of save operation
+
 ## Notes
-- Networking: simple room system; up to 2 players + spectators.
-- Rules: basic laser chess variant — move one orthogonal step or rotate 90°, then fire the active player's laser. Pharaoh hit ends the game.
-- Extend easily to match strict Khet 2.0 rules (pyramid one-sidedness, Djed swap, official setups) in `shared/src/engine`.
+- Extend easily to match strict Khet 2.0 rules (pyramid one-sidedness, Djed swap, official setups) in `shared/src/engine`
