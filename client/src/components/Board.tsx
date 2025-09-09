@@ -131,7 +131,10 @@ function PieceSVG({ piece }: { piece: NonNullable<typeof state.board[0][0]> }) {
     <svg width="40" height="40" viewBox="0 0 40 40">
       <g transform={`rotate(${rotation} 20 20)`}>
         {piece.kind === 'PHARAOH' && (
-          <rect x="15" y="15" width="10" height="10" fill={color} stroke="#000" strokeWidth="1" />
+          <>
+            <rect x="10" y="10" width="20" height="20" fill={color} stroke="#000" strokeWidth="1" />
+            <text x="20" y="25" textAnchor="middle" fontSize="14" fill="#fff" fontWeight="bold">P</text>
+          </>
         )}
         {piece.kind === 'PYRAMID' && (
           <polygon points="10,10 10,30 30,30" fill={color} stroke="#000" strokeWidth="1" />
@@ -147,9 +150,9 @@ function PieceSVG({ piece }: { piece: NonNullable<typeof state.board[0][0]> }) {
         )}
         {piece.kind === 'ANUBIS' && (
           <>
-            <rect x="15" y="15" width="10" height="10" fill={color} stroke="#000" strokeWidth="1" />
-            <rect x="17" y="10" width="2" height="8" fill={color} />
-            <rect x="21" y="10" width="2" height="8" fill={color} />
+            <rect x="10" y="10" width="20" height="20" fill={color} stroke="#000" strokeWidth="1" />
+            <rect x="16" y="10" width="2" height="8" fill="#000" />
+            <rect x="22 " y="10" width="2" height="8" fill="#000" />
           </>
         )}
         {piece.kind === 'LASER' && (

@@ -655,6 +655,53 @@ function Tiles({ state, onTileClick, selected, getValidMoves }: { state: GameSta
 }
 
 /**
+ * RotateGizmo component - simple circular arrows for rotation
+ */
+function RotateGizmo({ position, onRotate }: { position: [number, number, number]; onRotate: (delta: 90 | -90) => void }) {
+    return (
+        <group position={position}>
+            {/* Clockwise arrow */}
+            <group 
+                position={[0.6, 0.76, 0]} 
+                onPointerDown={(e) => { e.stopPropagation(); onRotate(90); }}
+            >
+                <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                    <circleGeometry args={[0.15]} />
+                    <meshBasicMaterial color="#333" transparent opacity={0.8} />
+                </mesh>
+                <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                    <torusGeometry args={[0.08, 0.012, 8, 16, Math.PI * 1.5]} />
+                    <meshBasicMaterial color="#00aa00" />
+                </mesh>
+                <mesh position={[0.075, 0.005, 0]} rotation={[Math.PI / 2, 0, 0]}>
+                    <coneGeometry args={[0.035, 0.08, 3]} />
+                    <meshBasicMaterial color="#00aa00" />
+                </mesh>
+            </group>
+            
+            {/* Counter-clockwise arrow */}
+            <group 
+                position={[-0.6, 0.76, 0]} 
+                onPointerDown={(e) => { e.stopPropagation(); onRotate(-90); }}
+            >
+                <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                    <circleGeometry args={[0.15]} />
+                    <meshBasicMaterial color="#333" transparent opacity={0.8} />
+                </mesh>
+                <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                    <torusGeometry args={[0.08, 0.012, 8, 16, Math.PI * 1.5]} />
+                    <meshBasicMaterial color="#aa0000" />
+                </mesh>
+                <mesh position={[0.0, 0.005, 0.08]} rotation={[Math.PI / 2, 0, -Math.PI / 2]}>
+                    <coneGeometry args={[0.035, 0.08, 3]} />
+                    <meshBasicMaterial color="#aa0000" />
+                </mesh>
+            </group>
+        </group>
+    );
+}
+
+/**
  * LaserPath3D component
  * @param path to render
  * @returns JSX.Element | null
@@ -867,6 +914,18 @@ export function Board3D() {
 
                 {/* Laser path visualisation */}
                 <LaserPath3D path={state.lastLaserPath} />
+
+                {/* Rotate gizmo for selected piece */}
+                {selected && isMyTurn && (
+                    <RotateGizmo 
+                        position={[
+                            gridToWorld(selected.r, selected.c).x,
+                            0,
+                            gridToWorld(selected.r, selected.c).z
+                        ]}
+                        onRotate={onRotateSelected}
+                    />
+                )}
 
                 <OrbitControls
                     enablePan
