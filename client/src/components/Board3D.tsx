@@ -481,7 +481,7 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
     const outline = selected ? 0.06 : 0;
 
     // Debug logging for piece rendering
-    if (cell.kind === 'PYRAMID') {
+    if (cell.kind === 'PYRAMID' && debugMode) {
         console.log(`Rendering pyramid at ${r},${c}:`); //, JSON.stringify(cell, null, 2)
     }
 
@@ -599,9 +599,9 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
  * @param state - Current game state
  * @param onTileClick - Callback when a tile is clicked with position
  */
-function Tiles({ state, onTileClick, selected, getValidMoves }: { state: GameState; onTileClick: (pos: Pos) => void; selected: Pos | null; getValidMoves: (pos: Pos) => Array<{r: number, c: number, type: string}> }) {
+function Tiles({ state, onTileClick, selected, getValidMoves }: { state: GameState; onTileClick: (pos: Pos) => void; selected: Pos | null; getValidMoves: (pos: Pos) => Array<{ r: number, c: number, type: string }> }) {
     const validMoves = selected ? getValidMoves(selected) : [];
-    
+
     const tiles = useMemo(() => {
         const acc: { key: string; r: number; c: number; color: string }[] = [];
         for (let r = 0; r < ROWS; r++) {
@@ -609,17 +609,17 @@ function Tiles({ state, onTileClick, selected, getValidMoves }: { state: GameSta
                 const even = (r + c) % 2 === 0;
                 const moveHighlight = validMoves.find(m => m.r === r && m.c === c);
                 let color = even ? '#ececec' : '#d6d6d6';
-                
+
                 // Color tiles based on player zones
                 if (c === 0 || (c === 8 && (r === 0 || r === 7))) {
                     color = '#ffcccc'; // RED zone
                 } else if (c === 9 || (c === 1 && (r === 0 || r === 7))) {
                     color = '#ccccff'; // SILVER zone
                 }
-                
+
                 if (moveHighlight?.type === 'move') color = '#4caf50';
                 else if (moveHighlight?.type === 'swap') color = '#ffc107';
-                
+
                 acc.push({
                     key: `${r}-${c}`,
                     r, c,
@@ -707,7 +707,7 @@ export function Board3D() {
         if (!state) return [];
         const piece = state.board[pos.r][pos.c];
         if (!piece || piece.kind === 'LASER') return [];
-        
+
         const moves = [];
         for (let dr = -1; dr <= 1; dr++) {
             for (let dc = -1; dc <= 1; dc++) {
@@ -718,16 +718,16 @@ export function Board3D() {
                     // Check zone restrictions
                     const isRedZone = newC === 0 || (newC === 8 && (newR === 0 || newR === 7));
                     const isSilverZone = newC === 9 || (newC === 1 && (newR === 0 || newR === 7));
-                    
+
                     if ((piece.owner === 'RED' && isSilverZone) || (piece.owner === 'SILVER' && isRedZone)) {
                         continue; // Can't move into opponent's zone
                     }
-                    
+
                     const targetPiece = state.board[newR][newC];
                     if (!targetPiece) {
                         moves.push({ r: newR, c: newC, type: 'move' });
-                    } else if (piece.kind === 'DJED' && 
-                               (targetPiece.kind === 'PYRAMID' || targetPiece.kind === 'OBELISK' || targetPiece.kind === 'ANUBIS')) {
+                    } else if (piece.kind === 'DJED' &&
+                        (targetPiece.kind === 'PYRAMID' || targetPiece.kind === 'OBELISK' || targetPiece.kind === 'ANUBIS')) {
                         moves.push({ r: newR, c: newC, type: 'swap' });
                     }
                 }
@@ -763,13 +763,13 @@ export function Board3D() {
             setSelected(null);
             return;
         }
-        
+
         const targetPiece = state.board[to.r][to.c];
         const selectedPiece = state.board[selected.r][selected.c];
-        
+
         if (targetPiece) {
             // Allow Djed swap with enemy pieces
-            if (selectedPiece?.kind === 'DJED' && 
+            if (selectedPiece?.kind === 'DJED' &&
                 (targetPiece.kind === 'PYRAMID' || targetPiece.kind === 'OBELISK' || targetPiece.kind === 'ANUBIS')) {
                 sendMove({ type: 'MOVE', from: selected, to });
             }

@@ -3,6 +3,7 @@ import { Server, Socket } from 'socket.io';
 import { GameState, Move } from '../../shared/src/types';
 import { applyMove, createInitialState } from '../../shared/src/engine';
 import { database } from './database';
+import { logger } from '../../shared/src/logger';
 
 interface Room {
   id: string;
@@ -26,12 +27,16 @@ export function createRoomsManager(io: Server) {
       spectators: new Set(),
       state: createInitialState(),
     });
+    logger.info('Room created', { gameId: roomId });
     return { roomId };
   }
 
   function joinRoom(socket: Socket, roomId: string, name: string, ack?: Function) {
     const room = rooms.get(roomId);
-    if (!room) return ack?.({ error: 'Room not found' });
+    if (!room) {
+      logger.warn('Join room failed - room not found', { gameId: roomId, playerName: name });
+      return ack?.({ error: 'Room not found' });
+    }
 
     const current = room.players.map(p => p.socketId);
     if (current.includes(socket.id)) return ack?.({ ok: true, color: room.players.find(p=>p.socketId===socket.id)?.color });
@@ -42,6 +47,7 @@ export function createRoomsManager(io: Server) {
       socket.join(roomId);
       addSocketRoom(socket.id, roomId);
       io.to(roomId).emit('room:state', publicState(room));
+      logger.info('Player joined room', { gameId: roomId, playerName: name, color });
       ack?.({ ok: true, color });
     } else {
       // spectator
@@ -49,6 +55,7 @@ export function createRoomsManager(io: Server) {
       socket.join(roomId);
       addSocketRoom(socket.id, roomId);
       socket.emit('room:state', publicState(room));
+      logger.info('Spectator joined room', { gameId: roomId, playerName: name });
       ack?.({ ok: true, spectator: true });
     }
   }
@@ -70,12 +77,15 @@ export function createRoomsManager(io: Server) {
 
     if (room.state.turn !== player.color) return;
 
-    const next = applyMove(room.state, payload.move);
+    const next = applyMove(room.state, payload.move, room.id);
     room.state = next;
+    
+    logger.info('Move applied', { gameId: room.id, player: player.color, moveType: payload.move.type });
     
     io.to(room.id).emit('game:state', { state: next, ack: payload.move.clientMoveId });
 
     if (next.winner) {
+      logger.info('Game ended', { gameId: room.id, winner: next.winner });
       io.to(room.id).emit('game:end', { winner: next.winner });
     }
   }
@@ -112,8 +122,10 @@ export function createRoomsManager(io: Server) {
 
     try {
       await database.saveGame(payload.roomId, payload.name, room.state);
+      logger.info('Game saved', { gameId: room.id, saveName: payload.name });
       socket.emit('game:saved', { success: true });
     } catch (error) {
+      logger.error('Game save failed', { gameId: room.id, saveName: payload.name, error });
       socket.emit('game:saved', { success: false, error: 'Failed to save game' });
     }
   }
@@ -122,6 +134,7 @@ export function createRoomsManager(io: Server) {
     try {
       const savedGame = await database.loadGame(payload.gameId);
       if (!savedGame) {
+        logger.warn('Game load failed - not found', { gameId: payload.gameId });
         return ack?.({ error: 'Game not found' });
       }
 
@@ -133,8 +146,10 @@ export function createRoomsManager(io: Server) {
         state: savedGame.gameState,
       });
 
+      logger.info('Game loaded', { gameId: roomId, originalGameId: payload.gameId, saveName: savedGame.name });
       ack?.({ roomId, name: savedGame.name });
     } catch (error) {
+      logger.error('Game load failed', { gameId: payload.gameId, error });
       ack?.({ error: 'Failed to load game' });
     }
   }

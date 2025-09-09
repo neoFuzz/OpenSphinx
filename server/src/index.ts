@@ -6,6 +6,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { createRoomsManager } from './rooms';
 import { database } from './database';
+import { logger } from '../../shared/src/logger';
 
 const app = express();
 app.use(helmet({ hidePoweredBy: true }));
@@ -20,6 +21,7 @@ app.get('/api/games', async (_req, res) => {
     res.json(games);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch games' });
+    logger.error('Failed to fetch games', { error });
   }
 });
 
@@ -29,6 +31,7 @@ app.delete('/api/games/:id', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete game' });
+    logger.error('Failed to delete game', { error });
   }
 });
 
@@ -47,4 +50,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => console.log(`Server listening on ${PORT}`));
+server.listen(PORT, () => logger.info(`Server listening on ${PORT}`));

@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useGame } from '../state/game';
 import { COLS, ROWS } from '../../../shared/src/constants';
 import type { Pos } from '../../../shared/src/types';
@@ -28,11 +28,11 @@ export function Board() {
           // Check zone restrictions
           const isRedZone = newC === 0 || (newC === 8 && (newR === 0 || newR === 7));
           const isSilverZone = newC === 9 || (newC === 1 && (newR === 0 || newR === 7));
-          
+
           if ((piece.owner === 'RED' && isSilverZone) || (piece.owner === 'SILVER' && isRedZone)) {
             continue; // Can't move into opponent's zone
           }
-          
+
           const targetPiece = state.board[newR][newC];
           if (!targetPiece) {
             moves.push({ r: newR, c: newC, type: 'move' });
@@ -100,14 +100,14 @@ function Cell({ r, c, onCellClick, selectedPos, validMoves }: Pos & { onCellClic
   const moveHighlight = validMoves.find(m => m.r === r && m.c === c);
 
   let bgColor = undefined;
-  
+
   // Color tiles based on player zones
   if (c === 0 || (c === 8 && (r === 0 || r === 7))) {
     bgColor = '#ffcccc'; // RED zone
   } else if (c === 9 || (c === 1 && (r === 0 || r === 7))) {
     bgColor = '#ccccff'; // SILVER zone
   }
-  
+
   if (isSelected) bgColor = '#ffeb3b';
   else if (moveHighlight?.type === 'move') bgColor = '#4caf50';
   else if (moveHighlight?.type === 'swap') bgColor = '#ffc107';

@@ -1,6 +1,6 @@
-
 import { Cell, Dir, GameState, Pos } from '../types';
 import { inBounds } from '../constants';
+import { logger } from '../logger';
 
 const dirStep: Record<Dir, [number, number]> = {
   N: [-1, 0],
@@ -84,28 +84,30 @@ export interface LaserResult {
 /**
  * Fire current player's laser, compute reflections and destruction.
  */
-export function fireLaser(state: GameState): LaserResult {
-  const { board, turn } = state;
+export function fireLaser(state: GameState, gameId?: string): LaserResult {
+  const start = findLaserEmitter(state.board, state.turn);
+  if (!start) return { path: [] };
 
-  // locate emitter
-  let start: { pos: Pos; dir: Dir } | null = null;
+  return traceLaserPath(state.board, start, gameId);
+}
+
+function findLaserEmitter(board: Cell[][], turn: 'RED' | 'SILVER'): { pos: Pos; dir: Dir } | null {
   for (let r = 0; r < board.length; r++) {
     for (let c = 0; c < board[0].length; c++) {
       const p = board[r][c];
       if (p && p.kind === 'LASER' && p.owner === turn && p.facing) {
-        start = { pos: { r, c }, dir: p.facing };
-        break;
+        return { pos: { r, c }, dir: p.facing };
       }
     }
-    if (start) break;
   }
-  if (!start) return { path: [] };
+  return null;
+}
 
+function traceLaserPath(board: Cell[][], start: { pos: Pos; dir: Dir }, gameId?: string): LaserResult {
   let { r, c } = start.pos;
   let dir: Dir = start.dir;
   const path: Pos[] = [];
 
-  // step into the board from the emitter
   let [dr, dc] = dirStep[dir];
   r += dr; c += dc;
 
@@ -119,64 +121,95 @@ export function fireLaser(state: GameState): LaserResult {
       continue;
     }
 
-    if (cell.kind === 'OBELISK') {
-      console.log(`DESTROYED: ${cell.owner} OBELISK at ${r},${c} by laser from ${dir}`);
-      return { path, destroyed: { pos: { r, c }, piece: cell } };
+    const interaction = handleCellInteraction(cell, dir, { r, c }, gameId);
+    if (interaction.stop) {
+      return { path, ...interaction.result };
     }
-
-    if (cell.kind === 'ANUBIS') {
-      // Anubis can't be destroyed when hit from the front (orientation direction)
-      if (cell.orientation && cell.orientation === dir) {
-        console.log(`BLOCKED: ${cell.owner} ANUBIS at ${r},${c} blocks laser from front (${dir})`);
-        return { path };
-      }
-      console.log(`DESTROYED: ${cell.owner} ANUBIS at ${r},${c} by laser from ${dir}`);
-      return { path, destroyed: { pos: { r, c }, piece: cell } };
-    }
-
-    if (cell.kind === 'PHARAOH') {
-      console.log(`DESTROYED: ${cell.owner} PHARAOH at ${r},${c} by laser from ${dir} - GAME OVER`);
-      return {
-        path,
-        destroyed: { pos: { r, c }, piece: cell },
-        winner: cell.owner === 'RED' ? 'SILVER' : 'RED',
-      };
-    }
-
-    if (cell.kind === 'PYRAMID') {
-      // Fix missing orientation
-      if (!cell.orientation) {
-        console.log('WARNING: Pyramid missing orientation in laser logic, using default N');
-        cell.orientation = 'N';
-      }
-      if (!canReflectFromPyramid(dir, cell.orientation)) {
-        console.log(`DESTROYED: ${cell.owner} PYRAMID at ${r},${c} (orientation: ${cell.orientation}) by laser traveling ${dir}`);
-        return { path, destroyed: { pos: { r, c }, piece: cell } };
-      }
-      console.log(`REFLECTED: ${cell.owner} PYRAMID at ${r},${c} (orientation: ${cell.orientation}) reflects laser traveling ${dir} -> ${reflectFromPyramid(dir, cell.orientation)}`);
-      // Reflect from mirror
-      dir = reflectFromPyramid(dir, cell.orientation);
+    if (interaction.newDir) {
+      dir = interaction.newDir;
       [dr, dc] = dirStep[dir];
       r += dr; c += dc;
-      continue;
-    }
-
-    if (cell.kind === 'DJED') {
-      if (!cell.mirror) {
-        return { path, destroyed: { pos: { r, c }, piece: cell } };
-      }
-      // Reflect according to mirror
-      dir = reflect(dir, cell.mirror);
-      [dr, dc] = dirStep[dir];
-      r += dr; c += dc;
-      continue;
-    }
-
-    if (cell.kind === 'LASER') {
-      // absorb on emitter; no destruction
-      return { path };
     }
   }
 
   return { path };
+}
+
+function handleCellInteraction(cell: NonNullable<Cell>, dir: Dir, pos: Pos, gameId?: string) {
+  const { r, c } = pos;
+
+  if (cell.kind === 'OBELISK') {
+    logger.info(`DESTROYED: ${cell.owner} OBELISK at ${r},${c} by laser traveling ${dir}`, { gameId });
+    return { stop: true, result: { destroyed: { pos, piece: cell } }, newDir: undefined };
+  }
+
+  if (cell.kind === 'ANUBIS') {
+    return handleAnubisInteraction(cell, dir, pos, gameId);
+  }
+
+  if (cell.kind === 'PHARAOH') {
+    logger.info(`DESTROYED: ${cell.owner} PHARAOH at ${r},${c} by laser from ${dir} - GAME OVER`, { gameId });
+    return {
+      stop: true,
+      result: {
+        destroyed: { pos, piece: cell },
+        winner: cell.owner === 'RED' ? 'SILVER' : 'RED' as 'RED' | 'SILVER'
+      },
+      newDir: undefined
+    };
+  }
+
+  if (cell.kind === 'PYRAMID') {
+    return handlePyramidInteraction(cell, dir, pos, gameId);
+  }
+
+  if (cell.kind === 'DJED') {
+    return handleDjedInteraction(cell, dir, pos);
+  }
+
+  if (cell.kind === 'LASER') {
+    return { stop: true, result: {}, newDir: undefined };
+  }
+
+  return { stop: false, newDir: undefined };
+}
+
+function handleAnubisInteraction(cell: NonNullable<Cell>, dir: Dir, pos: Pos, gameId?: string) {
+  const { r, c } = pos;
+  const blockMap = { N: 'S', E: 'W', S: 'N', W: 'E', O: 'O' };
+  
+  if (cell.orientation && cell.orientation === blockMap[dir]) {
+    logger.info(`BLOCKED: ${cell.owner} ANUBIS at ${r},${c} blocks laser from front (${dir})`, { gameId });
+    return { stop: true, result: {}, newDir: undefined };
+  }
+  
+  logger.info(`DESTROYED: ${cell.owner} ANUBIS at ${r},${c} by laser traveling ${dir}`, { gameId });
+  return { stop: true, result: { destroyed: { pos, piece: cell } }, newDir: undefined };
+}
+
+function handlePyramidInteraction(cell: NonNullable<Cell>, dir: Dir, pos: Pos, gameId?: string) {
+  const { r, c } = pos;
+  
+  if (!cell.orientation) {
+    logger.info('WARNING: Pyramid missing orientation in laser logic, using default N', { gameId });
+    cell.orientation = 'N';
+  }
+  
+  if (!canReflectFromPyramid(dir, cell.orientation)) {
+    logger.info(`DESTROYED: ${cell.owner} PYRAMID at ${r},${c} (orientation: ${cell.orientation}) by laser traveling ${dir}`, { gameId });
+    return { stop: true, result: { destroyed: { pos, piece: cell } }, newDir: undefined };
+  }
+  
+  const newDir = reflectFromPyramid(dir, cell.orientation);
+  logger.debug(`REFLECTED: ${cell.owner} PYRAMID at ${r},${c} (orientation: ${cell.orientation}) reflects laser traveling ${dir} -> ${newDir}`, { gameId });
+  return { stop: false, newDir, result: undefined };
+}
+
+function handleDjedInteraction(cell: NonNullable<Cell>, dir: Dir, pos: Pos) {
+  if (!cell.mirror) {
+    return { stop: true, result: { destroyed: { pos, piece: cell } }, newDir: undefined };
+  }
+  
+  const newDir = reflect(dir, cell.mirror);
+  return { stop: false, newDir, result: undefined };
 }
