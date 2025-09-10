@@ -81,18 +81,22 @@ class Database {
     });
   }
 
-  listGames(): Promise<Omit<SavedGame, 'gameState'>[]> {
+  listGames(): Promise<(Omit<SavedGame, 'gameState'> & { winner?: string })[]> {
     return new Promise((resolve, reject) => {
       this.db.all(
-        'SELECT id, name, created_at, updated_at FROM saved_games ORDER BY updated_at DESC',
+        'SELECT id, name, game_state, created_at, updated_at FROM saved_games ORDER BY updated_at DESC',
         (err, rows: any[]) => {
           if (err) reject(err);
-          else resolve(rows.map(row => ({
-            id: row.id,
-            name: row.name,
-            createdAt: new Date(row.created_at),
-            updatedAt: new Date(row.updated_at)
-          })));
+          else resolve(rows.map(row => {
+            const gameState = JSON.parse(row.game_state);
+            return {
+              id: row.id,
+              name: row.name,
+              createdAt: new Date(row.created_at),
+              updatedAt: new Date(row.updated_at),
+              winner: gameState.winner
+            };
+          }));
         }
       );
     });

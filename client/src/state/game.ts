@@ -8,6 +8,7 @@ interface SavedGame {
     name: string;
     createdAt: string;
     updatedAt: string;
+    winner?: string;
 }
 
 interface ReplayItem {

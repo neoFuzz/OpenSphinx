@@ -13,6 +13,7 @@ const Board3D = React.lazy(() => import('./components/Board3D').then(m => ({ def
 export default function App() {
     const connectRoom = useGame(s => s.connectRoom);
     const createRoom = useGame(s => (s as any).createRoom ?? (() => { }));
+    const state = useGame(s => s.state);
     const [roomId, setRoomId] = useState(''); // maybe ROOM1
     const [name, setName] = useState('Player');
     const [useThree, setUseThree] = useState(true);
@@ -31,7 +32,7 @@ export default function App() {
                 <button className="btn btn-primary" onClick={() => setShowJoinForm(true)}>Join</button>
                 <button className="btn btn-success" onClick={() => setShowCreateForm(true)}>Create</button>
                 <SavedGames onReplaySelect={setReplayId} />
-                <RoomList onJoinRoom={(roomId) => { setRoomId(roomId); connectRoom(roomId, name); }} />
+                {state && !replayId && <RoomList onJoinRoom={(roomId) => { setRoomId(roomId); connectRoom(roomId, name); }} />}
                 <div className="form-check ms-auto">
                     <input className="form-check-input" type="checkbox" checked={useThree} onChange={e => setUseThree(e.target.checked)} id="use3d" />
                     <label className="form-check-label" htmlFor="use3d">Use 3D</label>

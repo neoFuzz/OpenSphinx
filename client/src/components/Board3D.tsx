@@ -871,7 +871,7 @@ export function Board3D() {
 
             <Canvas
                 shadows
-                camera={{ position: [0, 8, 10], fov: 45, near: 0.1, far: 100 }}
+                camera={{ position: color === 'RED' ? [0, 8, -10] : [0, 8, 10], fov: 45, near: 0.1, far: 100 }}
                 style={{ background: '#000000', height: 'calc(100% - 50px)' }}
             >
                 {/* Lights */}
@@ -884,7 +884,13 @@ export function Board3D() {
                     shadow-mapSize-height={2048}
                 />
 
-                {/* Ground/board shadow catcher */}
+                {/* Large ground disc with dirt texture */}
+                <mesh rotation-x={-Math.PI / 2} position={[0, -0.1, 0]} receiveShadow>
+                    <circleGeometry args={[50, 64]} />
+                    <meshStandardMaterial color="#8B4513" roughness={0.9} metalness={0.1} />
+                </mesh>
+
+                {/* Board shadow catcher */}
                 <mesh rotation-x={-Math.PI / 2} position={[0, -0.001, 0]} receiveShadow>
                     <planeGeometry args={[BOARD_W + 2, BOARD_H + 2]} />
                     <shadowMaterial opacity={0.25} />
@@ -933,6 +939,7 @@ export function Board3D() {
                     enableZoom
                     minDistance={5}
                     maxDistance={30}
+                    maxPolarAngle={Math.PI / 2}
                     target={[0, 0, 0]}
                 />
             </Canvas>

@@ -2,6 +2,14 @@ import React, { useState } from 'react';
 import { useGame } from '../state/game';
 import { Replay } from './Replay';
 
+interface SavedGame {
+    id: string;
+    name: string;
+    createdAt: string;
+    updatedAt: string;
+    winner?: string;
+}
+
 export function SavedGames({ onReplaySelect }: { onReplaySelect?: (id: string) => void }) {
     const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [saveName, setSaveName] = useState('');
@@ -35,12 +43,14 @@ export function SavedGames({ onReplaySelect }: { onReplaySelect?: (id: string) =
                 </button>
             )}
             
-            <button 
-                className="btn btn-outline-secondary btn-sm" 
-                onClick={() => setShowLoadDialog(true)}
-            >
-                Load Game
-            </button>
+            {!state && (
+                <button 
+                    className="btn btn-outline-secondary btn-sm" 
+                    onClick={() => setShowLoadDialog(true)}
+                >
+                    Load Game
+                </button>
+            )}
             
             <button 
                 className="btn btn-outline-info btn-sm" 
@@ -87,11 +97,11 @@ export function SavedGames({ onReplaySelect }: { onReplaySelect?: (id: string) =
                                 <button type="button" className="btn-close" onClick={() => setShowLoadDialog(false)}></button>
                             </div>
                             <div className="modal-body">
-                                {savedGames.length === 0 ? (
-                                    <p>No saved games found.</p>
+                                {savedGames.filter(game => !game.winner).length === 0 ? (
+                                    <p>No unfinished saved games found.</p>
                                 ) : (
                                     <div className="list-group">
-                                        {savedGames.map((game) => (
+                                        {savedGames.filter(game => !game.winner).map((game) => (
                                             <div key={game.id} className="list-group-item d-flex justify-content-between align-items-center">
                                                 <div>
                                                     <h6 className="mb-1">{game.name}</h6>
