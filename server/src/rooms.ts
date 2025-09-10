@@ -11,6 +11,9 @@ interface Room {
   state: GameState;
   spectators: Set<string>;
   savedName?: string;
+  gameStates: GameState[];
+  isPrivate?: boolean;
+  password?: string;
 }
 
 const makeId = () => Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -19,23 +22,38 @@ export function createRoomsManager(io: Server) {
   const rooms = new Map<string, Room>();
   const socketToRooms = new Map<string, Set<string>>();
 
-  function createRoom(): { roomId: string } {
+  function createRoom(options?: { isPrivate?: boolean; password?: string }): { roomId: string } {
     const roomId = makeId();
+    const initialState = createInitialState();
     rooms.set(roomId, {
       id: roomId,
       players: [],
       spectators: new Set(),
-      state: createInitialState(),
+      state: initialState,
+      gameStates: [initialState],
+      isPrivate: options?.isPrivate,
+      password: options?.password,
     });
-    logger.info('Room created', { gameId: roomId });
+    logger.info('Room created', { 
+      gameId: roomId, 
+      isPrivate: !!options?.isPrivate,
+      passwordProtected: !!(options?.isPrivate && options?.password)
+    });
     return { roomId };
   }
 
-  function joinRoom(socket: Socket, roomId: string, name: string, ack?: Function) {
+  function joinRoom(socket: Socket, roomId: string, name: string, password?: string, ack?: Function) {
     const room = rooms.get(roomId);
     if (!room) {
       logger.warn('Join room failed - room not found', { gameId: roomId, playerName: name });
       return ack?.({ error: 'Room not found' });
+    }
+
+    if (room.isPrivate) {
+      if (!room.password || room.password !== password) {
+        logger.warn('Join room failed - incorrect password', { gameId: roomId, playerName: name, providedPassword: !!password });
+        return ack?.({ error: 'Incorrect password' });
+      }
     }
 
     const current = room.players.map(p => p.socketId);
@@ -79,6 +97,7 @@ export function createRoomsManager(io: Server) {
 
     const next = applyMove(room.state, payload.move, room.id);
     room.state = next;
+    room.gameStates.push(next);
     
     logger.info('Move applied', { gameId: room.id, player: player.color, moveType: payload.move.type });
     
@@ -87,6 +106,15 @@ export function createRoomsManager(io: Server) {
     if (next.winner) {
       logger.info('Game ended', { gameId: room.id, winner: next.winner });
       io.to(room.id).emit('game:end', { winner: next.winner });
+      
+      // Auto-save completed game and replay
+      const gameName = `Game ${room.id} - ${next.winner} wins`;
+      database.saveGame(room.id, gameName, next).catch(error => 
+        logger.error('Auto-save failed', { gameId: room.id, error })
+      );
+      database.saveReplay(room.id, gameName, room.gameStates).catch(error => 
+        logger.error('Auto-save replay failed', { gameId: room.id, error })
+      );
     }
   }
 
@@ -144,6 +172,7 @@ export function createRoomsManager(io: Server) {
         players: [],
         spectators: new Set(),
         state: savedGame.gameState,
+        gameStates: [savedGame.gameState],
       });
 
       logger.info('Game loaded', { gameId: roomId, originalGameId: payload.gameId, saveName: savedGame.name });
@@ -154,5 +183,17 @@ export function createRoomsManager(io: Server) {
     }
   }
 
-  return { createRoom, joinRoom, handleMove, leaveAll, saveGame, loadGame };
+  function listRooms() {
+    return Array.from(rooms.values())
+      .filter(room => !room.isPrivate) // Only show public rooms in the list
+      .map(room => ({
+        id: room.id,
+        playerCount: room.players.length,
+        spectatorCount: room.spectators.size,
+        hasWinner: !!room.state.winner,
+        turn: room.state.turn
+      }));
+  }
+
+  return { createRoom, joinRoom, handleMove, leaveAll, saveGame, loadGame, listRooms };
 }

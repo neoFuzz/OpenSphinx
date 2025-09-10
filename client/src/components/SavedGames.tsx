@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { useGame } from '../state/game';
+import { Replay } from './Replay';
 
-export function SavedGames() {
+export function SavedGames({ onReplaySelect }: { onReplaySelect?: (id: string) => void }) {
     const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [saveName, setSaveName] = useState('');
     const [showLoadDialog, setShowLoadDialog] = useState(false);
+    const [showReplayDialog, setShowReplayDialog] = useState(false);
+    const [replayId, setReplayId] = useState('');
     
-    const { savedGames, saveGame, loadGame, deleteSavedGame, state } = useGame();
+    const { savedGames, replays, saveGame, loadGame, deleteSavedGame, fetchReplays, state } = useGame();
 
     const handleSave = () => {
         if (saveName.trim()) {
@@ -37,6 +40,13 @@ export function SavedGames() {
                 onClick={() => setShowLoadDialog(true)}
             >
                 Load Game
+            </button>
+            
+            <button 
+                className="btn btn-outline-info btn-sm" 
+                onClick={() => { setShowReplayDialog(true); fetchReplays(); }}
+            >
+                View Replays
             </button>
 
             {/* Save Dialog */}
@@ -114,6 +124,61 @@ export function SavedGames() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Replay Dialog */}
+            {showReplayDialog && (
+                <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+                    <div className="modal-dialog modal-dialog-centered">
+                        <div className="modal-content">
+                            <div className="modal-header">
+                                <h5 className="modal-title">Game Replays</h5>
+                                <button type="button" className="btn-close" onClick={() => setShowReplayDialog(false)}></button>
+                            </div>
+                            <div className="modal-body">
+                                {replays.length === 0 ? (
+                                    <p>No replays found.</p>
+                                ) : (
+                                    <div className="list-group">
+                                        {replays.map((replay) => (
+                                            <div key={replay.id} className="list-group-item d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <h6 className="mb-1">{replay.name}</h6>
+                                                    <small className="text-muted">
+                                                        Created: {new Date(replay.createdAt).toLocaleString()}
+                                                    </small>
+                                                </div>
+                                                <button 
+                                                    className="btn btn-primary btn-sm"
+                                                    onClick={() => {
+                                                        if (onReplaySelect) {
+                                                            onReplaySelect(replay.id);
+                                                        } else {
+                                                            setReplayId(replay.id);
+                                                        }
+                                                        setShowReplayDialog(false);
+                                                    }}
+                                                >
+                                                    Watch
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="modal-footer">
+                                <button type="button" className="btn btn-secondary" onClick={() => setShowReplayDialog(false)}>Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {replayId && !onReplaySelect && (
+                <Replay 
+                    replayId={replayId} 
+                    onClose={() => setReplayId('')} 
+                />
             )}
         </div>
     );

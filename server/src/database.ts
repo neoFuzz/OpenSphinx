@@ -1,5 +1,13 @@
 import sqlite3 from 'sqlite3';
-import { GameState } from '../../shared/src/types';
+import { GameState, Move } from '../../shared/src/types';
+
+export interface GameReplay {
+  id: string;
+  name: string;
+  gameStates: GameState[];
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export interface SavedGame {
   id: string;
@@ -23,6 +31,16 @@ class Database {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         game_state TEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    
+    this.db.run(`
+      CREATE TABLE IF NOT EXISTS game_replays (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        game_states TEXT NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
@@ -86,6 +104,57 @@ class Database {
         if (err) reject(err);
         else resolve();
       });
+    });
+  }
+
+  saveReplay(id: string, name: string, gameStates: GameState[]): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const stmt = this.db.prepare(`
+        INSERT OR REPLACE INTO game_replays (id, name, game_states, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+      `);
+      stmt.run([id, name, JSON.stringify(gameStates)], (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+      stmt.finalize();
+    });
+  }
+
+  loadReplay(id: string): Promise<GameReplay | null> {
+    return new Promise((resolve, reject) => {
+      this.db.get(
+        'SELECT * FROM game_replays WHERE id = ?',
+        [id],
+        (err, row: any) => {
+          if (err) reject(err);
+          else if (!row) resolve(null);
+          else resolve({
+            id: row.id,
+            name: row.name,
+            gameStates: JSON.parse(row.game_states),
+            createdAt: new Date(row.created_at),
+            updatedAt: new Date(row.updated_at)
+          });
+        }
+      );
+    });
+  }
+
+  listReplays(): Promise<Omit<GameReplay, 'gameStates'>[]> {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        'SELECT id, name, created_at, updated_at FROM game_replays ORDER BY updated_at DESC',
+        (err, rows: any[]) => {
+          if (err) reject(err);
+          else resolve(rows.map(row => ({
+            id: row.id,
+            name: row.name,
+            createdAt: new Date(row.created_at),
+            updatedAt: new Date(row.updated_at)
+          })));
+        }
+      );
     });
   }
 }

@@ -10,19 +10,28 @@ interface SavedGame {
     updatedAt: string;
 }
 
+interface ReplayItem {
+    id: string;
+    name: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
 interface GameStore {
     roomId?: string;
     color?: 'RED' | 'SILVER';
     state?: GameState;
     modal?: { title: string; message: string };
     savedGames: SavedGame[];
-    connectRoom: (roomId: string, name: string) => void;
+    replays: ReplayItem[];
+    connectRoom: (roomId: string, name: string, password?: string) => void;
     sendMove: (move: Move) => void;
-    createRoom: (onCreated?: (id: string) => void) => void;
+    createRoom: (options?: { isPrivate?: boolean; password?: string }, onCreated?: (id: string) => void) => void;
     saveGame: (name: string) => void;
     loadGame: (gameId: string) => void;
     fetchSavedGames: () => void;
     deleteSavedGame: (gameId: string) => void;
+    fetchReplays: () => void;
     showModal: (title: string, message: string) => void;
     hideModal: () => void;
 }
@@ -31,16 +40,19 @@ let listenersBound = false;
 
 export const useGame = create<GameStore>((set, get) => ({
     savedGames: [],
+    replays: [],
 
-    createRoom: (onCreated) => {
-        socket.emit('room:create', null, ({ roomId }: any) => {
+    createRoom: (options, onCreated) => {
+        console.log('createRoom called, socket connected:', socket.connected);
+        socket.emit('room:create', options || {}, ({ roomId }: any) => {
+            console.log('room:create response:', roomId);
             set({ roomId });
             onCreated?.(roomId);
         });
     },
 
 
-    connectRoom: (roomId, name) => {
+    connectRoom: (roomId, name, password) => {
         if (!listenersBound) {
             socket.on('connect', () => console.log('socket connected', socket.id));
             socket.on('room:state', (payload) => set({ state: payload.state }));
@@ -57,7 +69,7 @@ export const useGame = create<GameStore>((set, get) => ({
             listenersBound = true;
         }
 
-        socket.emit('room:join', { roomId, name }, (res: any) => {
+        socket.emit('room:join', { roomId, name, password }, (res: any) => {
             if (res?.ok) {
                 set({ roomId, color: res.color });
             } else if (res?.error) {
@@ -92,7 +104,8 @@ export const useGame = create<GameStore>((set, get) => ({
 
     fetchSavedGames: async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/games');
+            const serverUrl = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001';
+            const response = await fetch(`${serverUrl}/api/games`);
             const games = await response.json();
             set({ savedGames: games });
         } catch (error) {
@@ -102,10 +115,23 @@ export const useGame = create<GameStore>((set, get) => ({
 
     deleteSavedGame: async (gameId) => {
         try {
-            await fetch(`http://localhost:3001/api/games/${gameId}`, { method: 'DELETE' });
+            const serverUrl = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001';
+            await fetch(`${serverUrl}/api/games/${gameId}`, { method: 'DELETE' });
             get().fetchSavedGames();
         } catch (error) {
             get().showModal('Error', 'Failed to delete game');
+            console.log('Failed to delete game:', error);
+        }
+    },
+
+    fetchReplays: async () => {
+        try {
+            const serverUrl = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001';
+            const response = await fetch(`${serverUrl}/api/replays`);
+            const replays = await response.json();
+            set({ replays });
+        } catch (error) {
+            console.error('Failed to fetch replays:', error);
         }
     },
 

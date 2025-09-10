@@ -10,7 +10,10 @@ import { logger } from '../../shared/src/logger';
 
 const app = express();
 app.use(helmet({ hidePoweredBy: true }));
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ 
+  origin: ['http://localhost:5173', 'http://192.168.50.9:5173', 'http://127.0.0.1:5173', 'http://localhost:3001'], 
+  credentials: true 
+}));
 app.use(express.json());
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
@@ -35,19 +38,61 @@ app.delete('/api/games/:id', async (req, res) => {
   }
 });
 
+app.get('/api/replays', async (_req, res) => {
+  try {
+    const replays = await database.listReplays();
+    res.json(replays);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch replays' });
+    logger.error('Failed to fetch replays', { error });
+  }
+});
+
+app.get('/api/replays/:id', async (req, res) => {
+  try {
+    const replay = await database.loadReplay(req.params.id);
+    if (!replay) {
+      res.status(404).json({ error: 'Replay not found' });
+    } else {
+      res.json(replay);
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to load replay' });
+    logger.error('Failed to load replay', { error });
+  }
+});
+
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: true, credentials: true } });
+const io = new Server(server, { 
+  cors: { 
+    origin: ['http://localhost:5173', 'http://192.168.50.9:5173', 'http://127.0.0.1:5173', 'http://localhost:3001'], 
+    credentials: true 
+  } 
+});
 
 const rooms = createRoomsManager(io);
 
+// Create a default room on startup
+rooms.createRoom();
+
+app.get('/api/rooms', (_req, res) => {
+  try {
+    const roomList = rooms.listRooms();
+    res.json(roomList);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch rooms' });
+    logger.error('Failed to fetch rooms', { error });
+  }
+});
+
 io.on('connection', (socket) => {
-  socket.on('room:create', (_: unknown, ack?: Function) => ack?.(rooms.createRoom()));
-  socket.on('room:join', ({ roomId, name }: { roomId: string; name: string }, ack?: Function) => rooms.joinRoom(socket, roomId, name, ack));
+  socket.on('room:create', (options: { isPrivate?: boolean; password?: string }, ack?: Function) => ack?.(rooms.createRoom(options)));
+  socket.on('room:join', ({ roomId, name, password }: { roomId: string; name: string; password?: string }, ack?: Function) => rooms.joinRoom(socket, roomId, name, password, ack));
   socket.on('game:move', (payload: any) => rooms.handleMove(socket, payload));
   socket.on('game:save', (payload: { roomId: string; name: string }) => rooms.saveGame(socket, payload));
   socket.on('game:load', (payload: { gameId: string }, ack?: Function) => rooms.loadGame(socket, payload, ack));
   socket.on('disconnect', () => rooms.leaveAll(socket));
 });
 
-const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => logger.info(`Server listening on ${PORT}`));
+const PORT = Number(process.env.PORT) || 3001;
+server.listen(PORT, "0.0.0.0", () => logger.info(`Server listening on ${PORT}`));
