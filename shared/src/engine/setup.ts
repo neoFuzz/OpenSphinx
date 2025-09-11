@@ -16,8 +16,8 @@ export function createInitialState(): GameState {
   board[7][9] = createPiece({ id: 'L_SIL', owner: 'SILVER', kind: 'LASER', facing: 'N' });
 
   // Pharaohs (kings)
-  board[0][5] = createPiece({ id: 'P_RED', owner: 'RED', kind: 'PHARAOH' });
-  board[7][4] = createPiece({ id: 'P_SIL', owner: 'SILVER', kind: 'PHARAOH', orientation: 'N' });
+  board[0][5] = createPiece({ id: 'P_RED', owner: 'RED', kind: 'PHARAOH', orientation: 'N' });
+  board[7][4] = createPiece({ id: 'P_SIL', owner: 'SILVER', kind: 'PHARAOH', orientation: 'S' });
 
   // RED pieces
   board[0][7] = createPiece({ id: 'R_PYR1', owner: 'RED', kind: 'PYRAMID', orientation: 'E' });

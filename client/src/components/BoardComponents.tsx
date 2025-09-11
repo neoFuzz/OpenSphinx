@@ -29,9 +29,8 @@ export function PieceSVG({ piece }: { piece: NonNullable<GameState['board'][0][0
         )}
         {piece.kind === 'ANUBIS' && (
           <>
-            <rect x="10" y="10" width="20" height="20" fill={color} stroke="#000" strokeWidth="1" />
-            <rect x="16" y="10" width="2" height="8" fill="#000" />
-            <rect x="22" y="10" width="2" height="8" fill="#000" />
+            <path d="M20 32 L28 28 L28 18 L24 12 L16 12 L12 18 L12 28 Z" fill={color} stroke="#000" strokeWidth="1" />
+            <polygon points="20,16 16,24 24,24" fill="#fff" />
           </>
         )}
         {piece.kind === 'LASER' && (

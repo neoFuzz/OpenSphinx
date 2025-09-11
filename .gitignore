@@ -141,3 +141,5 @@ vite.config.ts.timestamp-*
 
 # SQLite database
 games.db
+server/games.db-wal
+server/games.db-shm

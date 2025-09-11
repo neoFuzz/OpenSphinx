@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useGame } from '../state/game';
 import { COLS, ROWS } from '../../../shared/src/constants';
 import type { Pos } from '../../../shared/src/types';
@@ -11,6 +10,43 @@ export function Board() {
   const color = useGame(s => s.color);
   const sendMove = useGame(s => s.sendMove);
   const [selectedPos, setSelectedPos] = useState<Pos | null>(null);
+  const [animatingPieces, setAnimatingPieces] = useState<Map<string, {x: number, y: number, rotation: number}>>(new Map());
+  const animationRefs = useRef<Map<string, number>>(new Map());
+  const prevStateRef = useRef(state);
+  
+  // Detect piece movements and trigger animations
+  useEffect(() => {
+    if (!state || !prevStateRef.current) {
+      prevStateRef.current = state;
+      return;
+    }
+    
+    const prevState = prevStateRef.current;
+    
+    // Find pieces that moved
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const currentPiece = state.board[r][c];
+        if (!currentPiece) continue;
+        
+        // Find where this piece was in the previous state
+        for (let pr = 0; pr < ROWS; pr++) {
+          for (let pc = 0; pc < COLS; pc++) {
+            const prevPiece = prevState.board[pr][pc];
+            if (prevPiece?.id === currentPiece.id && (pr !== r || pc !== c)) {
+              // Piece moved from (pr, pc) to (r, c)
+              const deltaX = (pc - c) * 50;
+              const deltaY = (pr - r) * 50;
+              animateMove(currentPiece.id, deltaX, deltaY);
+              break;
+            }
+          }
+        }
+      }
+    }
+    
+    prevStateRef.current = state;
+  }, [state]);
 
   const myTurn = state && color && state.turn === color;
 
@@ -54,26 +90,101 @@ export function Board() {
 
     const piece = state.board[pos.r][pos.c];
 
-    if (piece && piece.owner === color) {
-      // Select own piece
-      setSelectedPos(pos);
-    } else if (selectedPos) {
-      // Move to empty cell or swap (for Djed)
+    if (selectedPos) {
+      // Handle move or swap
       const dr = Math.abs(pos.r - selectedPos.r);
       const dc = Math.abs(pos.c - selectedPos.c);
       const selectedPiece = state.board[selectedPos.r][selectedPos.c];
 
       if (dr <= 1 && dc <= 1 && (dr > 0 || dc > 0)) {
-        if (!piece || (selectedPiece?.kind === 'DJED' &&
-          (piece.kind === 'PYRAMID' || piece.kind === 'OBELISK' || piece.kind === 'ANUBIS'))) {
+        if (!piece) {
+          // Move to empty space
           sendMove({ type: 'MOVE', from: selectedPos, to: pos });
+          setSelectedPos(null);
+          return;
+        } else if (selectedPiece?.kind === 'DJED' && 
+          (piece.kind === 'PYRAMID' || piece.kind === 'OBELISK' || piece.kind === 'ANUBIS')) {
+          // Djed swap with any pyramid/obelisk/anubis (friendly or enemy)
+          sendMove({ type: 'MOVE', from: selectedPos, to: pos });
+          setSelectedPos(null);
+          return;
         }
       }
-      setSelectedPos(null);
+      
+      // If we get here, either invalid move or selecting new piece
+      if (piece && piece.owner === color) {
+        setSelectedPos(pos);
+      } else {
+        setSelectedPos(null);
+      }
+    } else if (piece && piece.owner === color) {
+      // Select own piece
+      setSelectedPos(pos);
     } else {
       setSelectedPos(null);
     }
   };
+
+  const animateMove = useCallback((pieceId: string, deltaX: number, deltaY: number) => {
+    const startTime = Date.now();
+    const duration = 300;
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      
+      setAnimatingPieces(prev => new Map(prev).set(pieceId, {
+        x: -deltaX * (1 - eased),
+        y: -deltaY * (1 - eased),
+        rotation: 0
+      }));
+      
+      if (progress < 1) {
+        animationRefs.current.set(pieceId, requestAnimationFrame(animate));
+      } else {
+        setAnimatingPieces(prev => {
+          const next = new Map(prev);
+          next.delete(pieceId);
+          return next;
+        });
+        animationRefs.current.delete(pieceId);
+      }
+    };
+    
+    animate();
+  }, []);
+  
+  const animateRotation = useCallback((pieceId: string, direction: 'cw' | 'ccw') => {
+    const startTime = Date.now();
+    const duration = 250;
+    const targetRotation = direction === 'cw' ? 90 : -90;
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      
+      setAnimatingPieces(prev => new Map(prev).set(pieceId, {
+        x: 0,
+        y: 0,
+        rotation: targetRotation * eased
+      }));
+      
+      if (progress < 1) {
+        animationRefs.current.set(pieceId, requestAnimationFrame(animate));
+      } else {
+        setAnimatingPieces(prev => {
+          const next = new Map(prev);
+          next.delete(pieceId);
+          return next;
+        });
+        animationRefs.current.delete(pieceId);
+      }
+    };
+    
+    animate();
+  }, []);
 
   if (!state) return <div>Waiting for state…</div>;
 
@@ -87,14 +198,14 @@ export function Board() {
           const r = Math.floor(i / COLS);
           const c = i % COLS;
           const validMoves = selectedPos && myTurn ? getValidMoves(selectedPos) : [];
-          return <Cell key={`${r}-${c}`} r={r} c={c} onCellClick={onCellClick} selectedPos={selectedPos} validMoves={validMoves} />;
+          return <Cell key={`${r}-${c}`} r={r} c={c} onCellClick={onCellClick} selectedPos={selectedPos} validMoves={validMoves} animatingPieces={animatingPieces} setSelectedPos={setSelectedPos} animateRotation={animateRotation} />;
         })}
       </div>
     </div>
   );
 }
 
-function Cell({ r, c, onCellClick, selectedPos, validMoves }: Pos & { onCellClick: (pos: Pos) => void; selectedPos: Pos | null; validMoves: Array<{ r: number, c: number, type: string }> }) {
+function Cell({ r, c, onCellClick, selectedPos, validMoves, animatingPieces, setSelectedPos, animateRotation }: Pos & { onCellClick: (pos: Pos) => void; selectedPos: Pos | null; validMoves: Array<{ r: number, c: number, type: string }>; animatingPieces: Map<string, {x: number, y: number, rotation: number}>; setSelectedPos: React.Dispatch<React.SetStateAction<Pos | null>>; animateRotation: (pieceId: string, direction: 'cw' | 'ccw') => void }) {
   const state = useGame(s => s.state)!;
   const piece = state.board[r][c];
   const isSelected = selectedPos?.r === r && selectedPos?.c === c;
@@ -115,7 +226,7 @@ function Cell({ r, c, onCellClick, selectedPos, validMoves }: Pos & { onCellClic
 
   return (
     <div className="cell" onClick={() => onCellClick({ r, c })} style={{ cursor: 'pointer', background: bgColor }}>
-      {piece && <PieceView r={r} c={c} isSelected={isSelected} />}
+      {piece && <PieceView r={r} c={c} isSelected={isSelected} animatingPieces={animatingPieces} setSelectedPos={setSelectedPos} animateRotation={animateRotation} />}
       {state.lastLaserPath?.some(p => p.r === r && p.c === c) && (
         <div className="laser" />
       )}
@@ -123,9 +234,7 @@ function Cell({ r, c, onCellClick, selectedPos, validMoves }: Pos & { onCellClic
   );
 }
 
-
-
-function PieceView({ r, c, isSelected }: Pos & { isSelected: boolean }) {
+function PieceView({ r, c, isSelected, animatingPieces, setSelectedPos, animateRotation }: Pos & { isSelected: boolean; animatingPieces: Map<string, {x: number, y: number, rotation: number}>; setSelectedPos: React.Dispatch<React.SetStateAction<Pos | null>>; animateRotation: (pieceId: string, direction: 'cw' | 'ccw') => void }) {
   const state = useGame(s => s.state)!;
   const color = useGame(s => s.color)!;
   const sendMove = useGame(s => s.sendMove);
@@ -134,11 +243,26 @@ function PieceView({ r, c, isSelected }: Pos & { isSelected: boolean }) {
 
   const onRotate = (delta: 90 | -90) => {
     if (!isMyTurn) return;
+    
+    const direction = delta === 90 ? 'cw' : 'ccw';
+    animateRotation(piece.id, direction);
+    
     sendMove({ type: 'ROTATE', from: { r, c }, rotation: delta });
+    setSelectedPos(null);
   };
 
+  const animationState = animatingPieces.get(piece.id);
+  
+  let transform = '';
+  let zIndex = 1;
+  
+  if (animationState) {
+    transform = `translate(${animationState.x}px, ${animationState.y}px) rotate(${animationState.rotation}deg)`;
+    zIndex = 100;
+  }
+
   return (
-    <div className="piece" style={{ position: 'relative' }}>
+    <div className="piece" style={{ position: 'relative', transform, zIndex }}>
       <PieceSVG piece={piece} />
       {isSelected && isMyTurn && (
         <div className="radial-menu">

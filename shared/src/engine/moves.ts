@@ -76,7 +76,8 @@ function isValidZoneMove(piece: any, to: { r: number; c: number }): boolean {
 
 function performSwap(state: GameState, move: Move, piece: any, targetPiece: any): boolean {
   if (piece.kind !== 'DJED') return false;
-  if (targetPiece.owner === piece.owner || targetPiece.kind === 'PHARAOH' || targetPiece.kind === 'LASER') return false;
+  if (targetPiece.kind === 'PHARAOH' || targetPiece.kind === 'LASER') return false;
+  if (targetPiece.kind !== 'PYRAMID' && targetPiece.kind !== 'OBELISK' && targetPiece.kind !== 'ANUBIS') return false;
   
   state.board[move.to!.r][move.to!.c] = piece;
   state.board[move.from.r][move.from.c] = targetPiece;

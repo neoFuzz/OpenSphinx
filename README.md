@@ -1,5 +1,5 @@
 # OpenSphinx (TypeScript, Node.js + Express + Socket.IO + React)
-An open-source version of Laser Chess
+An open-source version of Laser Chess (or Khet)
 
 This is a monorepo containing:
 
@@ -26,9 +26,33 @@ npm run dev --workspace client
 ```
 Open the client at the URL Vite prints (typically http://localhost:5173). The client expects the server at `http://localhost:3001`.
 
+## Configuration
+
+### Environment Variables
+- **Server** (`server/.env`):
+  ```bash
+  PORT=3001 # Server port
+  HOST=0.0.0.0 # Server host (0.0.0.0 for external access)
+  CLIENT_URLS=http://localhost:5173,http://127.0.0.1:5173 # Allowed client origins
+  ```
+- **Client** (`client/.env`):
+  ```bash
+  VITE_SERVER_URL=http://localhost:3001 # Server URL
+  ```
+
+### Network Access
+For network access, update `CLIENT_URLS` in `server/.env` and create `client/.env.local`:
+```bash
+# server/.env
+CLIENT_URLS=http://localhost:5173,http://192.168.x.x:5173
+
+# client/.env.local
+VITE_SERVER_URL=http://192.168.x.x:3001
+```
+
 ## Folder structure
 ```
-laser-chess-ts/
+OpenSphinx/
 ├─ server/
 ├─ client/
 └─ shared/
@@ -58,3 +82,4 @@ laser-chess-ts/
 
 ## Notes
 - Extend easily to match strict Khet 2.0 rules (pyramid one-sidedness, Djed swap, official setups) in `shared/src/engine`
+- `.env.local` files are gitignored for local overrides

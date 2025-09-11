@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Line, useGLTF } from '@react-three/drei';
 import { useGame } from '../state/game';
 import { COLS, ROWS } from '../../../shared/src/constants';
@@ -474,15 +474,22 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
  * @param debugMode if true, render debug overlay
  * @returns 3D mesh for the piece
  */
-function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
-    { r: number; c: number; cell: NonNullable<Cell>; selected: boolean; onSelect: (pos: Pos) => void; debugMode: boolean }) {
+function Piece3D({ r, c, cell, selected, onSelect, debugMode, rotatingPieces, movingPieces, setRotatingPieces, setMovingPieces }:
+    {
+        r: number; c: number; cell: NonNullable<Cell>; selected: boolean;
+        onSelect: (pos: Pos) => void; debugMode: boolean;
+        rotatingPieces: Map<string, { startTime: number, direction: number }>;
+        movingPieces: Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>;
+        setRotatingPieces: React.Dispatch<React.SetStateAction<Map<string, { startTime: number, direction: number }>>>;
+        setMovingPieces: React.Dispatch<React.SetStateAction<Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>>>;
+    }) {
     const pos = gridToWorld(r, c);
     const colour = cell.owner === 'RED' ? '#ff6b6b' : '#6b8bff';
     const outline = selected ? 0.06 : 0;
 
     // Debug logging for piece rendering
     if (cell.kind === 'PYRAMID' && debugMode) {
-        console.log(`Rendering pyramid at ${r},${c}:`); //, JSON.stringify(cell, null, 2)
+        console.log(`Rendering pyramid at ${r},${c}:`);
     }
 
     let pyramidAngle;
@@ -493,12 +500,93 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
     }
 
     // orientation-based Y rotation for Pyramid, mirror-based for Djed
-    const pyramidRotY = cell.kind === 'PYRAMID' && cell.orientation ? dirToY(cell.orientation) + pyramidAngle : 0;
+    const pyramidRotY = cell.kind === 'PYRAMID' &&
+        cell.orientation ? dirToY(cell.orientation) + pyramidAngle : 0;
     const mirrorRotY = cell.mirror === '/' ? 0 : Math.PI / 2;
+
+    // Get current base rotation
+    const currentBaseRotY = cell.kind === 'PYRAMID' ? pyramidRotY :
+        cell.kind === 'DJED' ? mirrorRotY :
+        cell.kind === 'OBELISK' ? dirToY(cell.orientation) :
+        cell.kind === 'LASER' ? dirToY(cell.facing) :
+        cell.kind === 'ANUBIS' ? dirToY(cell.orientation) + Math.PI :
+        cell.kind === 'PHARAOH' ? dirToY(cell.orientation) : 0;
+
+    // Animation state
+    const [animatedRotY, setAnimatedRotY] = useState(currentBaseRotY);
+    const [animationPos, setAnimationPos] = useState(pos);
+    const [animationY, setAnimationY] = useState(0.2);
+    
+    // Smooth animation updates
+    useFrame((state, delta) => {
+        const now = performance.now();
+        
+        const rotationData = rotatingPieces.get(cell.id);
+        if (rotationData) {
+            const elapsed = now - rotationData.startTime;
+            const progress = Math.min(elapsed / 300, 1);
+            
+            if (progress >= 1) {
+                setRotatingPieces(prev => {
+                    const next = new Map(prev);
+                    next.delete(cell.id);
+                    return next;
+                });
+                setAnimatedRotY(currentBaseRotY);
+            } else {
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const startRot = rotationData.startRotation;
+                const targetRot = currentBaseRotY;
+                
+                let diff = targetRot - startRot;
+                if (diff > Math.PI) diff -= 2 * Math.PI;
+                if (diff < -Math.PI) diff += 2 * Math.PI;
+                
+                setAnimatedRotY(startRot + diff * eased);
+            }
+        } else {
+            setAnimatedRotY(currentBaseRotY);
+        }
+        
+        const moveData = movingPieces.get(cell.id);
+        if (moveData) {
+            const elapsed = now - moveData.startTime;
+            const progress = Math.min(elapsed / 400, 1);
+            
+            if (progress >= 1) {
+                setMovingPieces(prev => {
+                    const next = new Map(prev);
+                    next.delete(cell.id);
+                    return next;
+                });
+                setAnimationPos(pos);
+                setAnimationY(0.2);
+            } else {
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const fromPos = gridToWorld(moveData.from.r, moveData.from.c);
+                const toPos = gridToWorld(moveData.to.r, moveData.to.c);
+                
+                setAnimationPos(new THREE.Vector3(
+                    fromPos.x + (toPos.x - fromPos.x) * eased,
+                    0,
+                    fromPos.z + (toPos.z - fromPos.z) * eased
+                ));
+                
+                if (moveData.isDjedHop) {
+                    setAnimationY(0.2 + Math.sin(progress * Math.PI) * 0.8);
+                } else {
+                    setAnimationY(0.2);
+                }
+            }
+        } else {
+            setAnimationPos(pos);
+            setAnimationY(0.2);
+        }
+    });
 
     return (
         <group
-            position={[pos.x, 0.2, pos.z]}
+            position={[animationPos.x, animationY, animationPos.z]}
             onPointerDown={(e) => {
                 e.stopPropagation();
                 onSelect({ r, c });
@@ -549,7 +637,7 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
 
             {/* GLTF models with orientation and owner-based coloring */}
             {cell.kind === 'PHARAOH' && (
-                <group position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
+                <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
                     <PharaohGLTF owner={cell.owner} />
                 </group>
             )}
@@ -561,31 +649,31 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode }:
             )}
 
             {cell.kind === 'PYRAMID' && (
-                <group rotation-y={pyramidRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
+                <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
                     <PyramidGLTF owner={cell.owner} />
                 </group>
             )}
 
             {cell.kind === 'DJED' && (
-                <group rotation-y={mirrorRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
+                <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
                     <DjedGLTF owner={cell.owner} />
                 </group>
             )}
 
             {cell.kind === 'OBELISK' && (
-                <group rotation-y={dirToY(cell.orientation)} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
+                <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
                     <ObeliskGLTF owner={cell.owner} />
                 </group>
             )}
 
             {cell.kind === 'LASER' && (
-                <group rotation-y={dirToY(cell.facing)} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
+                <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
                     <LaserGLTF owner={cell.owner} />
                 </group>
             )}
 
             {cell.kind === 'ANUBIS' && (
-                <group rotation-y={dirToY(cell.orientation) + Math.PI} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
+                <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
                     <AnubisGLTF owner={cell.owner} />
                 </group>
             )}
@@ -661,8 +749,8 @@ function RotateGizmo({ position, onRotate }: { position: [number, number, number
     return (
         <group position={position}>
             {/* Clockwise arrow */}
-            <group 
-                position={[0.6, 0.76, 0]} 
+            <group
+                position={[0.6, 0.76, 0]}
                 onPointerDown={(e) => { e.stopPropagation(); onRotate(90); }}
             >
                 <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -678,10 +766,10 @@ function RotateGizmo({ position, onRotate }: { position: [number, number, number
                     <meshBasicMaterial color="#00aa00" />
                 </mesh>
             </group>
-            
+
             {/* Counter-clockwise arrow */}
-            <group 
-                position={[-0.6, 0.76, 0]} 
+            <group
+                position={[-0.6, 0.76, 0]}
                 onPointerDown={(e) => { e.stopPropagation(); onRotate(-90); }}
             >
                 <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -737,6 +825,12 @@ export function Board3D() {
 
     const [selected, setSelected] = useState<Pos | null>(null);
     const [debugMode, setDebugMode] = useState(false);
+    const [rotatingPieces, setRotatingPieces] = useState<Map<string, { startTime: number, direction: number }>>(new Map());
+    const [movingPieces, setMovingPieces] = useState<Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>>(new Map());
+    const [fps, setFps] = useState(0);
+    const prevStateRef = useRef(state);
+    const animationRefs = useRef<Map<string, number>>(new Map());
+    const fpsRef = useRef({ frames: 0, lastTime: performance.now() });
 
     useEffect(() => {
         const handleKeyPress = (e: KeyboardEvent) => {
@@ -747,6 +841,101 @@ export function Board3D() {
         window.addEventListener('keydown', handleKeyPress);
         return () => window.removeEventListener('keydown', handleKeyPress);
     }, []);
+
+    // FPS counter
+    useEffect(() => {
+        if (!debugMode) return;
+        
+        const updateFps = () => {
+            fpsRef.current.frames++;
+            const now = performance.now();
+            if (now - fpsRef.current.lastTime >= 1000) {
+                setFps(fpsRef.current.frames);
+                fpsRef.current.frames = 0;
+                fpsRef.current.lastTime = now;
+            }
+            requestAnimationFrame(updateFps);
+        };
+        
+        const id = requestAnimationFrame(updateFps);
+        return () => cancelAnimationFrame(id);
+    }, [debugMode]);
+
+    // Detect piece rotations and trigger animations
+    useEffect(() => {
+        if (!state || !prevStateRef.current) {
+            prevStateRef.current = state;
+            return;
+        }
+
+        const prevState = prevStateRef.current;
+
+        // Find pieces that moved or rotated
+        const processedPieces = new Set<string>();
+        
+        for (let r = 0; r < ROWS; r++) {
+            for (let c = 0; c < COLS; c++) {
+                const currentPiece = state.board[r][c];
+                if (!currentPiece || processedPieces.has(currentPiece.id)) continue;
+                
+                // Find where this piece was in the previous state
+                let foundPrevPos = null;
+                for (let pr = 0; pr < ROWS; pr++) {
+                    for (let pc = 0; pc < COLS; pc++) {
+                        const prevPiece = prevState.board[pr][pc];
+                        if (prevPiece?.id === currentPiece.id) {
+                            foundPrevPos = { r: pr, c: pc };
+                            
+                            // Check for rotation
+                            let hasRotated = false;
+                            let prevBaseRotY = 0;
+                            
+                            if (currentPiece.kind === 'DJED') {
+                                if (currentPiece.mirror !== prevPiece.mirror) {
+                                    hasRotated = true;
+                                    prevBaseRotY = prevPiece.mirror === '/' ? 0 : Math.PI / 2;
+                                }
+                            } else {
+                                const currentDir = currentPiece.orientation || currentPiece.facing;
+                                const prevDir = prevPiece.orientation || prevPiece.facing;
+                                if (currentDir !== prevDir) {
+                                    hasRotated = true;
+                                    prevBaseRotY = currentPiece.kind === 'PYRAMID' ? dirToY(prevDir) + (prevDir === 'N' || prevDir === 'S' ? Math.PI / 2 : -Math.PI / 2) :
+                                        currentPiece.kind === 'OBELISK' ? dirToY(prevDir) :
+                                        currentPiece.kind === 'LASER' ? dirToY(prevDir) :
+                                        currentPiece.kind === 'ANUBIS' ? dirToY(prevDir) + Math.PI :
+                                        currentPiece.kind === 'PHARAOH' ? dirToY(prevDir) : 0;
+                                }
+                            }
+                            
+                            if (hasRotated) {
+                                animateRotation(currentPiece.id, 90, prevBaseRotY);
+                            }
+                            break;
+                        }
+                    }
+                    if (foundPrevPos) break;
+                }
+                
+                // Check for movement
+                if (foundPrevPos && (foundPrevPos.r !== r || foundPrevPos.c !== c)) {
+                    const prevPieceAtTarget = prevState.board[r][c];
+                    const isDjedSwap = currentPiece.kind === 'DJED' && prevPieceAtTarget;
+                    
+                    animateMovement(currentPiece.id, foundPrevPos, { r, c }, isDjedSwap);
+                    processedPieces.add(currentPiece.id);
+                    
+                    // Handle the swapped piece
+                    if (isDjedSwap && prevPieceAtTarget) {
+                        animateMovement(prevPieceAtTarget.id, { r, c }, foundPrevPos, false);
+                        processedPieces.add(prevPieceAtTarget.id);
+                    }
+                }
+            }
+        }
+
+        prevStateRef.current = state;
+    }, [state]);
 
     const isMyTurn = state && color && state.turn === color;
 
@@ -827,6 +1016,26 @@ export function Board3D() {
         setSelected(null);
     }, [isMyTurn, selected, state, sendMove, color]);
 
+    const getRotationDirection = useCallback((prevDir: string, currentDir: string) => {
+        const dirs = ['N', 'E', 'S', 'W'];
+        const prevIndex = dirs.indexOf(prevDir);
+        const currentIndex = dirs.indexOf(currentDir);
+        if (prevIndex === -1 || currentIndex === -1) return 90;
+
+        let diff = currentIndex - prevIndex;
+        if (diff > 2) diff -= 4;
+        if (diff < -2) diff += 4;
+        return diff * 90;
+    }, []);
+
+    const animateMovement = useCallback((pieceId: string, from: Pos, to: Pos, isDjedHop: boolean) => {
+        setMovingPieces(prev => new Map(prev).set(pieceId, { startTime: performance.now(), from, to, isDjedHop }));
+    }, []);
+
+    const animateRotation = useCallback((pieceId: string, direction: number, startRotation: number) => {
+        setRotatingPieces(prev => new Map(prev).set(pieceId, { startTime: performance.now(), direction, startRotation }));
+    }, []);
+
     const onRotateSelected = useCallback((delta: 90 | -90) => {
         if (!isMyTurn || !selected) return;
         sendMove({ type: 'ROTATE', from: selected, rotation: delta });
@@ -849,7 +1058,7 @@ export function Board3D() {
                 <div className="flex-grow-1">
                     <strong>Turn:</strong> <span className="text-primary">{state.turn}</span> {isMyTurn && <span className="badge bg-success ms-1">Your move</span>}
                     {selected && <span className="ms-3 text-muted">Selected: {selected.r},{selected.c}</span>}
-                    {debugMode && <span className="ms-3 small text-secondary">Debug: selected={selected ? 'yes' : 'no'}, isMyTurn={isMyTurn ? 'yes' : 'no'}</span>}
+                    {debugMode && <span className="ms-3 small text-secondary">Debug: selected={selected ? 'yes' : 'no'}, isMyTurn={isMyTurn ? 'yes' : 'no'}, FPS: {fps}</span>}
                 </div>
                 <div className="btn-group">
                     <button
@@ -912,6 +1121,10 @@ export function Board3D() {
                                     selected={selected?.r === r && selected?.c === c}
                                     onSelect={onSelectPiece}
                                     debugMode={debugMode}
+                                    rotatingPieces={rotatingPieces}
+                                    movingPieces={movingPieces}
+                                    setRotatingPieces={setRotatingPieces}
+                                    setMovingPieces={setMovingPieces}
                                 />
                             ) : null
                         )
@@ -923,7 +1136,7 @@ export function Board3D() {
 
                 {/* Rotate gizmo for selected piece */}
                 {selected && isMyTurn && (
-                    <RotateGizmo 
+                    <RotateGizmo
                         position={[
                             gridToWorld(selected.r, selected.c).x,
                             0,
