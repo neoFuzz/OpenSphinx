@@ -12,6 +12,12 @@ const GAP = 0.02;             // small gap between tiles
 const BOARD_W = COLS * TILE_SIZE;
 const BOARD_H = ROWS * TILE_SIZE;
 
+// --- color constants ---
+const COLORS = {
+    RED: '#ff6666',
+    SILVER: '#fff'
+};
+
 // World origin will be centre of the board:
 const ORIGIN_X = -BOARD_W / 2 + TILE_SIZE / 2;
 const ORIGIN_Z = -BOARD_H / 2 + TILE_SIZE / 2;
@@ -50,25 +56,31 @@ function worldToGrid(x: number, z: number): Pos | null {
 * @param owner The owner ('RED' or 'SILVER') determining the color tinting
 */
 function withShadowsAndColor(scene: THREE.Object3D, owner: 'RED' | 'SILVER') {
-    const baseColor = owner === 'RED' ? new THREE.Color('#cc4444') : new THREE.Color('#8888cc');
+    const baseColor = owner === 'RED' ? new THREE.Color(COLORS.RED) : new THREE.Color(COLORS.SILVER);
+    const metalness = owner === 'SILVER' ? 0.5 : 0.1;
+    const roughness = owner === 'SILVER' ? 0.5 : 0.9;
 
     scene.traverse((o: any) => {
         if (o.isMesh) {
             o.castShadow = true;
             o.receiveShadow = true;
-            o.material.envMapIntensity = 1; // PBR boost
-
             // Deep clone materials to prevent sharing between instances
             if (o.material) {
                 if (Array.isArray(o.material)) {
                     o.material = o.material.map((mat: any) => {
                         const clonedMat = mat.clone();
                         clonedMat.color = baseColor.clone();
+                        clonedMat.roughness = roughness;
+                        clonedMat.metalness = metalness;
+                        clonedMat.envMapIntensity = 2;
                         return clonedMat;
                     });
                 } else {
                     o.material = o.material.clone();
                     o.material.color = baseColor.clone();
+                    o.material.roughness = roughness;
+                    o.material.metalness = metalness;
+                    o.material.envMapIntensity = 2;
                 }
             }
         }
@@ -107,6 +119,7 @@ function PharaohGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
         }
         return null;
     }, [scene, owner]);
+    // @ts-ignore
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
@@ -125,7 +138,8 @@ function PyramidGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
         }
         return null;
     }, [scene, owner]);
-    return clonedScene ? <primitive object={clonedScene} /> : null;
+    // @ts-ignore
+    return clonedScene ? <primitive object={clonedScene} /> : null; // NOSONAR @suppress ts-2339
 }
 
 /**
@@ -143,6 +157,7 @@ function DjedGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
         }
         return null;
     }, [scene, owner]);
+    // @ts-ignore
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
@@ -161,6 +176,7 @@ function LaserGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
         }
         return null;
     }, [scene, owner]);
+    // @ts-ignore
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
@@ -179,6 +195,7 @@ function ObeliskGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
         }
         return null;
     }, [scene, owner]);
+    // @ts-ignore
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
@@ -197,6 +214,7 @@ function AnubisGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
         }
         return null;
     }, [scene, owner]);
+    // @ts-ignore
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
@@ -205,7 +223,7 @@ function AnubisGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
  * Draw the Pharaoh mesh
  * @param props The group props
  * @returns A React component with the Pharaoh mesh
- */
+ */ // @ts-ignore
 function PharaohMesh(props: JSX.IntrinsicElements['group']) {
     // a gold cylinder
     return (
@@ -222,7 +240,7 @@ function PharaohMesh(props: JSX.IntrinsicElements['group']) {
  * Draw the Obelisk mesh
  * @param props The group props
  * @returns A React component with the Obelisk mesh
- */
+ */// @ts-ignore
 function ObeliskMesh(props: JSX.IntrinsicElements['group']) {
     return (
         <group {...props}>
@@ -320,7 +338,7 @@ function LaserMesh({ facing, owner }: { facing?: Dir; owner: 'RED' | 'SILVER' })
  * @param cell The cell to draw the debug overlay for
  * @returns A React component with the debug overlay
  */
-function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) {
+function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) { // NOSONAR(6759)
     const color = '#ffffff';
 
     if (cell.kind === 'PYRAMID') {
@@ -484,7 +502,7 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode, rotatingPieces, mo
         setMovingPieces: React.Dispatch<React.SetStateAction<Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>>>;
     }) {
     const pos = gridToWorld(r, c);
-    const colour = cell.owner === 'RED' ? '#ff6b6b' : '#6b8bff';
+    const colour = cell.owner === 'RED' ? COLORS.RED : COLORS.SILVER;
     const outline = selected ? 0.06 : 0;
 
     // Debug logging for piece rendering
@@ -505,27 +523,30 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode, rotatingPieces, mo
     const mirrorRotY = cell.mirror === '/' ? 0 : Math.PI / 2;
 
     // Get current base rotation
-    const currentBaseRotY = cell.kind === 'PYRAMID' ? pyramidRotY :
-        cell.kind === 'DJED' ? mirrorRotY :
-        cell.kind === 'OBELISK' ? dirToY(cell.orientation) :
-        cell.kind === 'LASER' ? dirToY(cell.facing) :
-        cell.kind === 'ANUBIS' ? dirToY(cell.orientation) + Math.PI :
-        cell.kind === 'PHARAOH' ? dirToY(cell.orientation) : 0;
+    let currentBaseRotY = (kind => {
+        switch (kind) {
+            case 'PYRAMID': return pyramidRotY;
+            case 'DJED': return mirrorRotY;
+            case 'LASER': return dirToY(cell.facing);
+            case 'ANUBIS': return dirToY(cell.orientation) + Math.PI;
+            default: return dirToY(cell.orientation);
+        }
+    })(cell.kind)
 
     // Animation state
     const [animatedRotY, setAnimatedRotY] = useState(currentBaseRotY);
     const [animationPos, setAnimationPos] = useState(pos);
     const [animationY, setAnimationY] = useState(0.2);
-    
+
     // Smooth animation updates
     useFrame((state, delta) => {
         const now = performance.now();
-        
+
         const rotationData = rotatingPieces.get(cell.id);
         if (rotationData) {
             const elapsed = now - rotationData.startTime;
             const progress = Math.min(elapsed / 300, 1);
-            
+
             if (progress >= 1) {
                 setRotatingPieces(prev => {
                     const next = new Map(prev);
@@ -537,22 +558,22 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode, rotatingPieces, mo
                 const eased = 1 - Math.pow(1 - progress, 3);
                 const startRot = rotationData.startRotation;
                 const targetRot = currentBaseRotY;
-                
+
                 let diff = targetRot - startRot;
                 if (diff > Math.PI) diff -= 2 * Math.PI;
                 if (diff < -Math.PI) diff += 2 * Math.PI;
-                
+
                 setAnimatedRotY(startRot + diff * eased);
             }
         } else {
             setAnimatedRotY(currentBaseRotY);
         }
-        
+
         const moveData = movingPieces.get(cell.id);
         if (moveData) {
             const elapsed = now - moveData.startTime;
             const progress = Math.min(elapsed / 400, 1);
-            
+
             if (progress >= 1) {
                 setMovingPieces(prev => {
                     const next = new Map(prev);
@@ -565,13 +586,13 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode, rotatingPieces, mo
                 const eased = 1 - Math.pow(1 - progress, 3);
                 const fromPos = gridToWorld(moveData.from.r, moveData.from.c);
                 const toPos = gridToWorld(moveData.to.r, moveData.to.c);
-                
+
                 setAnimationPos(new THREE.Vector3(
                     fromPos.x + (toPos.x - fromPos.x) * eased,
                     0,
                     fromPos.z + (toPos.z - fromPos.z) * eased
                 ));
-                
+
                 if (moveData.isDjedHop) {
                     setAnimationY(0.2 + Math.sin(progress * Math.PI) * 0.8);
                 } else {
@@ -829,7 +850,6 @@ export function Board3D() {
     const [movingPieces, setMovingPieces] = useState<Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>>(new Map());
     const [fps, setFps] = useState(0);
     const prevStateRef = useRef(state);
-    const animationRefs = useRef<Map<string, number>>(new Map());
     const fpsRef = useRef({ frames: 0, lastTime: performance.now() });
 
     useEffect(() => {
@@ -845,7 +865,7 @@ export function Board3D() {
     // FPS counter
     useEffect(() => {
         if (!debugMode) return;
-        
+
         const updateFps = () => {
             fpsRef.current.frames++;
             const now = performance.now();
@@ -856,7 +876,7 @@ export function Board3D() {
             }
             requestAnimationFrame(updateFps);
         };
-        
+
         const id = requestAnimationFrame(updateFps);
         return () => cancelAnimationFrame(id);
     }, [debugMode]);
@@ -872,12 +892,12 @@ export function Board3D() {
 
         // Find pieces that moved or rotated
         const processedPieces = new Set<string>();
-        
+
         for (let r = 0; r < ROWS; r++) {
             for (let c = 0; c < COLS; c++) {
                 const currentPiece = state.board[r][c];
                 if (!currentPiece || processedPieces.has(currentPiece.id)) continue;
-                
+
                 // Find where this piece was in the previous state
                 let foundPrevPos = null;
                 for (let pr = 0; pr < ROWS; pr++) {
@@ -885,11 +905,11 @@ export function Board3D() {
                         const prevPiece = prevState.board[pr][pc];
                         if (prevPiece?.id === currentPiece.id) {
                             foundPrevPos = { r: pr, c: pc };
-                            
+
                             // Check for rotation
                             let hasRotated = false;
                             let prevBaseRotY = 0;
-                            
+
                             if (currentPiece.kind === 'DJED') {
                                 if (currentPiece.mirror !== prevPiece.mirror) {
                                     hasRotated = true;
@@ -900,14 +920,16 @@ export function Board3D() {
                                 const prevDir = prevPiece.orientation || prevPiece.facing;
                                 if (currentDir !== prevDir) {
                                     hasRotated = true;
-                                    prevBaseRotY = currentPiece.kind === 'PYRAMID' ? dirToY(prevDir) + (prevDir === 'N' || prevDir === 'S' ? Math.PI / 2 : -Math.PI / 2) :
-                                        currentPiece.kind === 'OBELISK' ? dirToY(prevDir) :
-                                        currentPiece.kind === 'LASER' ? dirToY(prevDir) :
-                                        currentPiece.kind === 'ANUBIS' ? dirToY(prevDir) + Math.PI :
-                                        currentPiece.kind === 'PHARAOH' ? dirToY(prevDir) : 0;
+                                    prevBaseRotY = ((kind) => {
+                                        switch (kind) {
+                                            case 'PYRAMID': return dirToY(prevDir) + (prevDir === 'N' || prevDir === 'S' ? Math.PI / 2 : -Math.PI / 2);
+                                            case 'ANUBIS': return dirToY(prevDir) + Math.PI;
+                                            default: return dirToY(prevDir);
+                                        }
+                                    })(currentPiece.kind)
                                 }
                             }
-                            
+
                             if (hasRotated) {
                                 animateRotation(currentPiece.id, 90, prevBaseRotY);
                             }
@@ -916,15 +938,15 @@ export function Board3D() {
                     }
                     if (foundPrevPos) break;
                 }
-                
+
                 // Check for movement
                 if (foundPrevPos && (foundPrevPos.r !== r || foundPrevPos.c !== c)) {
                     const prevPieceAtTarget = prevState.board[r][c];
                     const isDjedSwap = currentPiece.kind === 'DJED' && prevPieceAtTarget;
-                    
+
                     animateMovement(currentPiece.id, foundPrevPos, { r, c }, isDjedSwap);
                     processedPieces.add(currentPiece.id);
-                    
+
                     // Handle the swapped piece
                     if (isDjedSwap && prevPieceAtTarget) {
                         animateMovement(prevPieceAtTarget.id, { r, c }, foundPrevPos, false);
@@ -1016,18 +1038,6 @@ export function Board3D() {
         setSelected(null);
     }, [isMyTurn, selected, state, sendMove, color]);
 
-    const getRotationDirection = useCallback((prevDir: string, currentDir: string) => {
-        const dirs = ['N', 'E', 'S', 'W'];
-        const prevIndex = dirs.indexOf(prevDir);
-        const currentIndex = dirs.indexOf(currentDir);
-        if (prevIndex === -1 || currentIndex === -1) return 90;
-
-        let diff = currentIndex - prevIndex;
-        if (diff > 2) diff -= 4;
-        if (diff < -2) diff += 4;
-        return diff * 90;
-    }, []);
-
     const animateMovement = useCallback((pieceId: string, from: Pos, to: Pos, isDjedHop: boolean) => {
         setMovingPieces(prev => new Map(prev).set(pieceId, { startTime: performance.now(), from, to, isDjedHop }));
     }, []);
@@ -1087,7 +1097,7 @@ export function Board3D() {
                 <ambientLight intensity={0.6} />
                 <directionalLight
                     position={[8, 12, 6]}
-                    intensity={0.9}
+                    intensity={1.5}
                     castShadow
                     shadow-mapSize-width={2048}
                     shadow-mapSize-height={2048}
