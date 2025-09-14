@@ -27,7 +27,7 @@ interface GameStore {
     replays: ReplayItem[];
     connectRoom: (roomId: string, name: string, password?: string) => void;
     sendMove: (move: Move) => void;
-    createRoom: (options?: { isPrivate?: boolean; password?: string }, onCreated?: (id: string) => void) => void;
+    createRoom: (options?: { isPrivate?: boolean; password?: string; config?: { rules: string; setup: string } }, onCreated?: (id: string) => void) => void;
     saveGame: (name: string) => void;
     loadGame: (gameId: string) => void;
     fetchSavedGames: () => void;

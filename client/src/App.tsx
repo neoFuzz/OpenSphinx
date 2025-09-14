@@ -103,7 +103,7 @@ function GameArea({ useThree, replayId, setReplayId }: { useThree: boolean; repl
 }
 
 function RoomListDisplay() {
-    const [rooms, setRooms] = useState<{ id: string; playerCount: number; spectatorCount: number; hasWinner: boolean; turn: 'RED' | 'SILVER' }[]>([]);
+    const [rooms, setRooms] = useState<{ id: string; playerCount: number; spectatorCount: number; hasWinner: boolean; turn: 'RED' | 'SILVER'; config?: { rules: string; setup: string } }[]>([]);
     const connectRoom = useGame(s => s.connectRoom);
     const [name] = useState('Player');
 
@@ -139,6 +139,7 @@ function RoomListDisplay() {
                                 <small className="text-muted">
                                     Players: {room.playerCount}/2 | Spectators: {room.spectatorCount}
                                     {room.hasWinner ? ' | Finished' : ` | Turn: ${room.turn}`}
+                                    {room.config && ` | ${room.config.rules} / ${room.config.setup}`}
                                 </small>
                             </div>
                             <button 

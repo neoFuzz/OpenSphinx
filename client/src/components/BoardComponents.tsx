@@ -39,6 +39,12 @@ export function PieceSVG({ piece }: { piece: NonNullable<GameState['board'][0][0
             <polygon points="20,12 25,20 20,20 15,20" fill="#fff" />
           </>
         )}
+        {piece.kind === 'SPHINX' && (
+          <>
+            <circle cx="20" cy="20" r="8" fill={color} stroke="#000" strokeWidth="1" />
+            <polygon points="20,12 25,20 20,20 15,20" fill="#fff" />
+          </>
+        )}
       </g>
     </svg>
   );

@@ -46,7 +46,7 @@ function validateMove(state: GameState, move: Move) {
   if (!inBounds(from.r, from.c)) return null;
   const piece = board[from.r][from.c];
   if (!piece || piece.owner !== turn) return null;
-  if (move.type === 'MOVE' && piece.kind === 'LASER') return null;
+  if (move.type === 'MOVE' && (piece.kind === 'LASER' || piece.kind === 'SPHINX')) return null;
   return piece;
 }
 
@@ -76,7 +76,7 @@ function isValidZoneMove(piece: any, to: { r: number; c: number }): boolean {
 
 function performSwap(state: GameState, move: Move, piece: any, targetPiece: any): boolean {
   if (piece.kind !== 'DJED') return false;
-  if (targetPiece.kind === 'PHARAOH' || targetPiece.kind === 'LASER') return false;
+  if (targetPiece.kind === 'PHARAOH' || targetPiece.kind === 'LASER' || targetPiece.kind === 'SPHINX') return false;
   if (targetPiece.kind !== 'PYRAMID' && targetPiece.kind !== 'OBELISK' && targetPiece.kind !== 'ANUBIS') return false;
   
   state.board[move.to!.r][move.to!.c] = piece;
@@ -120,6 +120,10 @@ function rotatePieceFacing(piece: any, from: { r: number; c: number }, rotation:
       if (isValidLaserFacing(from, newFacing)) {
         piece.facing = newFacing;
       }
+    } else if (piece.kind === 'SPHINX') {
+      if (isValidSphinxFacing(from, newFacing)) {
+        piece.facing = newFacing;
+      }
     } else {
       piece.facing = newFacing;
     }
@@ -160,5 +164,14 @@ function isValidLaserFacing(pos: { r: number; c: number }, facing: 'N' | 'E' | '
     return facing === 'N' || facing === 'W';
   }
   // For any other position (shouldn't happen in normal game), allow all directions
+  return true;
+}
+
+function isValidSphinxFacing(pos: { r: number; c: number }, facing: 'N' | 'E' | 'S' | 'W' | 'O'): boolean {
+  // SPHINX cannot face off the board
+  if (pos.r === 0 && facing === 'N') return false;
+  if (pos.r === 7 && facing === 'S') return false;
+  if (pos.c === 0 && facing === 'W') return false;
+  if (pos.c === 9 && facing === 'E') return false;
   return true;
 }

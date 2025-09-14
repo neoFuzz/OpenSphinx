@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import { createRoomsManager } from './rooms';
 import { database } from './database';
 import { logger } from '../../shared/src/logger';
+import { GameConfig } from '../../shared/src/types';
 
 const CLIENT_URLS = process.env.CLIENT_URLS?.split(',') || ['http://localhost:5173'];
 
@@ -74,8 +75,8 @@ const io = new Server(server, {
 
 const rooms = createRoomsManager(io);
 
-// Create a default room on startup
-rooms.createRoom();
+// Create a default room on startup with classic setup and khet 2.0 rules
+rooms.createRoom({ config: { rules: 'KHET_2_0', setup: 'CLASSIC' } });
 
 app.get('/api/rooms', (_req, res) => {
   try {
@@ -88,7 +89,7 @@ app.get('/api/rooms', (_req, res) => {
 });
 
 io.on('connection', (socket) => {
-  socket.on('room:create', (options: { isPrivate?: boolean; password?: string }, ack?: Function) => ack?.(rooms.createRoom(options)));
+  socket.on('room:create', (options: { isPrivate?: boolean; password?: string; config?: GameConfig }, ack?: Function) => ack?.(rooms.createRoom(options)));
   socket.on('room:join', ({ roomId, name, password }: { roomId: string; name: string; password?: string }, ack?: Function) => rooms.joinRoom(socket, roomId, name, password, ack));
   socket.on('game:move', (payload: any) => rooms.handleMove(socket, payload));
   socket.on('game:save', (payload: { roomId: string; name: string }) => rooms.saveGame(socket, payload));

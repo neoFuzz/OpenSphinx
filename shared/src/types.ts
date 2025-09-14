@@ -4,7 +4,7 @@ export type Dir = 'N' | 'E' | 'S' | 'W'| 'O';
 
 export interface Pos { r: number; c: number; }
 
-export type PieceKind = 'PHARAOH' | 'PYRAMID' | 'DJED' | 'OBELISK' | 'ANUBIS' | 'LASER';
+export type PieceKind = 'PHARAOH' | 'PYRAMID' | 'DJED' | 'OBELISK' | 'ANUBIS' | 'LASER' | 'SPHINX';
 
 export type MirrorShape = '/' | '\\';
 export interface Piece {
@@ -36,11 +36,20 @@ export function debugCell(cell: Cell): string {
   return cell ? (cell.debug?.() || `${cell.owner} ${cell.kind}`) : 'empty';
 }
 
+export type RuleVariant = 'CLASSIC' | 'KHET_2_0';
+export type SetupVariant = 'CLASSIC' | 'IMHOTEP' | 'DYNASTY';
+
+export interface GameConfig {
+  rules: RuleVariant;
+  setup: SetupVariant;
+}
+
 export interface GameState {
   board: Cell[][];
   turn: Player;
   lastLaserPath?: Pos[];
   winner?: Player;
+  config?: GameConfig;
 }
 
 export interface Move {

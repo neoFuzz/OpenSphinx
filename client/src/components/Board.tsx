@@ -53,7 +53,7 @@ export function Board() {
   const getValidMoves = (pos: Pos) => {
     if (!state) return [];
     const piece = state.board[pos.r][pos.c];
-    if (!piece || piece.kind === 'LASER') return [];
+    if (!piece || piece.kind === 'LASER' || piece.kind === 'SPHINX') return [];
 
     const moves = [];
     for (let dr = -1; dr <= 1; dr++) {

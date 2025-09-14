@@ -1,6 +1,6 @@
 
 import { Server, Socket } from 'socket.io';
-import { GameState, Move } from '../../shared/src/types';
+import { GameState, Move, GameConfig } from '../../shared/src/types';
 import { applyMove, createInitialState } from '../../shared/src/engine';
 import { database } from './database';
 import { logger } from '../../shared/src/logger';
@@ -14,6 +14,7 @@ interface Room {
   gameStates: GameState[];
   isPrivate?: boolean;
   password?: string;
+  config: GameConfig;
 }
 
 const makeId = () => Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -22,9 +23,10 @@ export function createRoomsManager(io: Server) {
   const rooms = new Map<string, Room>();
   const socketToRooms = new Map<string, Set<string>>();
 
-  function createRoom(options?: { isPrivate?: boolean; password?: string }): { roomId: string } {
+  function createRoom(options?: { isPrivate?: boolean; password?: string; config?: GameConfig }): { roomId: string } {
     const roomId = makeId();
-    const initialState = createInitialState();
+    const config: GameConfig = options?.config || { rules: 'CLASSIC', setup: 'CLASSIC' };
+    const initialState = createInitialState(config);
     rooms.set(roomId, {
       id: roomId,
       players: [],
@@ -33,11 +35,14 @@ export function createRoomsManager(io: Server) {
       gameStates: [initialState],
       isPrivate: options?.isPrivate,
       password: options?.password,
+      config,
     });
     logger.info('Room created', { 
       gameId: roomId, 
       isPrivate: !!options?.isPrivate,
-      passwordProtected: !!(options?.isPrivate && options?.password)
+      passwordProtected: !!(options?.isPrivate && options?.password),
+      rules: config.rules,
+      setup: config.setup
     });
     return { roomId };
   }
@@ -83,6 +88,7 @@ export function createRoomsManager(io: Server) {
       roomId: room.id,
       players: room.players.map(p => ({ name: p.name, color: p.color })),
       state: room.state,
+      config: room.config,
     };
   }
 
@@ -173,6 +179,7 @@ export function createRoomsManager(io: Server) {
         spectators: new Set(),
         state: savedGame.gameState,
         gameStates: [savedGame.gameState],
+        config: savedGame.gameState.config || { rules: 'CLASSIC', setup: 'CLASSIC' },
       });
 
       logger.info('Game loaded', { gameId: roomId, originalGameId: payload.gameId, saveName: savedGame.name });
@@ -191,7 +198,8 @@ export function createRoomsManager(io: Server) {
         playerCount: room.players.length,
         spectatorCount: room.spectators.size,
         hasWinner: !!room.state.winner,
-        turn: room.state.turn
+        turn: room.state.turn,
+        config: room.config
       }));
   }
 

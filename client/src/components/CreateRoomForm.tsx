@@ -1,17 +1,26 @@
 import React, { useState } from 'react';
 
+type RuleVariant = 'CLASSIC' | 'KHET_2_0';
+type SetupVariant = 'CLASSIC' | 'IMHOTEP' | 'DYNASTY';
+
 interface CreateRoomFormProps {
-    onSubmit: (options: { isPrivate: boolean; password?: string }) => void;
+    onSubmit: (options: { isPrivate: boolean; password?: string; config?: { rules: RuleVariant; setup: SetupVariant } }) => void;
     onCancel: () => void;
 }
 
 export function CreateRoomForm({ onSubmit, onCancel }: CreateRoomFormProps) {
     const [isPrivate, setIsPrivate] = useState(false);
     const [password, setPassword] = useState('');
+    const [rules, setRules] = useState<RuleVariant>('CLASSIC');
+    const [setup, setSetup] = useState<SetupVariant>('CLASSIC');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit({ isPrivate, password: isPrivate ? password : undefined });
+        onSubmit({ 
+            isPrivate, 
+            password: isPrivate ? password : undefined,
+            config: { rules, setup }
+        });
     };
 
     return (
@@ -24,6 +33,31 @@ export function CreateRoomForm({ onSubmit, onCancel }: CreateRoomFormProps) {
                     </div>
                     <form onSubmit={handleSubmit}>
                         <div className="modal-body">
+                            <div className="mb-3">
+                                <label htmlFor="rules" className="form-label">Rules</label>
+                                <select 
+                                    className="form-select"
+                                    id="rules"
+                                    value={rules}
+                                    onChange={e => setRules(e.target.value as RuleVariant)}
+                                >
+                                    <option value="CLASSIC">Classic</option>
+                                    <option value="KHET_2_0">Khet 2.0</option>
+                                </select>
+                            </div>
+                            <div className="mb-3">
+                                <label htmlFor="setup" className="form-label">Setup</label>
+                                <select 
+                                    className="form-select"
+                                    id="setup"
+                                    value={setup}
+                                    onChange={e => setSetup(e.target.value as SetupVariant)}
+                                >
+                                    <option value="CLASSIC">Classic</option>
+                                    <option value="IMHOTEP">Imhotep</option>
+                                    <option value="DYNASTY">Dynasty</option>
+                                </select>
+                            </div>
                             <div className="form-check mb-3">
                                 <input 
                                     className="form-check-input" 

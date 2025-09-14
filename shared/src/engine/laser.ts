@@ -92,15 +92,22 @@ export function fireLaser(state: GameState, gameId?: string): LaserResult {
 }
 
 function findLaserEmitter(board: Cell[][], turn: 'RED' | 'SILVER'): { pos: Pos; dir: Dir } | null {
+  // Check for SPHINX pieces on board
   for (let r = 0; r < board.length; r++) {
     for (let c = 0; c < board[0].length; c++) {
       const p = board[r][c];
-      if (p && p.kind === 'LASER' && p.owner === turn && p.facing) {
+      if (p && p.kind === 'SPHINX' && p.owner === turn && p.facing) {
         return { pos: { r, c }, dir: p.facing };
       }
     }
   }
-  return null;
+  
+  // Classic rules: off-board lasers fire down specific columns
+  if (turn === 'RED') {
+    return { pos: { r: -1, c: 0 }, dir: 'S' };
+  } else {
+    return { pos: { r: 8, c: 9 }, dir: 'N' };
+  }
 }
 
 function traceLaserPath(board: Cell[][], start: { pos: Pos; dir: Dir }, gameId?: string): LaserResult {
@@ -110,6 +117,12 @@ function traceLaserPath(board: Cell[][], start: { pos: Pos; dir: Dir }, gameId?:
 
   let [dr, dc] = dirStep[dir];
   r += dr; c += dc;
+  
+  // Handle off-board starting positions
+  if (!inBounds(r, c) && (start.pos.r === -1 || start.pos.r === 8)) {
+    r = start.pos.r === -1 ? 0 : 7;
+    c = start.pos.c;
+  }
 
   while (inBounds(r, c)) {
     path.push({ r, c });
@@ -167,7 +180,7 @@ function handleCellInteraction(cell: NonNullable<Cell>, dir: Dir, pos: Pos, game
     return handleDjedInteraction(cell, dir, pos);
   }
 
-  if (cell.kind === 'LASER') {
+  if (cell.kind === 'LASER' || cell.kind === 'SPHINX') {
     return { stop: true, result: {}, newDir: undefined };
   }
 

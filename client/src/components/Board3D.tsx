@@ -464,7 +464,7 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) { // NOSONAR(6759)
         );
     }
 
-    if (cell.kind === 'LASER') {
+    if (cell.kind === 'LASER' || cell.kind === 'SPHINX') {
         // Arrow pointing in facing direction
         const rotation = dirToY(cell.facing);
         return (
@@ -527,8 +527,9 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode, rotatingPieces, mo
         switch (kind) {
             case 'PYRAMID': return pyramidRotY;
             case 'DJED': return mirrorRotY;
-            case 'LASER': return dirToY(cell.facing);
-            case 'ANUBIS': return dirToY(cell.orientation) + Math.PI;
+            case 'LASER':
+            case 'SPHINX': return dirToY(cell.facing);
+            case 'ANUBIS': return dirToY(cell.orientation);
             default: return dirToY(cell.orientation);
         }
     })(cell.kind)
@@ -688,6 +689,15 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode, rotatingPieces, mo
             )}
 
             {cell.kind === 'LASER' && (
+                <group rotation-y={animatedRotY} position={[0, 0, 0]}>
+                    <mesh castShadow receiveShadow>
+                        <cylinderGeometry args={[0.3, 0.3, 0.5, 16]} />
+                        <meshStandardMaterial color={cell.owner === 'RED' ? COLORS.RED : COLORS.SILVER} metalness={0.3} roughness={0.7} />
+                    </mesh>
+                </group>
+            )}
+
+            {cell.kind === 'SPHINX' && (
                 <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
                     <LaserGLTF owner={cell.owner} />
                 </group>
@@ -923,7 +933,9 @@ export function Board3D() {
                                     prevBaseRotY = ((kind) => {
                                         switch (kind) {
                                             case 'PYRAMID': return dirToY(prevDir) + (prevDir === 'N' || prevDir === 'S' ? Math.PI / 2 : -Math.PI / 2);
-                                            case 'ANUBIS': return dirToY(prevDir) + Math.PI;
+                                            case 'ANUBIS': return dirToY(prevDir);
+                                            case 'SPHINX':
+                                            case 'LASER': return dirToY(prevDir);
                                             default: return dirToY(prevDir);
                                         }
                                     })(currentPiece.kind)
@@ -964,7 +976,7 @@ export function Board3D() {
     const getValidMoves = useCallback((pos: Pos) => {
         if (!state) return [];
         const piece = state.board[pos.r][pos.c];
-        if (!piece || piece.kind === 'LASER') return [];
+        if (!piece || piece.kind === 'LASER' || piece.kind === 'SPHINX') return [];
 
         const moves = [];
         for (let dr = -1; dr <= 1; dr++) {
@@ -1047,10 +1059,42 @@ export function Board3D() {
     }, []);
 
     const onRotateSelected = useCallback((delta: 90 | -90) => {
-        if (!isMyTurn || !selected) return;
-        sendMove({ type: 'ROTATE', from: selected, rotation: delta });
+        if (!isMyTurn || !selected || !state) return;
+        
+        const selectedPiece = state.board[selected.r][selected.c];
+        if (selectedPiece?.kind === 'SPHINX') {
+            // For SPHINX, alternate between valid directions
+            const dirs = ['N', 'E', 'S', 'W'] as Dir[];
+            const currentFacing = selectedPiece.facing || 'N';
+            const currentIndex = dirs.indexOf(currentFacing);
+            
+            // Get valid directions (not facing off board)
+            const validDirs = dirs.filter(dir => {
+                if (selected.r === 0 && dir === 'N') return false;
+                if (selected.r === ROWS - 1 && dir === 'S') return false;
+                if (selected.c === 0 && dir === 'W') return false;
+                if (selected.c === COLS - 1 && dir === 'E') return false;
+                return true;
+            });
+            
+            if (validDirs.length <= 1) return; // Can't rotate if only one valid direction
+            
+            // Find next valid direction
+            let nextIndex = currentIndex;
+            do {
+                nextIndex = delta > 0 ? (nextIndex + 1) % dirs.length : (nextIndex - 1 + dirs.length) % dirs.length;
+            } while (!validDirs.includes(dirs[nextIndex]));
+            
+            const targetDir = dirs[nextIndex];
+            const rotationDelta = ((nextIndex - currentIndex + 4) % 4) * 90;
+            const finalDelta = rotationDelta > 180 ? rotationDelta - 360 : rotationDelta;
+            
+            sendMove({ type: 'ROTATE', from: selected, rotation: finalDelta as 90 | -90 });
+        } else {
+            sendMove({ type: 'ROTATE', from: selected, rotation: delta });
+        }
         setSelected(null);
-    }, [isMyTurn, selected, sendMove]);
+    }, [isMyTurn, selected, sendMove, state]);
 
     if (!state) return <div>Waiting for state…</div>;
 
@@ -1094,10 +1138,10 @@ export function Board3D() {
                 style={{ background: '#000000', height: 'calc(100% - 50px)' }}
             >
                 {/* Lights */}
-                <ambientLight intensity={0.6} />
+                <ambientLight intensity={0.5} />
                 <directionalLight
                     position={[8, 12, 6]}
-                    intensity={1.5}
+                    intensity={1.0}
                     castShadow
                     shadow-mapSize-width={2048}
                     shadow-mapSize-height={2048}
@@ -1143,6 +1187,22 @@ export function Board3D() {
 
                 {/* Laser path visualisation */}
                 <LaserPath3D path={state.lastLaserPath} />
+
+                {/* Off-board laser cylinders for Classic rules */}
+                {state.config?.rules === 'CLASSIC' && (
+                    <>
+                        {/* RED laser cylinder off-board */}
+                        <mesh position={[gridToWorld(0, 0).x, 0.2, gridToWorld(0, 0).z - 0.7]} castShadow receiveShadow>
+                            <cylinderGeometry args={[0.15, 0.15, 0.4, 16]} />
+                            <meshStandardMaterial color={COLORS.RED} metalness={0.3} roughness={0.7} />
+                        </mesh>
+                        {/* SILVER laser cylinder off-board */}
+                        <mesh position={[gridToWorld(7, 9).x, 0.2, gridToWorld(7, 9).z + 0.7]} castShadow receiveShadow>
+                            <cylinderGeometry args={[0.15, 0.15, 0.4, 16]} />
+                            <meshStandardMaterial color={COLORS.SILVER} metalness={0.3} roughness={0.7} />
+                        </mesh>
+                    </>
+                )}
 
                 {/* Rotate gizmo for selected piece */}
                 {selected && isMyTurn && (
