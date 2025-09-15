@@ -1,7 +1,7 @@
 import React from 'react';
 import { GameState } from '../../../shared/src/types';
 
-export function PieceSVG({ piece }: { piece: NonNullable<GameState['board'][0][0]> }) {
+export function PieceSVG({ piece, cell }: { piece: NonNullable<GameState['board'][0][0]>; cell?: NonNullable<GameState['board'][0][0]>[] }) {
   const color = piece.owner === 'RED' ? '#cc4444' : '#4444cc';
   const rotation = piece.orientation ? ['N', 'E', 'S', 'W'].indexOf(piece.orientation) * 90 :
     piece.facing ? ['N', 'E', 'S', 'W'].indexOf(piece.facing) * 90 : 0;
@@ -25,7 +25,21 @@ export function PieceSVG({ piece }: { piece: NonNullable<GameState['board'][0][0
           </>
         )}
         {piece.kind === 'OBELISK' && (
-          <rect x="17" y="12" width="6" height="16" fill={color} stroke="#000" strokeWidth="1" />
+          <>
+            {/* Base obelisk - box with diagonal cross */}
+            <rect x="12" y="12" width="16" height="16" fill={color} stroke="#000" strokeWidth="1" />
+            <line x1="16" y1="16" x2="24" y2="24" stroke="#fff" strokeWidth="2" />
+            <line x1="24" y1="16" x2="16" y2="24" stroke="#fff" strokeWidth="2" />
+            
+            {/* Second obelisk if stacked - positioned north */}
+            {cell && cell.length > 1 && (
+              <>
+                <rect x="12" y="8" width="16" height="16" fill={color} stroke="#000" strokeWidth="1" />
+                <line x1="16" y1="12" x2="24" y2="20" stroke="#fff" strokeWidth="2" />
+                <line x1="24" y1="12" x2="16" y2="20" stroke="#fff" strokeWidth="2" />
+              </>
+            )}
+          </>
         )}
         {piece.kind === 'ANUBIS' && (
           <>

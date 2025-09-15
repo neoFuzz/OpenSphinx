@@ -3,8 +3,9 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Line, useGLTF } from '@react-three/drei';
 import { useGame } from '../state/game';
 import { COLS, ROWS } from '../../../shared/src/constants';
-import type { Cell, Dir, GameState, Pos } from '../../../shared/src/types';
+import type { Cell, Dir, GameState, Pos, Piece } from '../../../shared/src/types';
 import * as THREE from 'three';
+import { metalness, roughness } from 'three/tsl';
 
 // --- layout constants ---
 const TILE_SIZE = 1;          // 1 unit per square
@@ -56,35 +57,46 @@ function worldToGrid(x: number, z: number): Pos | null {
 * @param owner The owner ('RED' or 'SILVER') determining the color tinting
 */
 function withShadowsAndColor(scene: THREE.Object3D, owner: 'RED' | 'SILVER') {
+    if (!scene || !scene.traverse) return;
+
     const baseColor = owner === 'RED' ? new THREE.Color(COLORS.RED) : new THREE.Color(COLORS.SILVER);
     const metalness = owner === 'SILVER' ? 0.5 : 0.1;
     const roughness = owner === 'SILVER' ? 0.5 : 0.9;
 
-    scene.traverse((o: any) => {
-        if (o.isMesh) {
-            o.castShadow = true;
-            o.receiveShadow = true;
-            // Deep clone materials to prevent sharing between instances
-            if (o.material) {
-                if (Array.isArray(o.material)) {
-                    o.material = o.material.map((mat: any) => {
-                        const clonedMat = mat.clone();
-                        clonedMat.color = baseColor.clone();
-                        clonedMat.roughness = roughness;
-                        clonedMat.metalness = metalness;
-                        clonedMat.envMapIntensity = 2;
-                        return clonedMat;
-                    });
-                } else {
-                    o.material = o.material.clone();
-                    o.material.color = baseColor.clone();
-                    o.material.roughness = roughness;
-                    o.material.metalness = metalness;
-                    o.material.envMapIntensity = 2;
+    try {
+        const lightsToRemove: any[] = [];
+        scene.traverse((o: any) => {
+            if (o.isLight) {
+                lightsToRemove.push(o);
+            }
+            if (o.isMesh) {
+                o.castShadow = true;
+                o.receiveShadow = true;
+                if (o.material) {
+                    if (Array.isArray(o.material)) {
+                        o.material = o.material.map((mat: any) => {
+                            const clonedMat = mat.clone();
+                            clonedMat.color = baseColor.clone();
+                            clonedMat.roughness = roughness;
+                            clonedMat.metalness = metalness;
+                            clonedMat.envMapIntensity = 0;
+                            return clonedMat;
+                        });
+                    } else {
+                        o.material = o.material.clone();
+                        o.material.color = baseColor.clone();
+                        o.material.roughness = roughness;
+                        o.material.metalness = metalness;
+                        o.material.envMapIntensity = 0;
+                    }
                 }
             }
-        }
-    });
+        });
+        // Remove lights after traversal to avoid modifying during iteration
+        lightsToRemove.forEach(light => light.parent?.remove(light));
+    } catch (error) {
+        console.warn('Error traversing scene:', error);
+    }
 }
 
 /**
@@ -114,12 +126,11 @@ function PharaohGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     const clonedScene = useMemo(() => {
         if (scene) {
             const clone = scene.clone();
-            withShadowsAndColor(clone, owner);
+            if (clone) withShadowsAndColor(clone, owner);
             return clone;
         }
         return null;
     }, [scene, owner]);
-    // @ts-ignore
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
@@ -133,13 +144,12 @@ function PyramidGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     const clonedScene = useMemo(() => {
         if (scene) {
             const clone = scene.clone();
-            withShadowsAndColor(clone, owner);
+            if (clone) withShadowsAndColor(clone, owner);
             return clone;
         }
         return null;
     }, [scene, owner]);
-    // @ts-ignore
-    return clonedScene ? <primitive object={clonedScene} /> : null; // NOSONAR @suppress ts-2339
+    return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
 /**
@@ -152,12 +162,11 @@ function DjedGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     const clonedScene = useMemo(() => {
         if (scene) {
             const clone = scene.clone();
-            withShadowsAndColor(clone, owner);
+            if (clone) withShadowsAndColor(clone, owner);
             return clone;
         }
         return null;
     }, [scene, owner]);
-    // @ts-ignore
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
@@ -171,12 +180,11 @@ function LaserGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     const clonedScene = useMemo(() => {
         if (scene) {
             const clone = scene.clone();
-            withShadowsAndColor(clone, owner);
+            if (clone) withShadowsAndColor(clone, owner);
             return clone;
         }
         return null;
     }, [scene, owner]);
-    // @ts-ignore
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
@@ -185,19 +193,18 @@ function LaserGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
  * @param owner The owner ('RED' or 'SILVER') determining the color tinting
  * @returns A themed Obelisk model
  */
-function ObeliskGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
-    const { scene } = useGLTF('/models/obelisk.glb'); // TODO: make Obelisk model
+const ObeliskGLTF = React.memo(({ owner }: { owner: 'RED' | 'SILVER' }) => {
+    const { scene } = useGLTF('/models/obelisk.glb');
     const clonedScene = useMemo(() => {
         if (scene) {
             const clone = scene.clone();
-            withShadowsAndColor(clone, owner);
+            if (clone) withShadowsAndColor(clone, owner);
             return clone;
         }
         return null;
     }, [scene, owner]);
-    // @ts-ignore
     return clonedScene ? <primitive object={clonedScene} /> : null;
-}
+});
 
 /**
  * Draw the Anubis model
@@ -209,12 +216,11 @@ function AnubisGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
     const clonedScene = useMemo(() => {
         if (scene) {
             const clone = scene.clone();
-            withShadowsAndColor(clone, owner);
+            if (clone) withShadowsAndColor(clone, owner);
             return clone;
         }
         return null;
     }, [scene, owner]);
-    // @ts-ignore
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
@@ -338,14 +344,14 @@ function LaserMesh({ facing, owner }: { facing?: Dir; owner: 'RED' | 'SILVER' })
  * @param cell The cell to draw the debug overlay for
  * @returns A React component with the debug overlay
  */
-function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) { // NOSONAR(6759)
+function DebugOverlay({ piece }: { piece: Piece }) { // NOSONAR(6759)
     const color = '#ffffff';
 
-    if (cell.kind === 'PYRAMID') {
+    if (piece.kind === 'PYRAMID') {
         // Fix missing orientation
-        if (!cell.orientation) {
+        if (!piece.orientation) {
             console.log('WARNING: Pyramid missing orientation, using default N');
-            cell.orientation = 'N';
+            piece.orientation = 'N';
         }
 
         // Triangle with hypotenuse as reflective face
@@ -369,7 +375,7 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) { // NOSONAR(6759)
             O: 0
         };
 
-        const rotation = rotationMap[cell.orientation] || 0;
+        const rotation = rotationMap[piece.orientation] || 0;
 
         return (
             <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
@@ -390,11 +396,11 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) { // NOSONAR(6759)
         );
     }
 
-    if (cell.kind === 'DJED') {
+    if (piece.kind === 'DJED') {
         // Diagonal slash line for mirror - viewed from above
         return (
             <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
-                {cell.mirror === '/' ? (
+                {piece.mirror === '/' ? (
                     <mesh position={[0, 0, 0]} rotation-z={-Math.PI / 1.45}>
                         <boxGeometry args={[0.4, 0.05, 0.05]} />
                         <meshBasicMaterial color={color} />
@@ -409,7 +415,7 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) { // NOSONAR(6759)
         );
     }
 
-    if (cell.kind === 'PHARAOH') {
+    if (piece.kind === 'PHARAOH') {
         // Square
         return (
             <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
@@ -421,8 +427,8 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) { // NOSONAR(6759)
         );
     }
 
-    if (cell.kind === 'OBELISK') {
-        // U shape viewed from above
+    if (piece.kind === 'OBELISK') {
+        // U shape viewed from above with stack count
         return (
             <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
                 <mesh position={[-0.1, 0, 0]}>
@@ -437,13 +443,17 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) { // NOSONAR(6759)
                     <planeGeometry args={[0.2, 0.05]} />
                     <meshBasicMaterial color={color} />
                 </mesh>
+
             </group>
         );
     }
 
-    if (cell.kind === 'ANUBIS') {
+    if (piece.kind === 'ANUBIS') {
         // U shape rotated to show vulnerable sides (opening faces away from protected front)
-        const rotation = dirToY(cell.orientation) + Math.PI; // Rotate 180° so opening faces away from protected front
+        if (!piece.orientation) {
+            console.debug('WARNING: ANUBIS missing orientation, using default N');
+        }
+        const rotation = dirToY(piece.orientation || 'N') + Math.PI; // Rotate 180° so opening faces away from protected front
         return (
             <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
                 <group rotation-z={rotation}>
@@ -464,9 +474,9 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) { // NOSONAR(6759)
         );
     }
 
-    if (cell.kind === 'LASER' || cell.kind === 'SPHINX') {
+    if (piece.kind === 'LASER' || piece.kind === 'SPHINX') {
         // Arrow pointing in facing direction
-        const rotation = dirToY(cell.facing);
+        const rotation = dirToY(piece.facing);
         return (
             <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
                 <group rotation-z={rotation}>
@@ -492,35 +502,41 @@ function DebugOverlay({ cell }: { cell: NonNullable<Cell> }) { // NOSONAR(6759)
  * @param debugMode if true, render debug overlay
  * @returns 3D mesh for the piece
  */
-function Piece3D({ r, c, cell, selected, onSelect, debugMode, rotatingPieces, movingPieces, setRotatingPieces, setMovingPieces }:
-    {
-        r: number; c: number; cell: NonNullable<Cell>; selected: boolean;
-        onSelect: (pos: Pos) => void; debugMode: boolean;
-        rotatingPieces: Map<string, { startTime: number, direction: number }>;
-        movingPieces: Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>;
-        setRotatingPieces: React.Dispatch<React.SetStateAction<Map<string, { startTime: number, direction: number }>>>;
-        setMovingPieces: React.Dispatch<React.SetStateAction<Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>>>;
-    }) {
+interface Piece3DProps {
+    r: number; c: number; cell: Piece[]; selected: boolean;
+    onSelect: (pos: Pos) => void; debugMode: boolean;
+    rotatingPieces: Map<string, { startTime: number, direction: number }>;
+    movingPieces: Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>;
+    setRotatingPieces: React.Dispatch<React.SetStateAction<Map<string, { startTime: number, direction: number }>>>;
+    setMovingPieces: React.Dispatch<React.SetStateAction<Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>>>;
+    moveStackMode: boolean;
+    setMoveStackMode: React.Dispatch<React.SetStateAction<boolean>>;
+    isClassic: boolean;
+}
+
+function Piece3D(props: Piece3DProps) {
+    const { r, c, cell, selected, onSelect, debugMode, rotatingPieces, movingPieces, setRotatingPieces, setMovingPieces, moveStackMode, setMoveStackMode, isClassic } = props;
     const pos = gridToWorld(r, c);
-    const colour = cell.owner === 'RED' ? COLORS.RED : COLORS.SILVER;
+    const topPiece = useMemo(() => cell[cell.length - 1], [cell.length, cell[cell.length - 1]?.id]); // Get top piece for display
+    const colour = topPiece.owner === 'RED' ? COLORS.RED : COLORS.SILVER;
     const outline = selected ? 0.06 : 0;
 
     // Debug logging for piece rendering
-    if (cell.kind === 'PYRAMID' && debugMode) {
+    if (topPiece.kind === 'PYRAMID' && debugMode) {
         console.log(`Rendering pyramid at ${r},${c}:`);
     }
 
     let pyramidAngle;
-    if (cell.orientation == 'N' || cell.orientation == 'S') {
+    if (topPiece.orientation === 'N' || topPiece.orientation === 'S') {
         pyramidAngle = Math.PI / 2;
     } else {
         pyramidAngle = -Math.PI / 2;
     }
 
     // orientation-based Y rotation for Pyramid, mirror-based for Djed
-    const pyramidRotY = cell.kind === 'PYRAMID' &&
-        cell.orientation ? dirToY(cell.orientation) + pyramidAngle : 0;
-    const mirrorRotY = cell.mirror === '/' ? 0 : Math.PI / 2;
+    const pyramidRotY = topPiece.kind === 'PYRAMID' && topPiece.orientation ?
+        dirToY(topPiece.orientation) + pyramidAngle : 0;
+    const mirrorRotY = topPiece.mirror === '/' ? 0 : Math.PI / 2;
 
     // Get current base rotation
     let currentBaseRotY = (kind => {
@@ -528,11 +544,11 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode, rotatingPieces, mo
             case 'PYRAMID': return pyramidRotY;
             case 'DJED': return mirrorRotY;
             case 'LASER':
-            case 'SPHINX': return dirToY(cell.facing);
-            case 'ANUBIS': return dirToY(cell.orientation);
-            default: return dirToY(cell.orientation);
+            case 'SPHINX': return dirToY(topPiece.facing);
+            case 'ANUBIS': return dirToY(topPiece.orientation);
+            default: return topPiece.orientation ? dirToY(topPiece.orientation) : 0;
         }
-    })(cell.kind)
+    })(topPiece.kind);
 
     // Animation state
     const [animatedRotY, setAnimatedRotY] = useState(currentBaseRotY);
@@ -541,9 +557,9 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode, rotatingPieces, mo
 
     // Smooth animation updates
     useFrame((state, delta) => {
-        const now = performance.now();
+        const now = performance.now(); // Use performance.now() consistently
 
-        const rotationData = rotatingPieces.get(cell.id);
+        const rotationData = rotatingPieces.get(topPiece.id);
         if (rotationData) {
             const elapsed = now - rotationData.startTime;
             const progress = Math.min(elapsed / 300, 1);
@@ -551,7 +567,7 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode, rotatingPieces, mo
             if (progress >= 1) {
                 setRotatingPieces(prev => {
                     const next = new Map(prev);
-                    next.delete(cell.id);
+                    next.delete(topPiece.id);
                     return next;
                 });
                 setAnimatedRotY(currentBaseRotY);
@@ -570,7 +586,7 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode, rotatingPieces, mo
             setAnimatedRotY(currentBaseRotY);
         }
 
-        const moveData = movingPieces.get(cell.id);
+        const moveData = movingPieces.get(topPiece.id);
         if (moveData) {
             const elapsed = now - moveData.startTime;
             const progress = Math.min(elapsed / 400, 1);
@@ -578,7 +594,7 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode, rotatingPieces, mo
             if (progress >= 1) {
                 setMovingPieces(prev => {
                     const next = new Map(prev);
-                    next.delete(cell.id);
+                    next.delete(topPiece.id);
                     return next;
                 });
                 setAnimationPos(pos);
@@ -617,19 +633,39 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode, rotatingPieces, mo
             {/* pedestals to make selection more visible */}
             {outline > 0 && (
                 <mesh position={[0, 0.01, 0]} rotation-x={-Math.PI / 2}>
-                    <ringGeometry args={[0.35, 0.35 + outline, 32]} />
-                    <meshBasicMaterial color={cell.owner === 'RED' ? '#ffaaaa' : '#aaccff'} transparent opacity={0.8} />
+                    <ringGeometry args={[0.48, 0.46 + outline, 32]} />
+                    <meshBasicMaterial color={topPiece.owner === 'RED' ? '#ffaaaa' : '#aaccff'} transparent opacity={0.8} />
                 </mesh>
             )}
 
             {/* coloured base token under each piece */}
             <mesh position={[0, 0.01, 0]} rotation-x={-Math.PI / 2}>
-                <ringGeometry args={[0.28, 0.32, 24]} />
+                <ringGeometry args={[0.42, 0.46, 24]} />
                 <meshBasicMaterial color={colour} />
             </mesh>
 
             {/* Debug overlay */}
-            {debugMode && <DebugOverlay cell={cell} />}
+            {debugMode && <DebugOverlay piece={topPiece} />}
+
+            {/* Lock/unlock disc for selected obelisk stacks */}
+            {selected && topPiece.kind === 'OBELISK' && cell.length > 1 && (
+                <group
+                    position={[0, cell.length * 0.6 + 0.5, 0]}
+                    onPointerDown={(e) => {
+                        e.stopPropagation();
+                        setMoveStackMode(!moveStackMode);
+                    }}
+                >
+                    <mesh>
+                        <cylinderGeometry args={[0.2, 0.2, 0.05, 16]} />
+                        <meshBasicMaterial
+                            color={moveStackMode ? '#ff4444' : '#44ff44'}
+                            transparent
+                            opacity={0.8}
+                        />
+                    </mesh>
+                </group>
+            )}
 
             {/* Compass - only show on one piece to avoid clutter */}
             {debugMode && r === 0 && c === 0 && (
@@ -658,54 +694,55 @@ function Piece3D({ r, c, cell, selected, onSelect, debugMode, rotatingPieces, mo
             )}
 
             {/* GLTF models with orientation and owner-based coloring */}
-            {cell.kind === 'PHARAOH' && (
+            {topPiece.kind === 'PHARAOH' && (
                 <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
-                    <PharaohGLTF owner={cell.owner} />
+                    <PharaohGLTF owner={topPiece.owner} />
                 </group>
             )}
 
-            {cell.kind === 'OBELISK' && (
+            {topPiece.kind === 'OBELISK' && (
                 <group position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
-                    <ObeliskGLTF owner={cell.owner} />
+                    {/* Render multiple obelisks for stacks */}
+                    {cell.map((piece, i) => (
+                        <group key={piece.id} position={[0, i * 0.6, 0]}>
+                            <ObeliskGLTF owner={piece.owner} />
+                        </group>
+                    ))}
                 </group>
             )}
 
-            {cell.kind === 'PYRAMID' && (
+            {topPiece.kind === 'PYRAMID' && (
                 <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
-                    <PyramidGLTF owner={cell.owner} />
+                    <PyramidGLTF owner={topPiece.owner} />
                 </group>
             )}
 
-            {cell.kind === 'DJED' && (
+            {topPiece.kind === 'DJED' && (
                 <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
-                    <DjedGLTF owner={cell.owner} />
+                    <DjedGLTF owner={topPiece.owner} />
                 </group>
             )}
 
-            {cell.kind === 'OBELISK' && (
-                <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
-                    <ObeliskGLTF owner={cell.owner} />
-                </group>
-            )}
 
-            {cell.kind === 'LASER' && (
+
+            {topPiece.kind === 'LASER' && (
                 <group rotation-y={animatedRotY} position={[0, 0, 0]}>
                     <mesh castShadow receiveShadow>
                         <cylinderGeometry args={[0.3, 0.3, 0.5, 16]} />
-                        <meshStandardMaterial color={cell.owner === 'RED' ? COLORS.RED : COLORS.SILVER} metalness={0.3} roughness={0.7} />
+                        <meshStandardMaterial color={topPiece.owner === 'RED' ? COLORS.RED : COLORS.SILVER} metalness={0.3} roughness={0.7} />
                     </mesh>
                 </group>
             )}
 
-            {cell.kind === 'SPHINX' && (
+            {topPiece.kind === 'SPHINX' && (
                 <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
-                    <LaserGLTF owner={cell.owner} />
+                    <LaserGLTF owner={topPiece.owner} />
                 </group>
             )}
 
-            {cell.kind === 'ANUBIS' && (
+            {topPiece.kind === 'ANUBIS' && (
                 <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
-                    <AnubisGLTF owner={cell.owner} />
+                    <AnubisGLTF owner={topPiece.owner} />
                 </group>
             )}
         </group>
@@ -845,6 +882,65 @@ function LaserPath3D({ path }: { path: Pos[] | undefined }) {
 }
 
 /**
+ * Memoized lighting component to prevent multiple light instances
+ */
+const SceneLights = React.memo(({ isClassic }: { isClassic: boolean }) => {
+
+
+    return (
+        <>
+            <ambientLight intensity={0.2} />
+            <directionalLight
+                position={[10, 10, 10]}
+                intensity={0.8}
+                castShadow
+                shadow-mapSize-width={2048}
+                shadow-mapSize-height={2048}
+                shadow-camera-left={-8}
+                shadow-camera-right={8}
+                shadow-camera-top={8}
+                shadow-camera-bottom={-8}
+            />
+        </>
+    );
+});
+
+/**
+ * Memoized ground mesh with cached textures
+ */
+const GroundMesh = React.memo(() => {
+    const textures = useMemo(() => {
+        const loader = new THREE.TextureLoader();
+        const createTexture = (path: string) => {
+            const tex = loader.load(path);
+            tex.repeat.set(32, 32);
+            tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+            return tex;
+        };
+        return {
+            map: createTexture('/textures/dirt/brown_dirt_7_diffuse.png'),
+            normalMap: createTexture('/textures/dirt/brown_dirt_7_normal.png'),
+            roughnessMap: createTexture('/textures/dirt/brown_dirt_7_glossiness.png'),
+            metalnessMap: createTexture('/textures/dirt/brown_dirt_7_reflection.png'),
+            displacementMap: createTexture('/textures/dirt/brown_dirt_7_height.png')
+        };
+    }, []);
+
+    return (
+        <mesh rotation-x={-Math.PI / 2} position={[0, -0.1, 0]} receiveShadow>
+            <circleGeometry args={[64, 64]} />
+            <meshStandardMaterial
+                {...textures}
+                displacementScale={0.1}
+                metalness={0.1}
+                roughness={0.9}
+                color="#2a1304ff"
+            />
+        </mesh>
+    );
+});
+
+/**
  * Board3D component
  * Renders the 3D board with pieces and laser paths
  * @returns JSX.Element | null
@@ -856,11 +952,14 @@ export function Board3D() {
 
     const [selected, setSelected] = useState<Pos | null>(null);
     const [debugMode, setDebugMode] = useState(false);
+    const [moveStackMode, setMoveStackMode] = useState(true); // true = move entire stack, false = move top only
+
     const [rotatingPieces, setRotatingPieces] = useState<Map<string, { startTime: number, direction: number }>>(new Map());
     const [movingPieces, setMovingPieces] = useState<Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>>(new Map());
     const [fps, setFps] = useState(0);
     const prevStateRef = useRef(state);
     const fpsRef = useRef({ frames: 0, lastTime: performance.now() });
+    const controlsRef = useRef<any>(null);
 
     useEffect(() => {
         const handleKeyPress = (e: KeyboardEvent) => {
@@ -905,15 +1004,20 @@ export function Board3D() {
 
         for (let r = 0; r < ROWS; r++) {
             for (let c = 0; c < COLS; c++) {
-                const currentPiece = state.board[r][c];
-                if (!currentPiece || processedPieces.has(currentPiece.id)) continue;
+                const currentCell = state.board[r][c];
+                if (!currentCell || currentCell.length === 0) continue;
+                const currentTopPiece = currentCell[currentCell.length - 1];
+                const currentPiece = currentTopPiece;
+                if (processedPieces.has(currentPiece.id)) continue;
 
                 // Find where this piece was in the previous state
                 let foundPrevPos = null;
                 for (let pr = 0; pr < ROWS; pr++) {
                     for (let pc = 0; pc < COLS; pc++) {
-                        const prevPiece = prevState.board[pr][pc];
-                        if (prevPiece?.id === currentPiece.id) {
+                        const prevCell = prevState.board[pr][pc];
+                        if (!prevCell || prevCell.length === 0) continue;
+                        const prevPiece = prevCell[prevCell.length - 1];
+                        if (prevPiece.id === currentPiece.id) {
                             foundPrevPos = { r: pr, c: pc };
 
                             // Check for rotation
@@ -953,10 +1057,19 @@ export function Board3D() {
 
                 // Check for movement
                 if (foundPrevPos && (foundPrevPos.r !== r || foundPrevPos.c !== c)) {
-                    const prevPieceAtTarget = prevState.board[r][c];
+                    const prevCellAtTarget = prevState.board[r][c];
+                    const prevPieceAtTarget = prevCellAtTarget && prevCellAtTarget.length > 0 ? prevCellAtTarget[prevCellAtTarget.length - 1] : null;
                     const isDjedSwap = currentPiece.kind === 'DJED' && prevPieceAtTarget;
 
-                    animateMovement(currentPiece.id, foundPrevPos, { r, c }, isDjedSwap);
+                    // Check for obelisk stacking/unstacking (hop animation)
+                    const prevStackSize = prevState.board[foundPrevPos.r][foundPrevPos.c]?.length || 0;
+                    const currentStackSize = currentCell.length;
+                    const isObeliskHop = currentPiece.kind === 'OBELISK' && (
+                        (prevPieceAtTarget && prevPieceAtTarget.kind === 'OBELISK') || // stacking onto obelisk
+                        (prevStackSize > 1 && currentStackSize === 1) // unstacking from stack to empty space
+                    );
+
+                    animateMovement(currentPiece.id, foundPrevPos, { r, c }, isDjedSwap || isObeliskHop);
                     processedPieces.add(currentPiece.id);
 
                     // Handle the swapped piece
@@ -975,8 +1088,10 @@ export function Board3D() {
 
     const getValidMoves = useCallback((pos: Pos) => {
         if (!state) return [];
-        const piece = state.board[pos.r][pos.c];
-        if (!piece || piece.kind === 'LASER' || piece.kind === 'SPHINX') return [];
+        const cell = state.board[pos.r][pos.c];
+        if (!cell || cell.length === 0) return [];
+        const piece = cell[cell.length - 1];
+        if (piece.kind === 'LASER' || piece.kind === 'SPHINX') return [];
 
         const moves = [];
         for (let dr = -1; dr <= 1; dr++) {
@@ -993,12 +1108,18 @@ export function Board3D() {
                         continue; // Can't move into opponent's zone
                     }
 
-                    const targetPiece = state.board[newR][newC];
-                    if (!targetPiece) {
+                    const targetCell = state.board[newR][newC];
+                    if (!targetCell || targetCell.length === 0) {
                         moves.push({ r: newR, c: newC, type: 'move' });
-                    } else if (piece.kind === 'DJED' &&
-                        (targetPiece.kind === 'PYRAMID' || targetPiece.kind === 'OBELISK' || targetPiece.kind === 'ANUBIS')) {
-                        moves.push({ r: newR, c: newC, type: 'swap' });
+                    } else {
+                        const targetPiece = targetCell[targetCell.length - 1];
+                        if (piece.kind === 'DJED' &&
+                            (targetPiece.kind === 'PYRAMID' || targetPiece.kind === 'OBELISK' || targetPiece.kind === 'ANUBIS')) {
+                            moves.push({ r: newR, c: newC, type: 'swap' });
+                        } else if (piece.kind === 'OBELISK' && targetPiece.kind === 'OBELISK' &&
+                            piece.owner === targetPiece.owner && state.config?.rules === 'CLASSIC') {
+                            moves.push({ r: newR, c: newC, type: 'stack' });
+                        }
                     }
                 }
             }
@@ -1016,12 +1137,14 @@ export function Board3D() {
         }
         const cell = state?.board[pos.r][pos.c];
         if (debugMode) console.log('Cell at position:', cell);
-        if (!cell || cell.owner !== color) {
+        if (!cell || cell.length === 0 || cell[cell.length - 1].owner !== color) {
             if (debugMode) console.log('Cell empty or not owned by player');
             return;
         }
         if (debugMode) console.log('Setting selected to:', pos);
         setSelected(pos);
+        // Reset to default move stack mode when selecting a piece
+        setMoveStackMode(true);
     }, [state, color, isMyTurn, debugMode]);
 
     const onTileClick = useCallback((to: Pos) => {
@@ -1029,45 +1152,60 @@ export function Board3D() {
         const dr = Math.abs(to.r - selected.r);
         const dc = Math.abs(to.c - selected.c);
         if (dr > 1 || dc > 1 || (dr === 0 && dc === 0)) {
-            // must be 1 step in any direction
             setSelected(null);
             return;
         }
 
-        const targetPiece = state.board[to.r][to.c];
-        const selectedPiece = state.board[selected.r][selected.c];
-
-        if (targetPiece) {
-            // Allow Djed swap with enemy pieces
-            if (selectedPiece?.kind === 'DJED' &&
+        const targetCell = state.board[to.r][to.c];
+        const selectedCell = state.board[selected.r][selected.c];
+        if (!selectedCell || selectedCell.length === 0) return;
+        const selectedPiece = selectedCell[selectedCell.length - 1];
+        if (targetCell && targetCell.length > 0) {
+            const targetPiece = targetCell[targetCell.length - 1];
+            if (selectedPiece.kind === 'DJED' &&
                 (targetPiece.kind === 'PYRAMID' || targetPiece.kind === 'OBELISK' || targetPiece.kind === 'ANUBIS')) {
                 sendMove({ type: 'MOVE', from: selected, to });
             }
+            else if (selectedPiece.kind === 'OBELISK' && targetPiece.kind === 'OBELISK' &&
+                selectedPiece.owner === targetPiece.owner && state.config?.rules === 'CLASSIC') {
+                const move: any = { type: 'MOVE', from: selected, to };
+                if (selectedCell.length > 1) {
+                    move.moveStack = moveStackMode;
+                }
+                sendMove(move);
+            }
         } else {
-            // Regular move to empty space
-            sendMove({ type: 'MOVE', from: selected, to });
+            const move: any = { type: 'MOVE', from: selected, to };
+            if (selectedPiece.kind === 'OBELISK' && selectedCell.length > 1 && state.config?.rules === 'CLASSIC') {
+                move.moveStack = moveStackMode;
+            }
+            sendMove(move);
         }
         setSelected(null);
-    }, [isMyTurn, selected, state, sendMove, color]);
+    }, [isMyTurn, selected, state, sendMove, moveStackMode]);
 
     const animateMovement = useCallback((pieceId: string, from: Pos, to: Pos, isDjedHop: boolean) => {
-        setMovingPieces(prev => new Map(prev).set(pieceId, { startTime: performance.now(), from, to, isDjedHop }));
+        const startTime = performance.now(); // Use performance.now() to match Three.js timing
+        setMovingPieces(prev => new Map(prev).set(pieceId, { startTime, from, to, isDjedHop }));
     }, []);
 
     const animateRotation = useCallback((pieceId: string, direction: number, startRotation: number) => {
-        setRotatingPieces(prev => new Map(prev).set(pieceId, { startTime: performance.now(), direction, startRotation }));
+        const startTime = performance.now(); // Use performance.now() to match Three.js timing
+        setRotatingPieces(prev => new Map(prev).set(pieceId, { startTime, direction, startRotation }));
     }, []);
 
     const onRotateSelected = useCallback((delta: 90 | -90) => {
         if (!isMyTurn || !selected || !state) return;
-        
-        const selectedPiece = state.board[selected.r][selected.c];
-        if (selectedPiece?.kind === 'SPHINX') {
+
+        const selectedCell = state.board[selected.r][selected.c];
+        if (!selectedCell || selectedCell.length === 0) return;
+        const selectedPiece = selectedCell[selectedCell.length - 1];
+        if (selectedPiece && selectedPiece.kind === 'SPHINX') {
             // For SPHINX, alternate between valid directions
             const dirs = ['N', 'E', 'S', 'W'] as Dir[];
             const currentFacing = selectedPiece.facing || 'N';
             const currentIndex = dirs.indexOf(currentFacing);
-            
+
             // Get valid directions (not facing off board)
             const validDirs = dirs.filter(dir => {
                 if (selected.r === 0 && dir === 'N') return false;
@@ -1076,25 +1214,36 @@ export function Board3D() {
                 if (selected.c === COLS - 1 && dir === 'E') return false;
                 return true;
             });
-            
+
             if (validDirs.length <= 1) return; // Can't rotate if only one valid direction
-            
+
             // Find next valid direction
             let nextIndex = currentIndex;
             do {
                 nextIndex = delta > 0 ? (nextIndex + 1) % dirs.length : (nextIndex - 1 + dirs.length) % dirs.length;
             } while (!validDirs.includes(dirs[nextIndex]));
-            
+
             const targetDir = dirs[nextIndex];
             const rotationDelta = ((nextIndex - currentIndex + 4) % 4) * 90;
             const finalDelta = rotationDelta > 180 ? rotationDelta - 360 : rotationDelta;
-            
+
             sendMove({ type: 'ROTATE', from: selected, rotation: finalDelta as 90 | -90 });
         } else {
             sendMove({ type: 'ROTATE', from: selected, rotation: delta });
         }
         setSelected(null);
     }, [isMyTurn, selected, sendMove, state]);
+
+    const resetCamera = useCallback(() => {
+        if (controlsRef.current) {
+            const defaultPosition = color === 'RED' ? [0, 8, -10] : [0, 8, 10];
+            controlsRef.current.object.position.set(...defaultPosition);
+            controlsRef.current.target.set(0, 0, 0);
+            controlsRef.current.update();
+        }
+    }, [color]);
+
+
 
     if (!state) return <div>Waiting for state…</div>;
 
@@ -1129,7 +1278,40 @@ export function Board3D() {
                     >
                         Rotate ⟳
                     </button>
+                    <button
+                        className="btn btn-outline-info btn-sm"
+                        onClick={resetCamera}
+                        title="Reset camera to default position"
+                    >
+                        📷
+                    </button>
                 </div>
+                {/* Obelisk stack controls */}
+                {selected && state && state.board[selected.r][selected.c] &&
+                    state.board[selected.r][selected.c]!.length > 0 &&
+                    state.board[selected.r][selected.c]![state.board[selected.r][selected.c]!.length - 1].kind === 'OBELISK' &&
+                    state.board[selected.r][selected.c]!.length > 1 &&
+                    state.config?.rules === 'CLASSIC' && (
+                        <div className="ms-2">
+                            <small className="text-muted">Stack ({state.board[selected.r][selected.c]!.length}): </small>
+                            <div className="btn-group btn-group-sm">
+                                <button
+                                    className={`btn btn-sm ${moveStackMode ? 'btn-primary' : 'btn-outline-primary'}`}
+                                    onClick={() => setMoveStackMode(true)}
+                                >
+                                    Move Stack
+                                </button>
+                                <button
+                                    className={`btn btn-sm ${!moveStackMode ? 'btn-warning' : 'btn-outline-warning'}`}
+                                    onClick={() => setMoveStackMode(false)}
+                                    title="Move only the top obelisk"
+                                >
+                                    Move Top
+                                </button>
+                            </div>
+
+                        </div>
+                    )}
             </div>
 
             <Canvas
@@ -1137,21 +1319,10 @@ export function Board3D() {
                 camera={{ position: color === 'RED' ? [0, 8, -10] : [0, 8, 10], fov: 45, near: 0.1, far: 100 }}
                 style={{ background: '#000000', height: 'calc(100% - 50px)' }}
             >
-                {/* Lights */}
-                <ambientLight intensity={0.5} />
-                <directionalLight
-                    position={[8, 12, 6]}
-                    intensity={1.0}
-                    castShadow
-                    shadow-mapSize-width={2048}
-                    shadow-mapSize-height={2048}
-                />
+                <SceneLights isClassic={state.config?.rules === 'CLASSIC'} />
 
                 {/* Large ground disc with dirt texture */}
-                <mesh rotation-x={-Math.PI / 2} position={[0, -0.1, 0]} receiveShadow>
-                    <circleGeometry args={[50, 64]} />
-                    <meshStandardMaterial color="#8B4513" roughness={0.9} metalness={0.1} />
-                </mesh>
+                <GroundMesh />
 
                 {/* Board shadow catcher */}
                 <mesh rotation-x={-Math.PI / 2} position={[0, -0.001, 0]} receiveShadow>
@@ -1162,13 +1333,31 @@ export function Board3D() {
                 {/* Board plane (tiles) */}
                 <Tiles state={state} onTileClick={onTileClick} selected={selected} getValidMoves={getValidMoves} />
 
+                {/* Grid lines */}
+                <group>
+                    {/* Row lines */}
+                    {Array.from({ length: 9 }, (_, i) => (
+                        <mesh key={`row-${i}`} position={[0, 0.0, ORIGIN_Z + i * TILE_SIZE - TILE_SIZE / 2]}>
+                            <boxGeometry args={[BOARD_W, 0.32, 0.02]} />
+                            <meshBasicMaterial color="#000000" />
+                        </mesh>
+                    ))}
+                    {/* Column lines */}
+                    {Array.from({ length: 11 }, (_, i) => (
+                        <mesh key={`col-${i}`} position={[ORIGIN_X + i * TILE_SIZE - TILE_SIZE / 2, 0.0, 0]}>
+                            <boxGeometry args={[0.02, 0.32, BOARD_H]} />
+                            <meshBasicMaterial color="#000000" />
+                        </mesh>
+                    ))}
+                </group>
+
                 {/* Pieces */}
                 <group>
                     {state.board.map((row, r) =>
                         row.map((cell, c) =>
-                            cell ? (
+                            cell && cell.length > 0 ? (
                                 <Piece3D
-                                    key={`${r}-${c}-${cell.id}`}
+                                    key={`${r}-${c}-${cell[0]?.id || ''}`}
                                     r={r}
                                     c={c}
                                     cell={cell}
@@ -1179,6 +1368,9 @@ export function Board3D() {
                                     movingPieces={movingPieces}
                                     setRotatingPieces={setRotatingPieces}
                                     setMovingPieces={setMovingPieces}
+                                    moveStackMode={moveStackMode}
+                                    setMoveStackMode={setMoveStackMode}
+                                    isClassic={state.config?.rules === 'CLASSIC'}
                                 />
                             ) : null
                         )
@@ -1192,14 +1384,14 @@ export function Board3D() {
                 {state.config?.rules === 'CLASSIC' && (
                     <>
                         {/* RED laser cylinder off-board */}
-                        <mesh position={[gridToWorld(0, 0).x, 0.2, gridToWorld(0, 0).z - 0.7]} castShadow receiveShadow>
+                        <mesh position={[gridToWorld(0, 0).x, 0.2, gridToWorld(0, 0).z - 0.7]}>
                             <cylinderGeometry args={[0.15, 0.15, 0.4, 16]} />
-                            <meshStandardMaterial color={COLORS.RED} metalness={0.3} roughness={0.7} />
+                            <meshBasicMaterial color={COLORS.RED} />
                         </mesh>
                         {/* SILVER laser cylinder off-board */}
-                        <mesh position={[gridToWorld(7, 9).x, 0.2, gridToWorld(7, 9).z + 0.7]} castShadow receiveShadow>
+                        <mesh position={[gridToWorld(7, 9).x, 0.2, gridToWorld(7, 9).z + 0.7]}>
                             <cylinderGeometry args={[0.15, 0.15, 0.4, 16]} />
-                            <meshStandardMaterial color={COLORS.SILVER} metalness={0.3} roughness={0.7} />
+                            <meshBasicMaterial color={COLORS.SILVER} />
                         </mesh>
                     </>
                 )}
@@ -1217,6 +1409,7 @@ export function Board3D() {
                 )}
 
                 <OrbitControls
+                    ref={controlsRef}
                     enablePan
                     enableRotate
                     enableZoom

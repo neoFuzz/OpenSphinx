@@ -12,7 +12,7 @@ export function applyMove(state: GameState, move: Move, gameId?: string): GameSt
   if (!piece) return s;
 
   if (move.type === 'MOVE') {
-    if (!processMove(s, move, piece)) return s;
+    if (!processMove(s, move, piece, gameId)) return s;
   } else if (move.type === 'ROTATE') {
     if (!processRotation(s, move, piece, gameId)) return s;
   }
@@ -24,33 +24,43 @@ function cloneAndFixPyramids(state: GameState, gameId?: string): GameState {
   const s: GameState = JSON.parse(JSON.stringify(state));
   s.board.forEach((row, r) => {
     row.forEach((cell, c) => {
-      if (cell?.kind === 'PYRAMID') {
-        logger.debug(`After JSON clone - Pyramid at ${r},${c}: orientation=${cell.orientation}, mirror=${cell.mirror}`, { gameId });
-        if ((cell as any).mirror) {
-          logger.warn(`Pyramid at ${r},${c} has mirror property, removing it`, { gameId });
-          delete (cell as any).mirror;
-        }
-        if (!cell.orientation) {
-          logger.warn(`Pyramid at ${r},${c} missing orientation after clone, setting default`, { gameId });
-          cell.orientation = r < 4 ? 'S' : 'N';
-        }
+      if (cell && cell.length > 0) {
+        cell.forEach(piece => {
+          if (piece.kind === 'PYRAMID') {
+            processPyramidPiece(piece, r, c, gameId);
+          }
+        });
       }
     });
   });
   return s;
 }
 
+function processPyramidPiece(piece: any, r: number, c: number, gameId?: string) {
+  logger.debug(`After JSON clone - Pyramid at ${r},${c}: orientation=${piece.orientation}, mirror=${(piece as any).mirror}`, { gameId });
+  if ((piece as any).mirror) {
+    logger.warn(`Pyramid at ${r},${c} has mirror property, removing it`, { gameId });
+    delete (piece as any).mirror;
+  }
+  if (!piece.orientation) {
+    logger.warn(`Pyramid at ${r},${c} missing orientation after clone, setting default`, { gameId });
+    piece.orientation = r < 4 ? 'S' : 'N';
+  }
+}
+
 function validateMove(state: GameState, move: Move) {
   const { board, turn } = state;
   const from = move.from;
   if (!inBounds(from.r, from.c)) return null;
-  const piece = board[from.r][from.c];
-  if (!piece || piece.owner !== turn) return null;
+  const cell = board[from.r][from.c];
+  if (!cell || cell.length === 0) return null;
+  const piece = cell[cell.length - 1]; // Get top piece
+  if (piece.owner !== turn) return null;
   if (move.type === 'MOVE' && (piece.kind === 'LASER' || piece.kind === 'SPHINX')) return null;
   return piece;
 }
 
-function processMove(state: GameState, move: Move, piece: any): boolean {
+function processMove(state: GameState, move: Move, piece: any, gameId?: string): boolean {
   if (!move.to || !inBounds(move.to.r, move.to.c)) return false;
   const dr = Math.abs(move.to.r - move.from.r);
   const dc = Math.abs(move.to.c - move.from.c);
@@ -58,14 +68,87 @@ function processMove(state: GameState, move: Move, piece: any): boolean {
 
   if (!isValidZoneMove(piece, move.to)) return false;
 
-  const targetPiece = state.board[move.to.r][move.to.c];
-  if (targetPiece) {
+  const fromCell = state.board[move.from.r][move.from.c];
+  if (!fromCell || fromCell.length === 0) return false;
+  
+  const targetCell = state.board[move.to.r][move.to.c];
+
+  if (targetCell && targetCell.length > 0) {
+    const targetPiece = targetCell[targetCell.length - 1];
+    if (piece.kind === 'OBELISK' && targetPiece.kind === 'OBELISK' && 
+        piece.owner === targetPiece.owner && state.config?.rules === 'CLASSIC') {
+      return handleObeliskStacking(state, move, fromCell, targetCell, gameId);
+    }
     return performSwap(state, move, piece, targetPiece);
   } else {
-    state.board[move.to.r][move.to.c] = piece;
-    state.board[move.from.r][move.from.c] = null;
-    return true;
+    return handleObeliskMovement(state, move, piece, fromCell);
   }
+}
+
+function handleObeliskStacking(state: GameState, move: Move, fromCell: any[], targetCell: any[], gameId?: string): boolean {
+  if (!move.to) return false;
+  
+  const wouldExceedLimit = move.moveStack === false ? 
+    targetCell.length >= 2 : 
+    targetCell.length + fromCell.length > 2;
+  
+  if (wouldExceedLimit) {
+    logger.warn('Obelisk stacking failed - would exceed limit', { 
+      gameId, 
+      targetLength: targetCell.length, 
+      fromLength: fromCell.length, 
+      moveStack: move.moveStack 
+    });
+    return false;
+  }
+  
+  logger.info('Obelisk stacking', { 
+    gameId, 
+    from: `${move.from.r},${move.from.c}`, 
+    to: `${move.to.r},${move.to.c}`, 
+    moveStack: move.moveStack 
+  });
+  
+  if (move.moveStack === false) {
+    if (fromCell.length === 0) return false;
+    const topPiece = fromCell.pop();
+    if (!topPiece) return false;
+    targetCell.push(topPiece);
+    if (fromCell.length === 0) {
+      state.board[move.from.r][move.from.c] = null;
+    }
+  } else {
+    // Move entire stack - direct assignment since fromCell will be nullified
+    while (fromCell.length > 0) {
+      const piece = fromCell.pop();
+      if (piece) targetCell.push(piece);
+    }
+    state.board[move.from.r][move.from.c] = null;
+  }
+  return true;
+}
+
+function handleObeliskMovement(state: GameState, move: Move, piece: any, fromCell: any[]): boolean {
+  if (piece.kind === 'OBELISK' && fromCell.length > 1 && state.config?.rules === 'CLASSIC') {
+    if (move.moveStack === false) {
+      if (fromCell.length === 0) return false;
+      const topPiece = fromCell.pop();
+      if (!topPiece) return false;
+      state.board[move.to!.r][move.to!.c] = [topPiece];
+    } else {
+      state.board[move.to!.r][move.to!.c] = [...fromCell];
+      state.board[move.from.r][move.from.c] = null;
+    }
+  } else {
+    if (fromCell.length === 0) return false;
+    const movingPiece = fromCell.pop();
+    if (!movingPiece) return false;
+    state.board[move.to!.r][move.to!.c] = [movingPiece];
+    if (fromCell.length === 0) {
+      state.board[move.from.r][move.from.c] = null;
+    }
+  }
+  return true;
 }
 
 function isValidZoneMove(piece: any, to: { r: number; c: number }): boolean {
@@ -78,9 +161,20 @@ function performSwap(state: GameState, move: Move, piece: any, targetPiece: any)
   if (piece.kind !== 'DJED') return false;
   if (targetPiece.kind === 'PHARAOH' || targetPiece.kind === 'LASER' || targetPiece.kind === 'SPHINX') return false;
   if (targetPiece.kind !== 'PYRAMID' && targetPiece.kind !== 'OBELISK' && targetPiece.kind !== 'ANUBIS') return false;
+
+  const fromCell = state.board[move.from.r][move.from.c];
+  const toCell = state.board[move.to!.r][move.to!.c];
   
-  state.board[move.to!.r][move.to!.c] = piece;
-  state.board[move.from.r][move.from.c] = targetPiece;
+  if (!fromCell || fromCell.length === 0 || !toCell || toCell.length === 0) return false;
+
+  const movingPiece = fromCell.pop();
+  const swappedPiece = toCell.pop();
+  
+  if (!movingPiece || !swappedPiece) return false;
+
+  toCell.push(movingPiece);
+  fromCell.push(swappedPiece);
+
   return true;
 }
 
@@ -91,8 +185,8 @@ function processRotation(state: GameState, move: Move, piece: any, gameId?: stri
 
   rotatePieceOrientation(piece, move.rotation, gameId);
   rotatePieceFacing(piece, move.from, move.rotation);
-  
-  state.board[move.from.r][move.from.c] = piece;
+
+  // Piece is modified by reference in the board array - no reassignment needed
   return true;
 }
 
@@ -135,15 +229,24 @@ function finalizeTurn(state: GameState, gameId?: string): GameState {
   state.lastLaserPath = result.path;
 
   if (result.destroyed) {
-    const { r, c } = result.destroyed.pos;
-    state.board[r][c] = null;
+    handleDestroyedPiece(state, result.destroyed);
   }
+  
   if (result.winner) {
     state.winner = result.winner;
   } else {
     state.turn = state.turn === 'RED' ? 'SILVER' : 'RED';
   }
   return state;
+}
+
+function handleDestroyedPiece(state: GameState, destroyed: any) {
+  const { r, c } = destroyed.pos;
+  if (!destroyed.remainingStack || destroyed.remainingStack.length === 0) {
+    state.board[r][c] = null;
+  } else {
+    state.board[r][c] = destroyed.remainingStack;
+  }
 }
 
 function rotateDir(d: Dir, rot: 90 | -90): Dir {

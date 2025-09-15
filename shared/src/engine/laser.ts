@@ -1,4 +1,4 @@
-import { Cell, Dir, GameState, Pos } from '../types';
+import { Cell, Dir, GameState, Pos, Piece } from '../types';
 import { inBounds } from '../constants';
 import { logger } from '../logger';
 
@@ -77,7 +77,7 @@ function reflectFromPyramid(laserDir: Dir, pyramidOrientation: Dir): Dir {
 
 export interface LaserResult {
   path: Pos[];
-  destroyed?: { pos: Pos; piece: NonNullable<Cell> };
+  destroyed?: { pos: Pos; piece: Piece; remainingStack?: Piece[] };
   winner?: 'RED' | 'SILVER';
 }
 
@@ -95,9 +95,12 @@ function findLaserEmitter(board: Cell[][], turn: 'RED' | 'SILVER'): { pos: Pos; 
   // Check for SPHINX pieces on board
   for (let r = 0; r < board.length; r++) {
     for (let c = 0; c < board[0].length; c++) {
-      const p = board[r][c];
-      if (p && p.kind === 'SPHINX' && p.owner === turn && p.facing) {
-        return { pos: { r, c }, dir: p.facing };
+      const cell = board[r][c];
+      if (cell && cell.length > 0) {
+        const p = cell[cell.length - 1]; // Get top piece
+        if (p.kind === 'SPHINX' && p.owner === turn && p.facing) {
+          return { pos: { r, c }, dir: p.facing };
+        }
       }
     }
   }
@@ -128,13 +131,14 @@ function traceLaserPath(board: Cell[][], start: { pos: Pos; dir: Dir }, gameId?:
     path.push({ r, c });
     const cell = board[r][c];
 
-    if (!cell) {
+    if (!cell || cell.length === 0) {
       [dr, dc] = dirStep[dir];
       r += dr; c += dc;
       continue;
     }
 
-    const interaction = handleCellInteraction(cell, dir, { r, c }, gameId);
+    const topPiece = cell[cell.length - 1]; // Get top piece
+    const interaction = handleCellInteraction(topPiece, dir, { r, c }, gameId, cell);
     if (interaction.stop) {
       return { path, ...interaction.result };
     }
@@ -148,81 +152,87 @@ function traceLaserPath(board: Cell[][], start: { pos: Pos; dir: Dir }, gameId?:
   return { path };
 }
 
-function handleCellInteraction(cell: NonNullable<Cell>, dir: Dir, pos: Pos, gameId?: string) {
+function handleCellInteraction(piece: Piece, dir: Dir, pos: Pos, gameId?: string, cell?: Piece[]) {
   const { r, c } = pos;
 
-  if (cell.kind === 'OBELISK') {
-    logger.info(`DESTROYED: ${cell.owner} OBELISK at ${r},${c} by laser traveling ${dir}`, { gameId });
-    return { stop: true, result: { destroyed: { pos, piece: cell } }, newDir: undefined };
+  if (piece.kind === 'OBELISK') {
+    if (cell && cell.length > 1) {
+      // Destroy only top obelisk, leave rest of stack
+      logger.info(`DESTROYED: Top ${piece.owner} OBELISK at ${r},${c} by laser traveling ${dir}, ${cell.length - 1} remaining`, { gameId });
+      return { stop: true, result: { destroyed: { pos, piece, remainingStack: cell.slice(0, -1) } }, newDir: undefined };
+    } else {
+      logger.info(`DESTROYED: ${piece.owner} OBELISK at ${r},${c} by laser traveling ${dir}`, { gameId });
+      return { stop: true, result: { destroyed: { pos, piece } }, newDir: undefined };
+    }
   }
 
-  if (cell.kind === 'ANUBIS') {
-    return handleAnubisInteraction(cell, dir, pos, gameId);
+  if (piece.kind === 'ANUBIS') {
+    return handleAnubisInteraction(piece, dir, pos, gameId);
   }
 
-  if (cell.kind === 'PHARAOH') {
-    logger.info(`DESTROYED: ${cell.owner} PHARAOH at ${r},${c} by laser from ${dir} - GAME OVER`, { gameId });
+  if (piece.kind === 'PHARAOH') {
+    logger.info(`DESTROYED: ${piece.owner} PHARAOH at ${r},${c} by laser from ${dir} - GAME OVER`, { gameId });
     return {
       stop: true,
       result: {
-        destroyed: { pos, piece: cell },
-        winner: cell.owner === 'RED' ? 'SILVER' : 'RED' as 'RED' | 'SILVER'
+        destroyed: { pos, piece },
+        winner: piece.owner === 'RED' ? 'SILVER' : 'RED' as 'RED' | 'SILVER'
       },
       newDir: undefined
     };
   }
 
-  if (cell.kind === 'PYRAMID') {
-    return handlePyramidInteraction(cell, dir, pos, gameId);
+  if (piece.kind === 'PYRAMID') {
+    return handlePyramidInteraction(piece, dir, pos, gameId);
   }
 
-  if (cell.kind === 'DJED') {
-    return handleDjedInteraction(cell, dir, pos);
+  if (piece.kind === 'DJED') {
+    return handleDjedInteraction(piece, dir, pos);
   }
 
-  if (cell.kind === 'LASER' || cell.kind === 'SPHINX') {
+  if (piece.kind === 'LASER' || piece.kind === 'SPHINX') {
     return { stop: true, result: {}, newDir: undefined };
   }
 
   return { stop: false, newDir: undefined };
 }
 
-function handleAnubisInteraction(cell: NonNullable<Cell>, dir: Dir, pos: Pos, gameId?: string) {
+function handleAnubisInteraction(piece: Piece, dir: Dir, pos: Pos, gameId?: string) {
   const { r, c } = pos;
   const blockMap = { N: 'S', E: 'W', S: 'N', W: 'E', O: 'O' };
   
-  if (cell.orientation && cell.orientation === blockMap[dir]) {
-    logger.info(`BLOCKED: ${cell.owner} ANUBIS at ${r},${c} blocks laser from front (${dir})`, { gameId });
+  if (piece.orientation && piece.orientation === blockMap[dir]) {
+    logger.info(`BLOCKED: ${piece.owner} ANUBIS at ${r},${c} blocks laser from front (${dir})`, { gameId });
     return { stop: true, result: {}, newDir: undefined };
   }
   
-  logger.info(`DESTROYED: ${cell.owner} ANUBIS at ${r},${c} by laser traveling ${dir}`, { gameId });
-  return { stop: true, result: { destroyed: { pos, piece: cell } }, newDir: undefined };
+  logger.info(`DESTROYED: ${piece.owner} ANUBIS at ${r},${c} by laser traveling ${dir}`, { gameId });
+  return { stop: true, result: { destroyed: { pos, piece } }, newDir: undefined };
 }
 
-function handlePyramidInteraction(cell: NonNullable<Cell>, dir: Dir, pos: Pos, gameId?: string) {
+function handlePyramidInteraction(piece: Piece, dir: Dir, pos: Pos, gameId?: string) {
   const { r, c } = pos;
   
-  if (!cell.orientation) {
+  if (!piece.orientation) {
     logger.info('WARNING: Pyramid missing orientation in laser logic, using default N', { gameId });
-    cell.orientation = 'N';
+    piece.orientation = 'N';
   }
   
-  if (!canReflectFromPyramid(dir, cell.orientation)) {
-    logger.info(`DESTROYED: ${cell.owner} PYRAMID at ${r},${c} (orientation: ${cell.orientation}) by laser traveling ${dir}`, { gameId });
-    return { stop: true, result: { destroyed: { pos, piece: cell } }, newDir: undefined };
+  if (!canReflectFromPyramid(dir, piece.orientation)) {
+    logger.info(`DESTROYED: ${piece.owner} PYRAMID at ${r},${c} (orientation: ${piece.orientation}) by laser traveling ${dir}`, { gameId });
+    return { stop: true, result: { destroyed: { pos, piece } }, newDir: undefined };
   }
   
-  const newDir = reflectFromPyramid(dir, cell.orientation);
-  logger.debug(`REFLECTED: ${cell.owner} PYRAMID at ${r},${c} (orientation: ${cell.orientation}) reflects laser traveling ${dir} -> ${newDir}`, { gameId });
+  const newDir = reflectFromPyramid(dir, piece.orientation);
+  logger.debug(`REFLECTED: ${piece.owner} PYRAMID at ${r},${c} (orientation: ${piece.orientation}) reflects laser traveling ${dir} -> ${newDir}`, { gameId });
   return { stop: false, newDir, result: undefined };
 }
 
-function handleDjedInteraction(cell: NonNullable<Cell>, dir: Dir, pos: Pos) {
-  if (!cell.mirror) {
-    return { stop: true, result: { destroyed: { pos, piece: cell } }, newDir: undefined };
+function handleDjedInteraction(piece: Piece, dir: Dir, pos: Pos) {
+  if (!piece.mirror) {
+    return { stop: true, result: { destroyed: { pos, piece } }, newDir: undefined };
   }
   
-  const newDir = reflect(dir, cell.mirror);
+  const newDir = reflect(dir, piece.mirror);
   return { stop: false, newDir, result: undefined };
 }

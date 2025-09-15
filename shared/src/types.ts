@@ -30,10 +30,12 @@ export function createPiece(piece: Omit<Piece, 'debug'>): Piece {
   };
 }
 
-export type Cell = Piece | null;
+export type Cell = Piece[] | null;
 
 export function debugCell(cell: Cell): string {
-  return cell ? (cell.debug?.() || `${cell.owner} ${cell.kind}`) : 'empty';
+  if (!cell || cell.length === 0) return 'empty';
+  if (cell.length === 1) return cell[0].debug?.() || `${cell[0].owner} ${cell[0].kind}`;
+  return `stack(${cell.length}): ${cell.map(p => p.kind).join(',')}`;
 }
 
 export type RuleVariant = 'CLASSIC' | 'KHET_2_0';
@@ -57,5 +59,6 @@ export interface Move {
   from: Pos;
   to?: Pos;              // only for MOVE
   rotation?: 90 | -90;   // only for ROTATE
+  moveStack?: boolean;   // for obelisk stacks - true to move entire stack, false to move top only
   clientMoveId?: string; // for optimistic UI ack
 }
