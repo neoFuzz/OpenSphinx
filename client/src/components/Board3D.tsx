@@ -6,6 +6,7 @@ import { COLS, ROWS } from '../../../shared/src/constants';
 import type { Cell, Dir, GameState, Pos, Piece } from '../../../shared/src/types';
 import * as THREE from 'three';
 import { metalness, roughness } from 'three/tsl';
+import { CubeCamera } from './CubeCamera';
 
 // --- layout constants ---
 const TILE_SIZE = 1;          // 1 unit per square
@@ -55,8 +56,9 @@ function worldToGrid(x: number, z: number): Pos | null {
 * Apply shadows and color tinting to a scene with deep material cloning
 * @param scene The THREE.Object3D scene to apply shadows and colors to
 * @param owner The owner ('RED' or 'SILVER') determining the color tinting
+* @param envMap Optional environment map for reflections
 */
-function withShadowsAndColor(scene: THREE.Object3D, owner: 'RED' | 'SILVER') {
+function withShadowsAndColor(scene: THREE.Object3D, owner: 'RED' | 'SILVER', envMap?: THREE.CubeTexture) {
     if (!scene || !scene.traverse) return;
 
     const baseColor = owner === 'RED' ? new THREE.Color(COLORS.RED) : new THREE.Color(COLORS.SILVER);
@@ -76,14 +78,14 @@ function withShadowsAndColor(scene: THREE.Object3D, owner: 'RED' | 'SILVER') {
                 const name = o.name.toLowerCase();
 
                 if (name.includes('mirror')) {
-                    // Apply mirror material
+                    // Apply mirror material with environment map
                     o.material = new THREE.MeshPhysicalMaterial({
-                        color: new THREE.Color('#ffffffff'),
+                        color: new THREE.Color('#ffffff'),
                         metalness: 0.90,
                         roughness: 0.1,
                         reflectivity: 1.0,
                         envMapIntensity: 1.0,
-                        // TODO: add envMap here
+                        envMap: envMap || null,
                     });
                 } else if (name.includes('frame')) {
                     // Apply frame material with tint
@@ -159,36 +161,38 @@ function PharaohGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
 /**
  * Draw the Pyramid model
  * @param owner The owner ('RED' or 'SILVER') determining the color tinting
+ * @param envMap Optional environment map for reflections
  * @returns A themed Pyramid model
  */
-function PyramidGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
+function PyramidGLTF({ owner, envMap }: { owner: 'RED' | 'SILVER'; envMap?: THREE.CubeTexture }) {
     const { scene } = useGLTF('/models/pyramid.glb');
     const clonedScene = useMemo(() => {
         if (scene) {
             const clone = scene.clone();
-            if (clone) withShadowsAndColor(clone, owner);
+            if (clone) withShadowsAndColor(clone, owner, envMap);
             return clone;
         }
         return null;
-    }, [scene, owner]);
+    }, [scene, owner, envMap]);
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
 /**
  * Draw the Djed model
  * @param owner The owner ('RED' or 'SILVER') determining the color tinting
+ * @param envMap Optional environment map for reflections
  * @returns A themed Djed model
  */
-function DjedGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
+function DjedGLTF({ owner, envMap }: { owner: 'RED' | 'SILVER'; envMap?: THREE.CubeTexture }) {
     const { scene } = useGLTF('/models/djed.glb');
     const clonedScene = useMemo(() => {
         if (scene) {
             const clone = scene.clone();
-            if (clone) withShadowsAndColor(clone, owner);
+            if (clone) withShadowsAndColor(clone, owner, envMap);
             return clone;
         }
         return null;
-    }, [scene, owner]);
+    }, [scene, owner, envMap]);
     return clonedScene ? <primitive object={clonedScene} /> : null;
 }
 
@@ -534,10 +538,11 @@ interface Piece3DProps {
     moveStackMode: boolean;
     setMoveStackMode: React.Dispatch<React.SetStateAction<boolean>>;
     isClassic: boolean;
+    envMap?: THREE.CubeTexture | null;
 }
 
 function Piece3D(props: Piece3DProps) {
-    const { r, c, cell, selected, onSelect, debugMode, rotatingPieces, movingPieces, setRotatingPieces, setMovingPieces, moveStackMode, setMoveStackMode, isClassic } = props;
+    const { r, c, cell, selected, onSelect, debugMode, rotatingPieces, movingPieces, setRotatingPieces, setMovingPieces, moveStackMode, setMoveStackMode, isClassic, envMap } = props;
     const pos = gridToWorld(r, c);
     const topPiece = useMemo(() => cell[cell.length - 1], [cell.length, cell[cell.length - 1]?.id]); // Get top piece for display
     const colour = topPiece.owner === 'RED' ? COLORS.RED : COLORS.SILVER;
@@ -735,13 +740,13 @@ function Piece3D(props: Piece3DProps) {
 
             {topPiece.kind === 'PYRAMID' && (
                 <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
-                    <PyramidGLTF owner={topPiece.owner} />
+                    <PyramidGLTF owner={topPiece.owner} envMap={envMap || undefined} />
                 </group>
             )}
 
             {topPiece.kind === 'DJED' && (
                 <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
-                    <DjedGLTF owner={topPiece.owner} />
+                    <DjedGLTF owner={topPiece.owner} envMap={envMap || undefined} />
                 </group>
             )}
 
@@ -884,12 +889,43 @@ function RotateGizmo({ position, onRotate }: { position: [number, number, number
  * @param path to render
  * @returns JSX.Element | null
  */
-function LaserPath3D({ path }: { path: Pos[] | undefined }) {
+function LaserPath3D({ path, state }: { path: Pos[] | undefined; state: GameState }) {
     if (!path || path.length === 0) return null;
 
-    const points = path.map(p => {
+    // Find laser emitter position to start the path from
+    let emitterPos: Pos | null = null;
+    
+    // The laser comes from the player who just moved (opposite of current turn)
+    const laserOwner = state.turn === 'RED' ? 'SILVER' : 'RED';
+    
+    // Look for SPHINX pieces on board
+    for (let r = 0; r < state.board.length; r++) {
+        for (let c = 0; c < state.board[0].length; c++) {
+            const cell = state.board[r][c];
+            if (cell && cell.length > 0) {
+                const p = cell[cell.length - 1];
+                if (p.kind === 'SPHINX' && p.owner === laserOwner) {
+                    emitterPos = { r, c };
+                    break;
+                }
+            }
+        }
+        if (emitterPos) break;
+    }
+    
+    // For classic rules, use off-board positions
+    if (!emitterPos) {
+        if (laserOwner === 'RED') {
+            emitterPos = { r: 0, c: 0 }; // Start from first tile
+        } else {
+            emitterPos = { r: 7, c: 9 }; // Start from last tile
+        }
+    }
+
+    const allPoints = [emitterPos, ...path];
+    const points = allPoints.map(p => {
         const v = gridToWorld(p.r, p.c);
-        return [v.x, 0.35, v.z];
+        return [v.x, 0.5, v.z];
     });
 
     return (
@@ -956,7 +992,7 @@ const GroundMesh = React.memo(() => {
                 displacementScale={0.1}
                 metalness={0.1}
                 roughness={0.9}
-                color="#2a1304ff"
+                color="#dd773b"
             />
         </mesh>
     );
@@ -975,6 +1011,7 @@ export function Board3D() {
     const [selected, setSelected] = useState<Pos | null>(null);
     const [debugMode, setDebugMode] = useState(false);
     const [moveStackMode, setMoveStackMode] = useState(true); // true = move entire stack, false = move top only
+    const [envMap, setEnvMap] = useState<THREE.CubeTexture | null>(null);
 
     const [rotatingPieces, setRotatingPieces] = useState<Map<string, { startTime: number, direction: number }>>(new Map());
     const [movingPieces, setMovingPieces] = useState<Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>>(new Map());
@@ -982,6 +1019,16 @@ export function Board3D() {
     const prevStateRef = useRef(state);
     const fpsRef = useRef({ frames: 0, lastTime: performance.now() });
     const controlsRef = useRef<any>(null);
+    
+    // Cleanup WebGL context on unmount
+    useEffect(() => {
+        return () => {
+            // Dispose of environment map
+            if (envMap) {
+                envMap.dispose();
+            }
+        };
+    }, [envMap]);
 
     useEffect(() => {
         const handleKeyPress = (e: KeyboardEvent) => {
@@ -1342,7 +1389,10 @@ export function Board3D() {
                 style={{ background: '#000000', height: 'calc(100% - 50px)' }}
             >
                 {/*<SceneLights isClassic={state.config?.rules === 'CLASSIC'} />*/}
-                <Environment preset='park' background={false} />
+                <Environment preset='park' background={true} />
+                
+                {/* Cube camera for reflections */}
+                <CubeCamera position={[0, 2, 0]} onUpdate={setEnvMap} />
 
                 {/* Large ground disc with dirt texture */}
                 <GroundMesh />
@@ -1394,6 +1444,7 @@ export function Board3D() {
                                     moveStackMode={moveStackMode}
                                     setMoveStackMode={setMoveStackMode}
                                     isClassic={state.config?.rules === 'CLASSIC'}
+                                    envMap={envMap}
                                 />
                             ) : null
                         )
@@ -1401,7 +1452,7 @@ export function Board3D() {
                 </group>
 
                 {/* Laser path visualisation */}
-                <LaserPath3D path={state.lastLaserPath} />
+                <LaserPath3D path={state.lastLaserPath} state={state} />
 
                 {/* Off-board laser cylinders for Classic rules */}
                 {state.config?.rules === 'CLASSIC' && (

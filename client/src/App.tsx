@@ -17,6 +17,7 @@ export default function App() {
     const [roomId, setRoomId] = useState(''); // maybe ROOM1
     const [name, setName] = useState('Player');
     const [useThree, setUseThree] = useState(true);
+    const [isTransitioning, setIsTransitioning] = useState(false);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [showJoinForm, setShowJoinForm] = useState(false);
     const [replayId, setReplayId] = useState('');
@@ -34,13 +35,27 @@ export default function App() {
                 <SavedGames onReplaySelect={setReplayId} />
                 {state && !replayId && <RoomList onJoinRoom={(roomId) => { setRoomId(roomId); connectRoom(roomId, name); }} />}
                 <div className="form-check ms-auto">
-                    <input className="form-check-input" type="checkbox" checked={useThree} onChange={e => setUseThree(e.target.checked)} id="use3d" />
-                    <label className="form-check-label" htmlFor="use3d">Use 3D</label>
+                    <input 
+                        className="form-check-input" 
+                        type="checkbox" 
+                        checked={useThree} 
+                        onChange={e => {
+                            if (isTransitioning) return;
+                            setIsTransitioning(true);
+                            setUseThree(e.target.checked);
+                            setTimeout(() => setIsTransitioning(false), 1000);
+                        }} 
+                        id="use3d" 
+                        disabled={isTransitioning}
+                    />
+                    <label className="form-check-label" htmlFor="use3d">
+                        Use 3D {isTransitioning && '(switching...)'}
+                    </label>
                 </div>
             </div>
 
             <React.Suspense fallback={<div className="text-center">Loading…</div>}>
-                <GameArea useThree={useThree} replayId={replayId} setReplayId={setReplayId} />
+                <GameArea useThree={useThree} replayId={replayId} setReplayId={setReplayId} isTransitioning={isTransitioning} />
             </React.Suspense>
             
             <GameModal />
@@ -72,8 +87,16 @@ export default function App() {
     );
 }
 
-function GameArea({ useThree, replayId, setReplayId }: { useThree: boolean; replayId: string; setReplayId: (id: string) => void }) {
+function GameArea({ useThree, replayId, setReplayId, isTransitioning }: { useThree: boolean; replayId: string; setReplayId: (id: string) => void; isTransitioning: boolean }) {
     const state = useGame(s => s.state);
+    const [webglKey, setWebglKey] = React.useState(0);
+    
+    React.useEffect(() => {
+        if (isTransitioning) {
+            // Force remount of 3D component to clean up WebGL context
+            setWebglKey(prev => prev + 1);
+        }
+    }, [isTransitioning]);
     
     if (replayId) {
         return <Replay replayId={replayId} onClose={() => setReplayId('')} />;
@@ -97,7 +120,18 @@ function GameArea({ useThree, replayId, setReplayId }: { useThree: boolean; repl
                     </button>
                 </div>
             )}
-            {useThree ? <Board3D /> : <Board2D />}
+            {isTransitioning ? (
+                <div className="text-center p-5">
+                    <div className="spinner-border" role="status">
+                        <span className="visually-hidden">Switching...</span>
+                    </div>
+                    <p className="mt-2">Switching view mode...</p>
+                </div>
+            ) : useThree ? (
+                <Board3D key={webglKey} />
+            ) : (
+                <Board2D />
+            )}
         </div>
     );
 }
