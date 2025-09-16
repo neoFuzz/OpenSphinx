@@ -1,6 +1,6 @@
-import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+﻿import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Line, useGLTF } from '@react-three/drei';
+import { OrbitControls, Line, useGLTF, Environment } from '@react-three/drei';
 import { useGame } from '../state/game';
 import { COLS, ROWS } from '../../../shared/src/constants';
 import type { Cell, Dir, GameState, Pos, Piece } from '../../../shared/src/types';
@@ -72,7 +72,28 @@ function withShadowsAndColor(scene: THREE.Object3D, owner: 'RED' | 'SILVER') {
             if (o.isMesh) {
                 o.castShadow = true;
                 o.receiveShadow = true;
-                if (o.material) {
+
+                const name = o.name.toLowerCase();
+
+                if (name.includes('mirror')) {
+                    // Apply mirror material
+                    o.material = new THREE.MeshPhysicalMaterial({
+                        color: new THREE.Color('#ffffffff'),
+                        metalness: 0.90,
+                        roughness: 0.1,
+                        reflectivity: 1.0,
+                        envMapIntensity: 1.0,
+                        // TODO: add envMap here
+                    });
+                } else if (name.includes('frame')) {
+                    // Apply frame material with tint
+                    o.material = new THREE.MeshStandardMaterial({
+                        color: baseColor.clone(),
+                        metalness,
+                        roughness,
+                        envMapIntensity: 0,
+                    });
+                } else if (o.material) {
                     if (Array.isArray(o.material)) {
                         o.material = o.material.map((mat: any) => {
                             const clonedMat = mat.clone();
@@ -90,6 +111,7 @@ function withShadowsAndColor(scene: THREE.Object3D, owner: 'RED' | 'SILVER') {
                         o.material.envMapIntensity = 0;
                     }
                 }
+
             }
         });
         // Remove lights after traversal to avoid modifying during iteration
@@ -1319,7 +1341,8 @@ export function Board3D() {
                 camera={{ position: color === 'RED' ? [0, 8, -10] : [0, 8, 10], fov: 45, near: 0.1, far: 100 }}
                 style={{ background: '#000000', height: 'calc(100% - 50px)' }}
             >
-                <SceneLights isClassic={state.config?.rules === 'CLASSIC'} />
+                {/*<SceneLights isClassic={state.config?.rules === 'CLASSIC'} />*/}
+                <Environment preset='park' background={false} />
 
                 {/* Large ground disc with dirt texture */}
                 <GroundMesh />
