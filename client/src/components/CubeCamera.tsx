@@ -9,7 +9,7 @@ interface CubeCameraProps {
 
 export function CubeCamera({ position = [0, 2, 0], onUpdate }: CubeCameraProps) {
   const { scene, gl } = useThree();
-  const cubeCameraRef = useRef<THREE.CubeCamera>();
+  const cubeCameraRef = useRef<THREE.CubeCamera>(null);
 
   const cubeRenderTarget = useMemo(() =>
     new THREE.WebGLCubeRenderTarget(1024, {

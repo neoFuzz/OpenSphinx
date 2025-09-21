@@ -52,12 +52,14 @@ export function SavedGames({ onReplaySelect }: { onReplaySelect?: (id: string) =
                 </button>
             )}
             
-            <button 
-                className="btn btn-outline-info btn-sm" 
-                onClick={() => { setShowReplayDialog(true); fetchReplays(); }}
-            >
-                View Replays
-            </button>
+            {!state && (
+                <button 
+                    className="btn btn-outline-info btn-sm" 
+                    onClick={() => { setShowReplayDialog(true); fetchReplays(); }}
+                >
+                    View Replays
+                </button>
+            )}
 
             {/* Save Dialog */}
             {showSaveDialog && (

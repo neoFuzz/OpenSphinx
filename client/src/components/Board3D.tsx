@@ -4,6 +4,8 @@ import { OrbitControls, Line, useGLTF, Environment } from '@react-three/drei';
 import { useGame } from '../state/game';
 import { COLS, ROWS } from '../../../shared/src/constants';
 import type { Cell, Dir, GameState, Pos, Piece } from '../../../shared/src/types';
+import { getNextValidSphinxDirection, getSphinxRotationDelta } from '../../../shared/src/engine/sphinx-utils';
+import { playExplosionSound } from '../utils/explosionEffect';
 import * as THREE from 'three';
 import { metalness, roughness } from 'three/tsl';
 import { CubeCamera } from './CubeCamera';
@@ -427,12 +429,12 @@ function DebugOverlay({ piece }: { piece: Piece }) { // NOSONAR(6759)
         return (
             <group position={[0, 0.9, 0]} rotation-x={-Math.PI / 2}>
                 {piece.mirror === '/' ? (
-                    <mesh position={[0, 0, 0]} rotation-z={-Math.PI / 1.45}>
+                    <mesh position={[0, 0, 0]} rotation-z={-Math.PI / 1.35}>
                         <boxGeometry args={[0.4, 0.05, 0.05]} />
                         <meshBasicMaterial color={color} />
                     </mesh>
                 ) : (
-                    <mesh position={[0, 0, 0]} rotation-z={Math.PI / 1.45}>
+                    <mesh position={[0, 0, 0]} rotation-z={Math.PI / 1.35}>
                         <boxGeometry args={[0.4, 0.05, 0.05]} />
                         <meshBasicMaterial color={color} />
                     </mesh>
@@ -531,9 +533,9 @@ function DebugOverlay({ piece }: { piece: Piece }) { // NOSONAR(6759)
 interface Piece3DProps {
     r: number; c: number; cell: Piece[]; selected: boolean;
     onSelect: (pos: Pos) => void; debugMode: boolean;
-    rotatingPieces: Map<string, { startTime: number, direction: number }>;
+    rotatingPieces: Map<string, { startTime: number, direction: number, startRotation: number, targetRotation: number }>;
     movingPieces: Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>;
-    setRotatingPieces: React.Dispatch<React.SetStateAction<Map<string, { startTime: number, direction: number }>>>;
+    setRotatingPieces: React.Dispatch<React.SetStateAction<Map<string, { startTime: number, direction: number, startRotation: number, targetRotation: number }>>>;
     setMovingPieces: React.Dispatch<React.SetStateAction<Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>>>;
     moveStackMode: boolean;
     setMoveStackMode: React.Dispatch<React.SetStateAction<boolean>>;
@@ -570,17 +572,29 @@ function Piece3D(props: Piece3DProps) {
         switch (kind) {
             case 'PYRAMID': return pyramidRotY;
             case 'DJED': return mirrorRotY;
-            case 'LASER':
-            case 'SPHINX': return dirToY(topPiece.facing);
-            case 'ANUBIS': return dirToY(topPiece.orientation);
+            case 'LASER': return dirToY(topPiece.facing);
+            case 'SPHINX': return -dirToY(topPiece.facing); // Invert rotation for model
+            case 'ANUBIS': return -dirToY(topPiece.orientation); // Invert rotation for model
             default: return topPiece.orientation ? dirToY(topPiece.orientation) : 0;
         }
     })(topPiece.kind);
+
+    // Debug current rotation calculation
+    if (debugMode && topPiece.kind === 'DJED') {
+        console.log('DJED rotation calc:', topPiece.mirror, 'mirrorRotY:', mirrorRotY, 'currentBaseRotY:', currentBaseRotY);
+    }
 
     // Animation state
     const [animatedRotY, setAnimatedRotY] = useState(currentBaseRotY);
     const [animationPos, setAnimationPos] = useState(pos);
     const [animationY, setAnimationY] = useState(0.2);
+
+    // Update animated rotation when piece state changes (but not during animation)
+    useEffect(() => {
+        if (!rotatingPieces.has(topPiece.id)) {
+            setAnimatedRotY(currentBaseRotY);
+        }
+    }, [currentBaseRotY, topPiece.id]);
 
     // Smooth animation updates
     useFrame((state, delta) => {
@@ -592,25 +606,27 @@ function Piece3D(props: Piece3DProps) {
             const progress = Math.min(elapsed / 300, 1);
 
             if (progress >= 1) {
+                console.log('Rotation animation complete for:', topPiece.id);
                 setRotatingPieces(prev => {
                     const next = new Map(prev);
                     next.delete(topPiece.id);
                     return next;
                 });
-                setAnimatedRotY(currentBaseRotY);
+                setAnimatedRotY(rotationData.targetRotation);
             } else {
                 const eased = 1 - Math.pow(1 - progress, 3);
                 const startRot = rotationData.startRotation;
-                const targetRot = currentBaseRotY;
+                const targetRot = rotationData.targetRotation;
 
                 let diff = targetRot - startRot;
-                if (diff > Math.PI) diff -= 2 * Math.PI;
-                if (diff < -Math.PI) diff += 2 * Math.PI;
+                // Normalize angle difference to take shortest path
+                while (diff > Math.PI) diff -= 2 * Math.PI;
+                while (diff < -Math.PI) diff += 2 * Math.PI;
 
-                setAnimatedRotY(startRot + diff * eased);
+                const newRotY = startRot + diff * eased;
+                console.log('Animating rotation:', topPiece.id, 'progress:', progress.toFixed(2), 'from:', startRot.toFixed(2), 'to:', targetRot.toFixed(2), 'current:', newRotY.toFixed(2));
+                setAnimatedRotY(newRotY);
             }
-        } else {
-            setAnimatedRotY(currentBaseRotY);
         }
 
         const moveData = movingPieces.get(topPiece.id);
@@ -728,7 +744,7 @@ function Piece3D(props: Piece3DProps) {
             )}
 
             {topPiece.kind === 'OBELISK' && (
-                <group position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
+                <group rotation-y={animatedRotY} position={[0, 0, 0]} scale={[0.5, 0.5, 0.5]}>
                     {/* Render multiple obelisks for stacks */}
                     {cell.map((piece, i) => (
                         <group key={piece.id} position={[0, i * 0.6, 0]}>
@@ -846,8 +862,7 @@ function RotateGizmo({ position, onRotate }: { position: [number, number, number
             {/* Clockwise arrow */}
             <group
                 position={[0.6, 0.76, 0]}
-                onPointerDown={(e) => { e.stopPropagation(); onRotate(90); }}
-            >
+                onPointerDown={(e) => { e.stopPropagation(); onRotate(90); }} >
                 <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
                     <circleGeometry args={[0.15]} />
                     <meshBasicMaterial color="#333" transparent opacity={0.8} />
@@ -885,6 +900,110 @@ function RotateGizmo({ position, onRotate }: { position: [number, number, number
 }
 
 /**
+ * SphinxRotateGizmo component - single arrow showing next valid direction
+ */
+function SphinxRotateGizmo({ position, onRotate, nextDirection }: { position: [number, number, number]; onRotate: () => void; nextDirection: Dir }) {
+    // Calculate rotation for the arrow to point to the next direction
+    const arrowRotation = dirToY(nextDirection);
+
+    return (
+        <group position={position}>
+            {/* Single arrow pointing to next valid direction */}
+            <group
+                position={[0, 1.5, 0]}
+                onPointerDown={(e) => { e.stopPropagation(); onRotate(); }}
+            >
+                {/* Background circle */}
+                <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                    <circleGeometry args={[0.15]} />
+                    <meshBasicMaterial color="#333" transparent opacity={0.8} />
+                </mesh>
+
+                {/* Rotating arrow group */}
+                <group rotation={[0, arrowRotation, 0]}>
+                    {/* Arrow shaft */}
+                    <mesh position={[0, 0.00, 0.0]} rotation={[-Math.PI / 2, 0, 0]}>
+                        <cylinderGeometry args={[0.015, 0.015, 0.15, 8]} />
+                        <meshBasicMaterial color="#0066cc" />
+                    </mesh>
+                    {/* Arrow head */}
+                    <mesh position={[0, 0.005, 0.1]} rotation={[Math.PI / 2, 0, 0]}>
+                        <coneGeometry args={[0.05, 0.05, 4]} />
+                        <meshBasicMaterial color="#0066cc" />
+                    </mesh>
+                </group>
+            </group>
+        </group>
+    );
+}
+
+/**
+ * Explosion3D component with billboard sprite and particles
+ */
+function Explosion3D({ explosions, setExplosions }: { explosions: Map<string, { startTime: number, pos: Pos }>; setExplosions: React.Dispatch<React.SetStateAction<Map<string, { startTime: number, pos: Pos }>>> }) {
+    const explosionTexture = useMemo(() => new THREE.TextureLoader().load('/explosion.webp'), []);
+
+    useFrame(() => {
+        const now = performance.now();
+        const toRemove: string[] = [];
+
+        explosions.forEach((explosion, id) => {
+            if (now - explosion.startTime > 800) {
+                toRemove.push(id);
+            }
+        });
+
+        if (toRemove.length > 0) {
+            setExplosions(prev => {
+                const next = new Map(prev);
+                toRemove.forEach(id => next.delete(id));
+                return next;
+            });
+        }
+    });
+
+    return (
+        <group>
+            {Array.from(explosions.entries()).map(([id, explosion]) => {
+                const pos = gridToWorld(explosion.pos.r, explosion.pos.c);
+                const elapsed = performance.now() - explosion.startTime;
+                const progress = Math.min(elapsed / 800, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const scale = 0.5 + eased * 2;
+                const opacity = Math.max(0, (1 - progress) * (1 - progress));
+
+                return (
+                    <group key={id} position={[pos.x, 0.6, pos.z]}>
+                        {/* Main explosion sprite */}
+                        <sprite scale={[scale, scale, 1]}>
+                            <spriteMaterial map={explosionTexture} transparent opacity={opacity} />
+                        </sprite>
+
+                        {/* Particle effects */}
+                        {Array.from({ length: 6 }, (_, i) => {
+                            const angle = (i / 6) * Math.PI * 2;
+                            const distance = eased * 1.2;
+                            const x = Math.cos(angle) * distance;
+                            const z = Math.sin(angle) * distance;
+                            const y = Math.sin(eased * Math.PI) * 0.5;
+                            const particleScale = 0.03 + eased * 0.02;
+                            const particleOpacity = Math.max(0, (1 - eased) * 0.8);
+
+                            return (
+                                <mesh key={i} position={[x, y, z]} scale={[particleScale, particleScale, particleScale]}>
+                                    <sphereGeometry args={[1, 6, 6]} />
+                                    <meshBasicMaterial color="#ffaa00" transparent opacity={particleOpacity} />
+                                </mesh>
+                            );
+                        })}
+                    </group>
+                );
+            })}
+        </group>
+    );
+}
+
+/**
  * LaserPath3D component
  * @param path to render
  * @returns JSX.Element | null
@@ -894,10 +1013,12 @@ function LaserPath3D({ path, state }: { path: Pos[] | undefined; state: GameStat
 
     // Find laser emitter position to start the path from
     let emitterPos: Pos | null = null;
-    
-    // The laser comes from the player who just moved (opposite of current turn)
-    const laserOwner = state.turn === 'RED' ? 'SILVER' : 'RED';
-    
+
+    // The laser comes from the player who just moved and fired their laser
+    // When there's a winner, the turn doesn't switch, so state.turn is the player who just moved
+    // When there's no winner, the turn has switched, so we need the opposite player
+    const laserOwner = state.winner ? state.turn : (state.turn === 'RED' ? 'SILVER' : 'RED');
+
     // Look for SPHINX pieces on board
     for (let r = 0; r < state.board.length; r++) {
         for (let c = 0; c < state.board[0].length; c++) {
@@ -912,7 +1033,7 @@ function LaserPath3D({ path, state }: { path: Pos[] | undefined; state: GameStat
         }
         if (emitterPos) break;
     }
-    
+
     // For classic rules, use off-board positions
     if (!emitterPos) {
         if (laserOwner === 'RED') {
@@ -1013,13 +1134,14 @@ export function Board3D() {
     const [moveStackMode, setMoveStackMode] = useState(true); // true = move entire stack, false = move top only
     const [envMap, setEnvMap] = useState<THREE.CubeTexture | null>(null);
 
-    const [rotatingPieces, setRotatingPieces] = useState<Map<string, { startTime: number, direction: number }>>(new Map());
+    const [rotatingPieces, setRotatingPieces] = useState<Map<string, { startTime: number, direction: number, startRotation: number, targetRotation: number }>>(new Map());
     const [movingPieces, setMovingPieces] = useState<Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>>(new Map());
+    const [explosions, setExplosions] = useState<Map<string, { startTime: number, pos: Pos }>>(new Map());
     const [fps, setFps] = useState(0);
     const prevStateRef = useRef(state);
     const fpsRef = useRef({ frames: 0, lastTime: performance.now() });
     const controlsRef = useRef<any>(null);
-    
+
     // Cleanup WebGL context on unmount
     useEffect(() => {
         return () => {
@@ -1068,6 +1190,41 @@ export function Board3D() {
 
         const prevState = prevStateRef.current;
 
+        // Find destroyed pieces (only check if laser was fired)
+        if (state.lastLaserPath && state.lastLaserPath.length > 0) {
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const prevCell = prevState.board[r][c];
+                    const currentCell = state.board[r][c];
+
+                    if (prevCell && prevCell.length > 0 && (!currentCell || currentCell.length === 0)) {
+                        const prevPiece = prevCell[prevCell.length - 1];
+                        let pieceMovedElsewhere = false;
+
+                        // Check if this piece moved to another location
+                        for (let nr = 0; nr < ROWS && !pieceMovedElsewhere; nr++) {
+                            for (let nc = 0; nc < COLS && !pieceMovedElsewhere; nc++) {
+                                const newCell = state.board[nr][nc];
+                                if (newCell && newCell.some(p => p.id === prevPiece.id)) {
+                                    pieceMovedElsewhere = true;
+                                }
+                            }
+                        }
+
+                        // Only show explosion if piece was actually destroyed (not moved)
+                        if (!pieceMovedElsewhere) {
+                            const explosionId = `explosion-${r}-${c}-${Date.now()}`;
+                            setExplosions(prev => new Map(prev).set(explosionId, {
+                                startTime: performance.now(),
+                                pos: { r, c }
+                            }));
+                            playExplosionSound();
+                        }
+                    }
+                }
+            }
+        }
+
         // Find pieces that moved or rotated
         const processedPieces = new Set<string>();
 
@@ -1092,8 +1249,12 @@ export function Board3D() {
                             // Check for rotation
                             let hasRotated = false;
                             let prevBaseRotY = 0;
+                            let prevValue = '';
+                            let currentValue = '';
 
                             if (currentPiece.kind === 'DJED') {
+                                prevValue = prevPiece.mirror || '';
+                                currentValue = currentPiece.mirror || '';
                                 if (currentPiece.mirror !== prevPiece.mirror) {
                                     hasRotated = true;
                                     prevBaseRotY = prevPiece.mirror === '/' ? 0 : Math.PI / 2;
@@ -1101,6 +1262,8 @@ export function Board3D() {
                             } else {
                                 const currentDir = currentPiece.orientation || currentPiece.facing;
                                 const prevDir = prevPiece.orientation || prevPiece.facing;
+                                prevValue = prevDir || '';
+                                currentValue = currentDir || '';
                                 if (currentDir !== prevDir) {
                                     hasRotated = true;
                                     prevBaseRotY = ((kind) => {
@@ -1116,7 +1279,22 @@ export function Board3D() {
                             }
 
                             if (hasRotated) {
-                                animateRotation(currentPiece.id, 90, prevBaseRotY);
+                                // Calculate target rotation from current piece state
+                                const targetRotY = ((kind) => {
+                                    switch (kind) {
+                                        case 'PYRAMID': {
+                                            const angle = currentPiece.orientation === 'N' || currentPiece.orientation === 'S' ? Math.PI / 2 : -Math.PI / 2;
+                                            return dirToY(currentPiece.orientation) + angle;
+                                        }
+                                        case 'DJED': return currentPiece.mirror === '/' ? 0 : Math.PI / 2;
+                                        case 'ANUBIS': return -dirToY(currentPiece.orientation); // Invert rotation for model
+                                        case 'SPHINX': return -dirToY(currentPiece.facing); // Invert rotation for model
+                                        case 'LASER': return dirToY(currentPiece.facing);
+                                        default: return dirToY(currentPiece.orientation);
+                                    }
+                                })(currentPiece.kind);
+                                console.log('Rotation detected for piece:', currentPiece.id, 'from', prevValue, 'to', currentValue);
+                                animateRotation(currentPiece.id, 90, prevBaseRotY, targetRotY);
                             }
                             break;
                         }
@@ -1153,14 +1331,15 @@ export function Board3D() {
         prevStateRef.current = state;
     }, [state]);
 
-    const isMyTurn = state && color && state.turn === color;
+    const isMyTurn = state && color && state.turn === color && !state.winner;
 
     const getValidMoves = useCallback((pos: Pos) => {
         if (!state) return [];
         const cell = state.board[pos.r][pos.c];
         if (!cell || cell.length === 0) return [];
         const piece = cell[cell.length - 1];
-        if (piece.kind === 'LASER' || piece.kind === 'SPHINX') return [];
+        if (piece.kind === 'LASER') return [];
+        if (piece.kind === 'SPHINX') return []; // SPHINX can't move but can be selected for rotation
 
         const moves = [];
         for (let dr = -1; dr <= 1; dr++) {
@@ -1258,9 +1437,10 @@ export function Board3D() {
         setMovingPieces(prev => new Map(prev).set(pieceId, { startTime, from, to, isDjedHop }));
     }, []);
 
-    const animateRotation = useCallback((pieceId: string, direction: number, startRotation: number) => {
+    const animateRotation = useCallback((pieceId: string, direction: number, startRotation: number, targetRotation: number) => {
+        console.log('animateRotation called:', pieceId, direction, startRotation, 'to', targetRotation);
         const startTime = performance.now(); // Use performance.now() to match Three.js timing
-        setRotatingPieces(prev => new Map(prev).set(pieceId, { startTime, direction, startRotation }));
+        setRotatingPieces(prev => new Map(prev).set(pieceId, { startTime, direction, startRotation, targetRotation }));
     }, []);
 
     const onRotateSelected = useCallback((delta: 90 | -90) => {
@@ -1269,34 +1449,13 @@ export function Board3D() {
         const selectedCell = state.board[selected.r][selected.c];
         if (!selectedCell || selectedCell.length === 0) return;
         const selectedPiece = selectedCell[selectedCell.length - 1];
+
         if (selectedPiece && selectedPiece.kind === 'SPHINX') {
-            // For SPHINX, alternate between valid directions
-            const dirs = ['N', 'E', 'S', 'W'] as Dir[];
-            const currentFacing = selectedPiece.facing || 'N';
-            const currentIndex = dirs.indexOf(currentFacing);
-
-            // Get valid directions (not facing off board)
-            const validDirs = dirs.filter(dir => {
-                if (selected.r === 0 && dir === 'N') return false;
-                if (selected.r === ROWS - 1 && dir === 'S') return false;
-                if (selected.c === 0 && dir === 'W') return false;
-                if (selected.c === COLS - 1 && dir === 'E') return false;
-                return true;
-            });
-
-            if (validDirs.length <= 1) return; // Can't rotate if only one valid direction
-
-            // Find next valid direction
-            let nextIndex = currentIndex;
-            do {
-                nextIndex = delta > 0 ? (nextIndex + 1) % dirs.length : (nextIndex - 1 + dirs.length) % dirs.length;
-            } while (!validDirs.includes(dirs[nextIndex]));
-
-            const targetDir = dirs[nextIndex];
-            const rotationDelta = ((nextIndex - currentIndex + 4) % 4) * 90;
-            const finalDelta = rotationDelta > 180 ? rotationDelta - 360 : rotationDelta;
-
-            sendMove({ type: 'ROTATE', from: selected, rotation: finalDelta as 90 | -90 });
+            // For SPHINX, use the calculated rotation delta to next valid direction
+            const rotationDelta = getSphinxRotationDelta(selected, selectedPiece.facing || 'N');
+            if (rotationDelta) {
+                sendMove({ type: 'ROTATE', from: selected, rotation: rotationDelta });
+            }
         } else {
             sendMove({ type: 'ROTATE', from: selected, rotation: delta });
         }
@@ -1333,20 +1492,48 @@ export function Board3D() {
                     {debugMode && <span className="ms-3 small text-secondary">Debug: selected={selected ? 'yes' : 'no'}, isMyTurn={isMyTurn ? 'yes' : 'no'}, FPS: {fps}</span>}
                 </div>
                 <div className="btn-group">
-                    <button
-                        className="btn btn-outline-secondary btn-sm"
-                        disabled={!isMyTurn || !selected}
-                        onClick={() => onRotateSelected(-90)}
-                    >
-                        Rotate ⟲
-                    </button>
-                    <button
-                        className="btn btn-outline-secondary btn-sm"
-                        disabled={!isMyTurn || !selected}
-                        onClick={() => onRotateSelected(90)}
-                    >
-                        Rotate ⟳
-                    </button>
+                    {(() => {
+                        const selectedCell = selected && state ? state.board[selected.r][selected.c] : null;
+                        const selectedPiece = selectedCell && selectedCell.length > 0 ? selectedCell[selectedCell.length - 1] : null;
+
+                        if (selectedPiece && selectedPiece.kind === 'SPHINX') {
+                            const nextDir = getNextValidSphinxDirection(selected!, selectedPiece.facing || 'N');
+                            return nextDir ? (
+                                <button
+                                    className="btn btn-outline-secondary btn-sm"
+                                    disabled={!isMyTurn || !selected}
+                                    onClick={() => onRotateSelected(90)}
+                                    title={`Rotate to ${nextDir}`}
+                                >
+                                    Rotate to {nextDir} ⟳
+                                </button>
+                            ) : (
+                                <button className="btn btn-outline-secondary btn-sm" disabled>
+                                    Cannot rotate
+                                </button>
+                            );
+                        } else if (selectedPiece && (selectedPiece.kind === 'PYRAMID' || selectedPiece.kind === 'DJED' || selectedPiece.kind === 'ANUBIS')) {
+                            return (
+                                <>
+                                    <button
+                                        className="btn btn-outline-secondary btn-sm"
+                                        disabled={!isMyTurn || !selected}
+                                        onClick={() => onRotateSelected(-90)}
+                                    >
+                                        Rotate ⟲
+                                    </button>
+                                    <button
+                                        className="btn btn-outline-secondary btn-sm"
+                                        disabled={!isMyTurn || !selected}
+                                        onClick={() => onRotateSelected(90)}
+                                    >
+                                        Rotate ⟳
+                                    </button>
+                                </>
+                            );
+                        }
+                        return null;
+                    })()}
                     <button
                         className="btn btn-outline-info btn-sm"
                         onClick={resetCamera}
@@ -1390,7 +1577,7 @@ export function Board3D() {
             >
                 {/*<SceneLights isClassic={state.config?.rules === 'CLASSIC'} />*/}
                 <Environment preset='park' background={true} />
-                
+
                 {/* Cube camera for reflections */}
                 <CubeCamera position={[0, 2, 0]} onUpdate={setEnvMap} />
 
@@ -1454,6 +1641,9 @@ export function Board3D() {
                 {/* Laser path visualisation */}
                 <LaserPath3D path={state.lastLaserPath} state={state} />
 
+                {/* Explosion effects */}
+                <Explosion3D explosions={explosions} setExplosions={setExplosions} />
+
                 {/* Off-board laser cylinders for Classic rules */}
                 {state.config?.rules === 'CLASSIC' && (
                     <>
@@ -1471,16 +1661,38 @@ export function Board3D() {
                 )}
 
                 {/* Rotate gizmo for selected piece */}
-                {selected && isMyTurn && (
-                    <RotateGizmo
-                        position={[
-                            gridToWorld(selected.r, selected.c).x,
-                            0,
-                            gridToWorld(selected.r, selected.c).z
-                        ]}
-                        onRotate={onRotateSelected}
-                    />
-                )}
+                {selected && isMyTurn && (() => {
+                    const selectedCell = state.board[selected.r][selected.c];
+                    const selectedPiece = selectedCell && selectedCell.length > 0 ?
+                        selectedCell[selectedCell.length - 1] : null;
+
+                    if (selectedPiece && selectedPiece.kind === 'SPHINX') {
+                        const nextDir = getNextValidSphinxDirection(selected, selectedPiece.facing || 'N');
+                        return nextDir ? (
+                            <SphinxRotateGizmo
+                                position={[
+                                    gridToWorld(selected.r, selected.c).x,
+                                    0,
+                                    gridToWorld(selected.r, selected.c).z
+                                ]}
+                                onRotate={() => onRotateSelected(90)}
+                                nextDirection={nextDir}
+                            />
+                        ) : null;
+                    } else if (selectedPiece && (selectedPiece.kind === 'PYRAMID' || selectedPiece.kind === 'DJED' || selectedPiece.kind === 'ANUBIS')) {
+                        return (
+                            <RotateGizmo
+                                position={[
+                                    gridToWorld(selected.r, selected.c).x,
+                                    0,
+                                    gridToWorld(selected.r, selected.c).z
+                                ]}
+                                onRotate={onRotateSelected}
+                            />
+                        );
+                    }
+                    return null;
+                })()}
 
                 <OrbitControls
                     ref={controlsRef}

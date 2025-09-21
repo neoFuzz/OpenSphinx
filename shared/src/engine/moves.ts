@@ -2,6 +2,7 @@
 import { Dir, GameState, Move } from '../types';
 import { inBounds } from '../constants';
 import { fireLaser } from './laser';
+import { isValidSphinxFacing } from './sphinx-utils';
 import { logger } from '../logger';
 
 export function applyMove(state: GameState, move: Move, gameId?: string): GameState {
@@ -270,11 +271,4 @@ function isValidLaserFacing(pos: { r: number; c: number }, facing: 'N' | 'E' | '
   return true;
 }
 
-function isValidSphinxFacing(pos: { r: number; c: number }, facing: 'N' | 'E' | 'S' | 'W' | 'O'): boolean {
-  // SPHINX cannot face off the board
-  if (pos.r === 0 && facing === 'N') return false;
-  if (pos.r === 7 && facing === 'S') return false;
-  if (pos.c === 0 && facing === 'W') return false;
-  if (pos.c === 9 && facing === 'E') return false;
-  return true;
-}
+// Removed - now using shared utility function

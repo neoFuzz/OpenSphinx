@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useGame } from '../state/game';
 import { COLS, ROWS } from '../../../shared/src/constants';
 import type { Pos } from '../../../shared/src/types';
+import { getNextValidSphinxDirection, getSphinxRotationDelta } from '../../../shared/src/engine/sphinx-utils';
 import { PieceSVG } from './BoardComponents';
+import { showExplosionEffect, playExplosionSound } from '../utils/explosionEffect';
 import './board.css';
 
 export function Board() {
@@ -15,8 +17,9 @@ export function Board() {
   const [animatingPieces, setAnimatingPieces] = useState<Map<string, {x: number, y: number, rotation: number}>>(new Map());
   const animationRefs = useRef<Map<string, number>>(new Map());
   const prevStateRef = useRef(state);
+  const boardRef = useRef<HTMLDivElement>(null);
   
-  // Detect piece movements and trigger animations
+  // Detect piece movements and destroyed pieces
   useEffect(() => {
     if (!state || !prevStateRef.current) {
       prevStateRef.current = state;
@@ -24,6 +27,40 @@ export function Board() {
     }
     
     const prevState = prevStateRef.current;
+    
+    // Find destroyed pieces (only check if laser was fired)
+    if (state.lastLaserPath && state.lastLaserPath.length > 0) {
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const prevCell = prevState.board[r][c];
+          const currentCell = state.board[r][c];
+          
+          // Check if piece was destroyed (not moved) by seeing if it exists elsewhere
+          if (prevCell && prevCell.length > 0 && (!currentCell || currentCell.length === 0)) {
+            const prevPiece = prevCell[prevCell.length - 1];
+            let pieceMovedElsewhere = false;
+            
+            // Check if this piece moved to another location
+            for (let nr = 0; nr < ROWS && !pieceMovedElsewhere; nr++) {
+              for (let nc = 0; nc < COLS && !pieceMovedElsewhere; nc++) {
+                const newCell = state.board[nr][nc];
+                if (newCell && newCell.some(p => p.id === prevPiece.id)) {
+                  pieceMovedElsewhere = true;
+                }
+              }
+            }
+            
+            // Only show explosion if piece was actually destroyed (not moved)
+            if (!pieceMovedElsewhere && boardRef.current) {
+              const x = c * 50 + 25;
+              const y = r * 50 + 25;
+              showExplosionEffect(x, y, boardRef.current);
+              playExplosionSound();
+            }
+          }
+        }
+      }
+    }
     
     // Find pieces that moved
     for (let r = 0; r < ROWS; r++) {
@@ -52,7 +89,7 @@ export function Board() {
     prevStateRef.current = state;
   }, [state]);
 
-  const myTurn = state && color && state.turn === color;
+  const myTurn = state && color && state.turn === color && !state.winner;
 
   const getValidMoves = (pos: Pos) => {
     if (!state) return [];
@@ -244,7 +281,7 @@ export function Board() {
       <div style={{ marginBottom: 8 }}>
         <b>Turn:</b> {state.turn} {myTurn ? '(your move)' : ''}
       </div>
-      <div style={{ position: 'relative' }}>
+      <div style={{ position: 'relative' }} ref={boardRef}>
         <div className="board" style={{ gridTemplateColumns: `repeat(${COLS}, 48px)` }}>
           {Array.from({ length: ROWS * COLS }, (_, i) => {
             const r = Math.floor(i / COLS);
@@ -368,12 +405,30 @@ function PieceView({ r, c, isSelected, animatingPieces, setSelectedPos, animateR
       <PieceSVG piece={piece} cell={cell} />
       {isSelected && isMyTurn && (
         <div className="radial-menu">
-          <button
-            className="radial-btn radial-btn-left"
-            onClick={(e) => { e.stopPropagation(); onRotate(-90); }} >⟲</button>
-          <button
-            className="radial-btn radial-btn-right"
-            onClick={(e) => { e.stopPropagation(); onRotate(90); }} >⟳</button>
+          {piece.kind === 'SPHINX' ? (
+            // For SPHINX, show only next valid direction
+            (() => {
+              const nextDir = getNextValidSphinxDirection({ r, c }, piece.facing || 'N');
+              const rotationDelta = getSphinxRotationDelta({ r, c }, piece.facing || 'N');
+              return nextDir && rotationDelta ? (
+                <button
+                  className="radial-btn radial-btn-right"
+                  onClick={(e) => { e.stopPropagation(); onRotate(rotationDelta); }}
+                  title={`Rotate to ${nextDir}`}
+                >⟳</button>
+              ) : null;
+            })()
+          ) : (
+            // For other pieces, show both rotation buttons
+            <>
+              <button
+                className="radial-btn radial-btn-left"
+                onClick={(e) => { e.stopPropagation(); onRotate(-90); }} >⟲</button>
+              <button
+                className="radial-btn radial-btn-right"
+                onClick={(e) => { e.stopPropagation(); onRotate(90); }} >⟳</button>
+            </>
+          )}
           {piece.kind === 'OBELISK' && cell.length > 1 && (
             <button
               className={`radial-btn radial-btn-top ${unstackMode ? 'active' : ''}`}
