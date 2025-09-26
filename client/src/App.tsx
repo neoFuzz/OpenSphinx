@@ -6,6 +6,8 @@ import { RoomList } from './components/RoomList';
 import { CreateRoomForm } from './components/CreateRoomForm';
 import { JoinRoomForm } from './components/JoinRoomForm';
 import { Replay } from './components/Replay';
+import { Footer } from './components/Footer';
+import { Header } from './components/Header';
 
 const Board2D = React.lazy(() => import('./components/Board').then(m => ({ default: m.Board })));
 const Board3D = React.lazy(() => import('./components/Board3D').then(m => ({ default: m.Board3D })));
@@ -13,6 +15,7 @@ const Board3D = React.lazy(() => import('./components/Board3D').then(m => ({ def
 export default function App() {
     const connectRoom = useGame(s => s.connectRoom);
     const createRoom = useGame(s => (s as any).createRoom ?? (() => { }));
+    const saveGame = useGame(s => s.saveGame);
     const state = useGame(s => s.state);
     const [roomId, setRoomId] = useState(''); // maybe ROOM1
     const [name, setName] = useState('Player');
@@ -20,69 +23,101 @@ export default function App() {
     const [isTransitioning, setIsTransitioning] = useState(false);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [showJoinForm, setShowJoinForm] = useState(false);
+    const [showLoadDialog, setShowLoadDialog] = useState(false);
+    const [showSaveDialog, setShowSaveDialog] = useState(false);
+    const [saveName, setSaveName] = useState('');
     const [replayId, setReplayId] = useState('');
 
-
+    const handleSaveGame = () => setShowSaveDialog(true);
+    const handleLoadGame = () => setShowLoadDialog(true);
+    const handleNewGame = () => setShowCreateForm(true);
+    const handleLeaveGame = () => useGame.setState({ roomId: undefined, state: undefined });
 
     return (
-        <div className="container-fluid p-3">
-            <h1 className="mb-3">OpenSphinx - Laser Chess</h1>
-            <div className="d-flex gap-2 align-items-center mb-3">
-                <input className="form-control" placeholder="Room ID" value={roomId} disabled style={{ width: '150px' }} />
-                <input className="form-control" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} style={{ width: '150px' }} />
-                <button className="btn btn-primary" onClick={() => setShowJoinForm(true)}>Join</button>
-                <button className="btn btn-success" onClick={() => setShowCreateForm(true)}>Create</button>
-                <SavedGames onReplaySelect={setReplayId} />
-                {state && !replayId && <RoomList onJoinRoom={(roomId) => { setRoomId(roomId); connectRoom(roomId, name); }} />}
-                <div className="form-check ms-auto">
-                    <input 
-                        className="form-check-input" 
-                        type="checkbox" 
-                        checked={useThree} 
-                        onChange={e => {
-                            if (isTransitioning) return;
-                            setIsTransitioning(true);
-                            setUseThree(e.target.checked);
-                            setTimeout(() => setIsTransitioning(false), 1000);
-                        }} 
-                        id="use3d" 
-                        disabled={isTransitioning}
-                    />
-                    <label className="form-check-label" htmlFor="use3d">
-                        Use 3D {isTransitioning && '(switching...)'}
-                    </label>
+        <div className="d-flex flex-column min-vh-100">
+            <Header 
+                inGame={!!state}
+                onSaveGame={handleSaveGame}
+                onLoadGame={handleLoadGame}
+                onNewGame={handleNewGame}
+                onLeaveGame={handleLeaveGame}
+            />
+            <div className="container-fluid p-3 flex-grow-1">
+                <div className="d-flex gap-2 align-items-center mb-3">
+                    <input className="form-control" placeholder="Room ID" value={roomId} onChange={e => setRoomId(e.target.value)} style={{ width: '150px' }} />
+                    <input className="form-control" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} style={{ width: '150px' }} />
+                    <button className="btn btn-primary" disabled={!roomId.trim() || !name.trim()} onClick={() => roomId ? connectRoom(roomId, name) : setShowJoinForm(true)}>Join</button>
+                    <button className="btn btn-success" onClick={() => setShowCreateForm(true)}>Create</button>
+                    <SavedGames onReplaySelect={setReplayId} />
+                    {state && !replayId && <RoomList onJoinRoom={(roomId) => { setRoomId(roomId); connectRoom(roomId, name); }} />}
+                    <div className="form-check ms-auto">
+                        <input
+                            className="form-check-input"
+                            type="checkbox"
+                            checked={useThree}
+                            onChange={e => {
+                                if (isTransitioning) return;
+                                setIsTransitioning(true);
+                                setUseThree(e.target.checked);
+                                setTimeout(() => setIsTransitioning(false), 1000);
+                            }}
+                            id="use3d"
+                            disabled={isTransitioning}
+                        />
+                        <label className="form-check-label" htmlFor="use3d">
+                            Use 3D {isTransitioning && '(switching...)'}
+                        </label>
+                    </div>
                 </div>
-            </div>
 
-            <React.Suspense fallback={<div className="text-center">Loading…</div>}>
-                <GameArea useThree={useThree} replayId={replayId} setReplayId={setReplayId} isTransitioning={isTransitioning} />
-            </React.Suspense>
-            
-            <GameModal />
-            {showCreateForm && (
-                <CreateRoomForm 
-                    onSubmit={(options) => {
-                        createRoom(options, (id: string) => {
-                            setRoomId(id);
-                            connectRoom(id, name, options.password);
-                        });
-                        setShowCreateForm(false);
+                <React.Suspense fallback={<div className="text-center">Loading…</div>}>
+                    <GameArea useThree={useThree} replayId={replayId} setReplayId={setReplayId} isTransitioning={isTransitioning} />
+                </React.Suspense>
+
+                <GameModal />
+                {showCreateForm && (
+                    <CreateRoomForm
+                        onSubmit={(options) => {
+                            createRoom(options, (id: string) => {
+                                setRoomId(id);
+                                connectRoom(id, name, options.password);
+                            });
+                            setShowCreateForm(false);
+                        }}
+                        onCancel={() => setShowCreateForm(false)}
+                    />
+                )}
+                {showJoinForm && (
+                    <JoinRoomForm
+                        initialName={name}
+                        onSubmit={(roomId, name, password) => {
+                            connectRoom(roomId, name, password);
+                            setRoomId(roomId);
+                            setName(name);
+                            setShowJoinForm(false);
+                        }}
+                        onCancel={() => setShowJoinForm(false)}
+                    />
+                )}
+                <SaveGameDialog 
+                    show={showSaveDialog}
+                    saveName={saveName}
+                    setSaveName={setSaveName}
+                    onSave={() => {
+                        if (saveName.trim()) {
+                            saveGame(saveName.trim());
+                            setSaveName('');
+                            setShowSaveDialog(false);
+                        }
                     }}
-                    onCancel={() => setShowCreateForm(false)}
+                    onCancel={() => setShowSaveDialog(false)}
                 />
-            )}
-            {showJoinForm && (
-                <JoinRoomForm 
-                    initialName={name}
-                    onSubmit={(roomId, name, password) => {
-                        connectRoom(roomId, name, password);
-                        setRoomId(roomId);
-                        setName(name);
-                        setShowJoinForm(false);
-                    }}
-                    onCancel={() => setShowJoinForm(false)}
+                <LoadGameDialog 
+                    show={showLoadDialog}
+                    onCancel={() => setShowLoadDialog(false)}
                 />
-            )}
+            </div>
+            <Footer />
         </div>
     );
 }
@@ -90,18 +125,18 @@ export default function App() {
 function GameArea({ useThree, replayId, setReplayId, isTransitioning }: { useThree: boolean; replayId: string; setReplayId: (id: string) => void; isTransitioning: boolean }) {
     const state = useGame(s => s.state);
     const [webglKey, setWebglKey] = React.useState(0);
-    
+
     React.useEffect(() => {
         if (isTransitioning) {
             // Force remount of 3D component to clean up WebGL context
             setWebglKey(prev => prev + 1);
         }
     }, [isTransitioning]);
-    
+
     if (replayId) {
         return <Replay replayId={replayId} onClose={() => setReplayId('')} />;
     }
-    
+
     if (!state) return (
         <div>
             <div className="alert alert-info">Join a room to start.</div>
@@ -112,7 +147,7 @@ function GameArea({ useThree, replayId, setReplayId, isTransitioning }: { useThr
         <div>
             {state.winner && (
                 <div className="mb-3">
-                    <button 
+                    <button
                         className="btn btn-secondary"
                         onClick={() => useGame.setState({ roomId: undefined, state: undefined })}
                     >
@@ -176,7 +211,7 @@ function RoomListDisplay() {
                                     {room.config && ` | ${room.config.rules} / ${room.config.setup}`}
                                 </small>
                             </div>
-                            <button 
+                            <button
                                 className="btn btn-primary btn-sm"
                                 onClick={() => connectRoom(room.id, name)}
                             >
@@ -193,9 +228,9 @@ function RoomListDisplay() {
 function GameModal() {
     const modal = useGame(s => s.modal);
     const hideModal = useGame(s => s.hideModal);
-    
+
     if (!modal) return null;
-    
+
     return (
         <div className="modal show d-block" tabIndex={-1} style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
             <div className="modal-dialog modal-dialog-centered">
@@ -215,6 +250,105 @@ function GameModal() {
                                 useGame.setState({ roomId: undefined, state: undefined });
                             }}>Exit to Home</button>
                         )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function SaveGameDialog({ show, saveName, setSaveName, onSave, onCancel }: {
+    show: boolean;
+    saveName: string;
+    setSaveName: (name: string) => void;
+    onSave: () => void;
+    onCancel: () => void;
+}) {
+    if (!show) return null;
+
+    return (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog modal-dialog-centered">
+                <div className="modal-content">
+                    <div className="modal-header">
+                        <h5 className="modal-title">Save Game</h5>
+                        <button type="button" className="btn-close" onClick={onCancel}></button>
+                    </div>
+                    <div className="modal-body">
+                        <input 
+                            type="text" 
+                            className="form-control" 
+                            placeholder="Enter game name"
+                            value={saveName}
+                            onChange={(e) => setSaveName(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && onSave()}
+                        />
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+                        <button type="button" className="btn btn-primary" onClick={onSave}>Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function LoadGameDialog({ show, onCancel }: {
+    show: boolean;
+    onCancel: () => void;
+}) {
+    const { savedGames, loadGame, deleteSavedGame } = useGame();
+
+    if (!show) return null;
+
+    const handleLoad = (gameId: string) => {
+        loadGame(gameId);
+        onCancel();
+    };
+
+    return (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+            <div className="modal-dialog modal-dialog-centered">
+                <div className="modal-content">
+                    <div className="modal-header">
+                        <h5 className="modal-title">Load Game</h5>
+                        <button type="button" className="btn-close" onClick={onCancel}></button>
+                    </div>
+                    <div className="modal-body">
+                        {savedGames.filter(game => !game.winner).length === 0 ? (
+                            <p>No unfinished saved games found.</p>
+                        ) : (
+                            <div className="list-group">
+                                {savedGames.filter(game => !game.winner).map((game) => (
+                                    <div key={game.id} className="list-group-item d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 className="mb-1">{game.name}</h6>
+                                            <small className="text-muted">
+                                                Updated: {new Date(game.updatedAt).toLocaleString()}
+                                            </small>
+                                        </div>
+                                        <div>
+                                            <button 
+                                                className="btn btn-primary btn-sm me-2"
+                                                onClick={() => handleLoad(game.id)}
+                                            >
+                                                Load
+                                            </button>
+                                            <button 
+                                                className="btn btn-danger btn-sm"
+                                                onClick={() => deleteSavedGame(game.id)}
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" className="btn btn-secondary" onClick={onCancel}>Close</button>
                     </div>
                 </div>
             </div>
