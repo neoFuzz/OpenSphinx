@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { useGame } from './state/game';
+import { useAuth } from './state/auth';
 import { SavedGames } from './components/SavedGames';
 import { RoomList } from './components/RoomList';
 import { CreateRoomForm } from './components/CreateRoomForm';
@@ -13,7 +14,12 @@ const Board2D = React.lazy(() => import('./components/Board').then(m => ({ defau
 const Board3D = React.lazy(() => import('./components/Board3D').then(m => ({ default: m.Board3D })));
 
 export default function App() {
+    const { checkAuth } = useAuth();
     const connectRoom = useGame(s => s.connectRoom);
+    
+    React.useEffect(() => {
+        checkAuth();
+    }, [checkAuth]);
     const createRoom = useGame(s => (s as any).createRoom ?? (() => { }));
     const saveGame = useGame(s => s.saveGame);
     const state = useGame(s => s.state);
@@ -21,6 +27,7 @@ export default function App() {
     const [name, setName] = useState('Player');
     const [useThree, setUseThree] = useState(true);
     const [isTransitioning, setIsTransitioning] = useState(false);
+    const [environmentPreset, setEnvironmentPreset] = useState('park');
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [showJoinForm, setShowJoinForm] = useState(false);
     const [showLoadDialog, setShowLoadDialog] = useState(false);
@@ -28,7 +35,11 @@ export default function App() {
     const [saveName, setSaveName] = useState('');
     const [replayId, setReplayId] = useState('');
 
+    const { user } = useAuth();
     const handleSaveGame = () => setShowSaveDialog(true);
+    
+    // Use Discord username when logged in
+    const playerName = user?.username || name;
     const handleLoadGame = () => setShowLoadDialog(true);
     const handleNewGame = () => setShowCreateForm(true);
     const handleLeaveGame = () => useGame.setState({ roomId: undefined, state: undefined });
@@ -41,37 +52,29 @@ export default function App() {
                 onLoadGame={handleLoadGame}
                 onNewGame={handleNewGame}
                 onLeaveGame={handleLeaveGame}
+                useThree={useThree}
+                onToggleThree={(checked) => {
+                    if (isTransitioning) return;
+                    setIsTransitioning(true);
+                    setUseThree(checked);
+                    setTimeout(() => setIsTransitioning(false), 1000);
+                }}
+                isTransitioning={isTransitioning}
+                environmentPreset={environmentPreset}
+                onEnvironmentChange={setEnvironmentPreset}
             />
             <div className="container-fluid p-3 flex-grow-1">
                 <div className="d-flex gap-2 align-items-center mb-3">
                     <input className="form-control" placeholder="Room ID" value={roomId} onChange={e => setRoomId(e.target.value)} style={{ width: '150px' }} />
-                    <input className="form-control" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} style={{ width: '150px' }} />
-                    <button className="btn btn-primary" disabled={!roomId.trim() || !name.trim()} onClick={() => roomId ? connectRoom(roomId, name) : setShowJoinForm(true)}>Join</button>
+                    {!user && <input className="form-control" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} style={{ width: '150px' }} />}
+                    <button className="btn btn-primary" disabled={!roomId.trim() || !playerName.trim()} onClick={() => roomId ? connectRoom(roomId, playerName) : setShowJoinForm(true)}>Join</button>
                     <button className="btn btn-success" onClick={() => setShowCreateForm(true)}>Create</button>
                     <SavedGames onReplaySelect={setReplayId} />
-                    {state && !replayId && <RoomList onJoinRoom={(roomId) => { setRoomId(roomId); connectRoom(roomId, name); }} />}
-                    <div className="form-check ms-auto">
-                        <input
-                            className="form-check-input"
-                            type="checkbox"
-                            checked={useThree}
-                            onChange={e => {
-                                if (isTransitioning) return;
-                                setIsTransitioning(true);
-                                setUseThree(e.target.checked);
-                                setTimeout(() => setIsTransitioning(false), 1000);
-                            }}
-                            id="use3d"
-                            disabled={isTransitioning}
-                        />
-                        <label className="form-check-label" htmlFor="use3d">
-                            Use 3D {isTransitioning && '(switching...)'}
-                        </label>
-                    </div>
+                    {state && !replayId && <RoomList onJoinRoom={(roomId) => { setRoomId(roomId); connectRoom(roomId, playerName); }} />}
                 </div>
 
                 <React.Suspense fallback={<div className="text-center">Loading…</div>}>
-                    <GameArea useThree={useThree} replayId={replayId} setReplayId={setReplayId} isTransitioning={isTransitioning} />
+                    <GameArea useThree={useThree} replayId={replayId} setReplayId={setReplayId} isTransitioning={isTransitioning} environmentPreset={environmentPreset} />
                 </React.Suspense>
 
                 <GameModal />
@@ -80,7 +83,7 @@ export default function App() {
                         onSubmit={(options) => {
                             createRoom(options, (id: string) => {
                                 setRoomId(id);
-                                connectRoom(id, name, options.password);
+                                connectRoom(id, playerName, options.password);
                             });
                             setShowCreateForm(false);
                         }}
@@ -90,10 +93,11 @@ export default function App() {
                 {showJoinForm && (
                     <JoinRoomForm
                         initialName={name}
-                        onSubmit={(roomId, name, password) => {
-                            connectRoom(roomId, name, password);
+                        onSubmit={(roomId, inputName, password) => {
+                            const finalName = user?.username || inputName;
+                            connectRoom(roomId, finalName, password);
                             setRoomId(roomId);
-                            setName(name);
+                            if (!user) setName(inputName);
                             setShowJoinForm(false);
                         }}
                         onCancel={() => setShowJoinForm(false)}
@@ -105,7 +109,7 @@ export default function App() {
                     setSaveName={setSaveName}
                     onSave={() => {
                         if (saveName.trim()) {
-                            saveGame(saveName.trim());
+                            saveGame(saveName.trim(), user?.id);
                             setSaveName('');
                             setShowSaveDialog(false);
                         }
@@ -122,7 +126,7 @@ export default function App() {
     );
 }
 
-function GameArea({ useThree, replayId, setReplayId, isTransitioning }: { useThree: boolean; replayId: string; setReplayId: (id: string) => void; isTransitioning: boolean }) {
+function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmentPreset }: { useThree: boolean; replayId: string; setReplayId: (id: string) => void; isTransitioning: boolean; environmentPreset: string }) {
     const state = useGame(s => s.state);
     const [webglKey, setWebglKey] = React.useState(0);
 
@@ -163,7 +167,7 @@ function GameArea({ useThree, replayId, setReplayId, isTransitioning }: { useThr
                     <p className="mt-2">Switching view mode...</p>
                 </div>
             ) : useThree ? (
-                <Board3D key={webglKey} />
+                <Board3D key={webglKey} environmentPreset={environmentPreset} />
             ) : (
                 <Board2D />
             )}
@@ -174,7 +178,9 @@ function GameArea({ useThree, replayId, setReplayId, isTransitioning }: { useThr
 function RoomListDisplay() {
     const [rooms, setRooms] = useState<{ id: string; playerCount: number; spectatorCount: number; hasWinner: boolean; turn: 'RED' | 'SILVER'; config?: { rules: string; setup: string } }[]>([]);
     const connectRoom = useGame(s => s.connectRoom);
+    const { user } = useAuth();
     const [name] = useState('Player');
+    const playerName = user?.username || name;
 
     const fetchRooms = async () => {
         try {
@@ -213,7 +219,7 @@ function RoomListDisplay() {
                             </div>
                             <button
                                 className="btn btn-primary btn-sm"
-                                onClick={() => connectRoom(room.id, name)}
+                                onClick={() => connectRoom(room.id, playerName)}
                             >
                                 Join
                             </button>

@@ -28,7 +28,7 @@ interface GameStore {
     connectRoom: (roomId: string, name: string, password?: string) => void;
     sendMove: (move: Move) => void;
     createRoom: (options?: { isPrivate?: boolean; password?: string; config?: { rules: string; setup: string } }, onCreated?: (id: string) => void) => void;
-    saveGame: (name: string) => void;
+    saveGame: (name: string, userId?: string) => void;
     loadGame: (gameId: string) => void;
     fetchSavedGames: () => void;
     deleteSavedGame: (gameId: string) => void;
@@ -70,7 +70,10 @@ export const useGame = create<GameStore>((set, get) => ({
             listenersBound = true;
         }
 
-        socket.emit('room:join', { roomId, name, password }, (res: any) => {
+        // Get current user from auth state
+        const userId = (window as any).authUser?.id;
+        
+        socket.emit('room:join', { roomId, name, password, userId }, (res: any) => {
             if (res?.ok) {
                 set({ roomId, color: res.color });
             } else if (res?.error) {
@@ -86,10 +89,10 @@ export const useGame = create<GameStore>((set, get) => ({
         socket.emit('game:move', { roomId, move });
     },
 
-    saveGame: (name) => {
+    saveGame: (name, userId) => {
         const { roomId } = get();
         if (!roomId) return;
-        socket.emit('game:save', { roomId, name });
+        socket.emit('game:save', { roomId, name, userId });
     },
 
     loadGame: (gameId) => {

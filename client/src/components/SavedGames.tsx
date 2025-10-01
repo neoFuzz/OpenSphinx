@@ -99,11 +99,11 @@ export function SavedGames({ onReplaySelect }: { onReplaySelect?: (id: string) =
                                 <button type="button" className="btn-close" onClick={() => setShowLoadDialog(false)}></button>
                             </div>
                             <div className="modal-body">
-                                {savedGames.filter(game => !game.winner).length === 0 ? (
+                                {(savedGames || []).filter(game => !game.winner).length === 0 ? (
                                     <p>No unfinished saved games found.</p>
                                 ) : (
                                     <div className="list-group">
-                                        {savedGames.filter(game => !game.winner).map((game) => (
+                                        {(savedGames || []).filter(game => !game.winner).map((game) => (
                                             <div key={game.id} className="list-group-item d-flex justify-content-between align-items-center">
                                                 <div>
                                                     <h6 className="mb-1">{game.name}</h6>

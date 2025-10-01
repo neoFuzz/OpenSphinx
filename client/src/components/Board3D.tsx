@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+﻿import React, { useMemo, useState, useCallback, useEffect, useRef, Component, ErrorInfo, ReactNode } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Line, useGLTF, Environment } from '@react-three/drei';
 import { useGame } from '../state/game';
@@ -1061,6 +1061,34 @@ function LaserPath3D({ path, state }: { path: Pos[] | undefined; state: GameStat
 }
 
 /**
+ * Error boundary for Environment component
+ */
+class EnvironmentErrorBoundary extends Component<
+    { children: ReactNode; fallback: ReactNode },
+    { hasError: boolean }
+> {
+    constructor(props: { children: ReactNode; fallback: ReactNode }) {
+        super(props);
+        this.state = { hasError: false };
+    }
+
+    static getDerivedStateFromError(): { hasError: boolean } {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+        console.warn('Environment failed to load:', error.message);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return this.props.fallback;
+        }
+        return this.props.children;
+    }
+}
+
+/**
  * Memoized lighting component to prevent multiple light instances
  */
 const SceneLights = React.memo(({ isClassic }: { isClassic: boolean }) => {
@@ -1124,7 +1152,7 @@ const GroundMesh = React.memo(() => {
  * Renders the 3D board with pieces and laser paths
  * @returns JSX.Element | null
  */
-export function Board3D() {
+export function Board3D({ environmentPreset = 'park' }: { environmentPreset?: string }) {
     const state = useGame(s => s.state);
     const color = useGame(s => s.color);
     const sendMove = useGame(s => s.sendMove);
@@ -1575,8 +1603,9 @@ export function Board3D() {
                 camera={{ position: color === 'RED' ? [0, 8, -10] : [0, 8, 10], fov: 45, near: 0.1, far: 100 }}
                 style={{ background: '#000000', height: 'calc(100% - 50px)' }}
             >
-                {/*<SceneLights isClassic={state.config?.rules === 'CLASSIC'} />*/}
-                <Environment preset='park' background={true} />
+                <EnvironmentErrorBoundary fallback={<SceneLights isClassic={state.config?.rules === 'CLASSIC'} />}>
+                    <Environment preset={environmentPreset as any} background={true} />
+                </EnvironmentErrorBoundary>
 
                 {/* Cube camera for reflections */}
                 <CubeCamera position={[0, 2, 0]} onUpdate={setEnvMap} />

@@ -7,17 +7,24 @@
     "dev": "nodemon --watch src --exec ts-node src/index.ts"
   },
   "dependencies": {
+    "@dr.pogodin/csurf": "^1.16.5",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^5.0.3",
+    "express-rate-limit": "^7.5.1",
     "helmet": "^8.1.0",
     "socket.io": "^4.7.5",
-    "sqlite3": "^5.1.7",
-    "winston": "^3.17.0"
+    "better-sqlite3": "^12.4.1",
+    "winston": "^3.17.0",
+    "jsonwebtoken": "^9.0.2",
+    "axios": "^1.6.7"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.7",
     "@types/express": "^5.0.3",
     "@types/node": "^20.11.30",
-    "@types/sqlite3": "^3.1.11",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/jsonwebtoken": "^9.0.5",
     "nodemon": "^3.0.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.0"

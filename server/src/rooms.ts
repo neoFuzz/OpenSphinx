@@ -7,7 +7,7 @@ import { logger } from '../../shared/src/logger';
 
 interface Room {
   id: string;
-  players: { socketId: string; name: string; color: 'RED'|'SILVER' }[];
+  players: { socketId: string; name: string; color: 'RED'|'SILVER'; userId?: string }[];
   state: GameState;
   spectators: Set<string>;
   savedName?: string;
@@ -47,7 +47,7 @@ export function createRoomsManager(io: Server) {
     return { roomId };
   }
 
-  function joinRoom(socket: Socket, roomId: string, name: string, password?: string, ack?: Function) {
+  function joinRoom(socket: Socket, roomId: string, name: string, password?: string, userId?: string, ack?: Function) {
     const room = rooms.get(roomId);
     if (!room) {
       logger.warn('Join room failed - room not found', { gameId: roomId, playerName: name });
@@ -66,11 +66,11 @@ export function createRoomsManager(io: Server) {
 
     if (room.players.length < 2) {
       const color: 'RED'|'SILVER' = room.players.length === 0 ? 'RED' : 'SILVER';
-      room.players.push({ socketId: socket.id, name, color });
+      room.players.push({ socketId: socket.id, name, color, userId });
       socket.join(roomId);
       addSocketRoom(socket.id, roomId);
       io.to(roomId).emit('room:state', publicState(room));
-      logger.info('Player joined room', { gameId: roomId, playerName: name, color });
+      logger.info('Player joined room', { gameId: roomId, playerName: name, color, userId });
       ack?.({ ok: true, color });
     } else {
       // spectator
@@ -113,6 +113,16 @@ export function createRoomsManager(io: Server) {
       logger.info('Game ended', { gameId: room.id, winner: next.winner });
       io.to(room.id).emit('game:end', { winner: next.winner });
       
+      // Update player stats
+      room.players.forEach(p => {
+        if (p.userId) {
+          const won = p.color === next.winner;
+          database.updatePlayerStats(p.userId, won).catch(error => 
+            logger.error('Failed to update player stats', { gameId: room.id, userId: p.userId, error })
+          );
+        }
+      });
+      
       // Auto-save completed game and replay
       const gameName = `Game ${room.id} - ${next.winner} wins`;
       database.saveGame(room.id, gameName, next).catch(error => 
@@ -147,7 +157,7 @@ export function createRoomsManager(io: Server) {
     socketToRooms.set(socketId, set);
   }
 
-  async function saveGame(socket: Socket, payload: { roomId: string; name: string }) {
+  async function saveGame(socket: Socket, payload: { roomId: string; name: string; userId?: string }) {
     const room = rooms.get(payload.roomId);
     if (!room) return;
 
@@ -155,8 +165,8 @@ export function createRoomsManager(io: Server) {
     if (!player) return;
 
     try {
-      await database.saveGame(payload.roomId, payload.name, room.state);
-      logger.info('Game saved', { gameId: room.id, saveName: payload.name });
+      await database.saveGame(payload.roomId, payload.name, room.state, payload.userId);
+      logger.info('Game saved', { gameId: room.id, saveName: payload.name, userId: payload.userId });
       socket.emit('game:saved', { success: true });
     } catch (error) {
       logger.error('Game save failed', { gameId: room.id, saveName: payload.name, error });

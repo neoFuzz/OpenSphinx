@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { AuthButton } from './AuthButton';
 
 interface HeaderProps {
   title?: string;
@@ -8,6 +9,11 @@ interface HeaderProps {
   onLoadGame?: () => void;
   onNewGame?: () => void;
   onLeaveGame?: () => void;
+  useThree?: boolean;
+  onToggleThree?: (checked: boolean) => void;
+  isTransitioning?: boolean;
+  environmentPreset?: string;
+  onEnvironmentChange?: (preset: string) => void;
 }
 
 export function Header({ 
@@ -17,7 +23,12 @@ export function Header({
   onSaveGame,
   onLoadGame,
   onNewGame,
-  onLeaveGame
+  onLeaveGame,
+  useThree = true,
+  onToggleThree,
+  isTransitioning = false,
+  environmentPreset = 'park',
+  onEnvironmentChange
 }: HeaderProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
@@ -69,6 +80,43 @@ export function Header({
               <button className="btn btn-secondary" onClick={onLoadGame}>Load Game</button>
             </>
           )}
+          
+          <hr className="my-3" />
+          
+          <div className="form-check">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              checked={useThree}
+              onChange={e => onToggleThree?.(e.target.checked)}
+              id="use3d-sidebar"
+              disabled={isTransitioning}
+            />
+            <label className="form-check-label" htmlFor="use3d-sidebar">
+              Use 3D {isTransitioning && '(switching...)'}
+            </label>
+          </div>
+          
+          <div className="mb-2">
+            <label htmlFor="environment-select" className="form-label small">Environment</label>
+            <select 
+              className="form-select form-select-sm" 
+              id="environment-select"
+              value={environmentPreset}
+              onChange={e => onEnvironmentChange?.(e.target.value)}
+            >
+              <option value="park">Park</option>
+              <option value="sunset">Sunset</option>
+              <option value="dawn">Dawn</option>
+              <option value="night">Night</option>
+              <option value="warehouse">Warehouse</option>
+              <option value="forest">Forest</option>
+              <option value="apartment">Apartment</option>
+              <option value="studio">Studio</option>
+              <option value="city">City</option>
+              <option value="lobby">Lobby</option>
+            </select>
+          </div>
         </div>
       </div>
       
@@ -79,12 +127,7 @@ export function Header({
           <button className="btn btn-outline-light btn-sm" onClick={() => setAccountOpen(false)}>×</button>
         </div>
         
-        <div className="d-grid gap-2">
-          <button className="btn btn-outline-light">Sign In</button>
-          <button className="btn btn-outline-light">Register</button>
-          <hr className="text-secondary" />
-          <button className="btn btn-outline-secondary">Guest Mode</button>
-        </div>
+        <AuthButton />
       </div>
       
       {/* Backdrop */}
