@@ -10,25 +10,25 @@
   },
   "dependencies": {
     "@dr.pogodin/csurf": "^1.16.5",
+    "axios": "^1.6.7",
+    "better-sqlite3": "^12.4.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^5.0.3",
     "express-rate-limit": "^7.5.1",
     "helmet": "^8.1.0",
-    "socket.io": "^4.7.5",
-    "better-sqlite3": "^12.4.1",
-    "winston": "^3.17.0",
     "jsonwebtoken": "^9.0.2",
-    "axios": "^1.6.7"
-  },
-  "devDependencies": {
+    "socket.io": "^4.7.5",
+    "winston": "^3.17.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/cookie-parser": "^1.4.7",
     "@types/express": "^5.0.3",
-    "@types/node": "^20.11.30",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/jsonwebtoken": "^9.0.5",
-    "nodemon": "^3.0.2",
-    "ts-node": "^10.9.2",
+    "@types/node": "^20.11.30",
     "typescript": "^5.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "ts-node": "^10.9.2"
   }
 }
