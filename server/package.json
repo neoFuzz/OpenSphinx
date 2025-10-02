@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "type": "commonjs",
   "scripts": {
-    "dev": "nodemon --watch src --exec ts-node src/index.ts"
+    "dev": "nodemon --watch src --exec ts-node src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
   },
   "dependencies": {
     "@dr.pogodin/csurf": "^1.16.5",
