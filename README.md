@@ -3,8 +3,8 @@ An open-source version of Laser Chess (or Khet)
 
 This is a monorepo containing:
 
-- `server/` – Node.js + Express + Socket.IO authoritative server
-- `client/` – React (Vite) front-end
+- `server/` – Node.js + Express + Socket.IO authoritative server with SQLite database
+- `client/` – React (Vite) front-end with Three.js 3D graphics
 - `shared/` – Pure TypeScript game engine (rules + laser tracing) shared by both
 
 ## Prerequisites
@@ -34,6 +34,16 @@ Open the client at the URL Vite prints (typically http://localhost:5173). The cl
   PORT=3001 # Server port
   HOST=0.0.0.0 # Server host (0.0.0.0 for external access)
   CLIENT_URLS=http://localhost:5173,http://127.0.0.1:5173 # Allowed client origins
+  NODE_ENV=development # Environment mode
+  
+  # Discord OAuth (optional)
+  DISCORD_CLIENT_ID=your_discord_client_id
+  DISCORD_CLIENT_SECRET=your_discord_client_secret
+  DISCORD_REDIRECT_URI=http://localhost:3001/auth/discord/callback
+  
+  # Security
+  JWT_SECRET=your_secure_random_string
+  CSRF_SECRET=your_csrf_secret_key
   ```
 - **Client** (`client/.env`):
   ```bash
@@ -59,11 +69,16 @@ OpenSphinx/
 ```
 
 ## Features
+- **3D Graphics**: Three.js-powered 3D game board with models, textures, and animations
 - **Game Persistence**: Save and load games using SQLite database
+- **Authentication**: Discord OAuth integration with JWT tokens
+- **Security**: CSRF protection, rate limiting, and helmet security headers
 - **Networking**: Simple room system; up to 2 players + spectators
 - **Rules**: Basic laser chess variant — move one orthogonal step or rotate 90°, then fire the active player's laser. Pharaoh hit ends the game
 - **Save/Load**: Games can be saved with custom names and resumed later
 - **Game Management**: View, load, and delete saved games through the UI
+- **Audio**: Sound effects and audio feedback
+- **Logging**: Winston-based logging system
 
 ## Game Save/Load
 - Click "Save Game" during an active game to save the current state
@@ -74,6 +89,9 @@ OpenSphinx/
 ## API Endpoints
 - `GET /api/games` - List all saved games
 - `DELETE /api/games/:id` - Delete a saved game
+- `GET /auth/discord` - Discord OAuth login
+- `GET /auth/discord/callback` - Discord OAuth callback
+- `POST /auth/logout` - User logout
 
 ## Socket Events
 - `game:save` - Save current game state
