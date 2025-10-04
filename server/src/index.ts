@@ -14,6 +14,7 @@ import { logger } from '../../shared/src/logger';
 import { GameConfig } from '../../shared/src/types';
 import authRoutes from './auth';
 import { authenticateToken, optionalAuth, AuthenticatedRequest } from './middleware';
+import jwt from 'jsonwebtoken';
 import fs from 'fs';
 
 const CLIENT_URLS = process.env.CLIENT_URLS?.split(',') || ['http://localhost:5173'];
@@ -27,9 +28,9 @@ app.use(helmet({
   hsts: IS_PRODUCTION ? { maxAge: 31536000, includeSubDomains: true } : false
 }));
 
-app.use(cors({ 
-  origin: CLIENT_URLS, 
-  credentials: true 
+app.use(cors({
+  origin: CLIENT_URLS,
+  credentials: true
 }));
 
 app.use(cookieParser());
@@ -135,10 +136,10 @@ if (IS_PRODUCTION && process.env.SSL_KEY && process.env.SSL_CERT) {
 } else {
   server = http.createServer(app);
 }
-const io = new Server(server, { 
-  cors: { 
-    origin: CLIENT_URLS, 
-    credentials: true 
+const io = new Server(server, {
+  cors: {
+    origin: CLIENT_URLS,
+    credentials: true
   }
 });
 
@@ -158,11 +159,43 @@ app.get('/api/rooms', (_req, res) => {
   }
 });
 
+app.get('/api/user/active-games', authenticateToken, (req: AuthenticatedRequest, res) => {
+  try {
+    const activeGames = rooms.getUserActiveGames(req.user!.id);
+    res.json({ activeGames });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch active games' });
+    logger.error('Failed to fetch user active games', { error });
+  }
+});
+
+// Socket authentication middleware
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token || socket.handshake.headers.cookie?.split('auth_token=')[1]?.split(';')[0];
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+      socket.data.userId = decoded.userId;
+      socket.data.discordId = decoded.discordId;
+    } catch (error) {
+      // Invalid token, continue as guest
+    }
+  }
+  next();
+});
+
 io.on('connection', (socket) => {
   socket.on('room:create', (options: { isPrivate?: boolean; password?: string; config?: GameConfig }, ack?: Function) => ack?.(rooms.createRoom(options)));
-  socket.on('room:join', ({ roomId, name, password, userId }: { roomId: string; name: string; password?: string; userId?: string }, ack?: Function) => rooms.joinRoom(socket, roomId, name, password, userId, ack));
+  socket.on('room:join', ({ roomId, name, password }: { roomId: string; name: string; password?: string }, ack?: Function) => {
+    const userId = socket.data.userId;
+    rooms.joinRoom(socket, roomId, name, password, userId, ack);
+  });
   socket.on('game:move', (payload: any) => rooms.handleMove(socket, payload));
-  socket.on('game:save', (payload: { roomId: string; name: string }) => rooms.saveGame(socket, payload));
+  socket.on('game:save', (payload: { roomId: string; name: string }) => {
+    const userId = socket.data.userId;
+    rooms.saveGame(socket, { ...payload, userId });
+  });
   socket.on('game:load', (payload: { gameId: string }, ack?: Function) => rooms.loadGame(socket, payload, ack));
   socket.on('disconnect', () => rooms.leaveAll(socket));
 });

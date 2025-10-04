@@ -6,6 +6,7 @@ interface Room {
   spectatorCount: number;
   hasWinner: boolean;
   turn: 'RED' | 'SILVER';
+  config?: { rules: string; setup: string };
 }
 
 interface RoomListProps {
@@ -15,6 +16,14 @@ interface RoomListProps {
 export function RoomList({ onJoinRoom }: RoomListProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [showRoomList, setShowRoomList] = useState(false);
+
+  const formatRules = (rules: string) => {
+    return rules === 'KHET_2_0' ? 'Khet 2.0' : rules === 'CLASSIC' ? 'Classic' : rules;
+  };
+
+  const formatSetup = (setup: string) => {
+    return setup.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  };
 
   const fetchRooms = async () => {
     try {
@@ -37,8 +46,8 @@ export function RoomList({ onJoinRoom }: RoomListProps) {
 
   return (
     <>
-      <button 
-        className="btn btn-outline-info btn-sm" 
+      <button
+        className="btn btn-outline-info btn-sm"
         onClick={() => setShowRoomList(true)}
       >
         Browse Rooms
@@ -59,15 +68,33 @@ export function RoomList({ onJoinRoom }: RoomListProps) {
                   <div className="list-group">
                     {rooms.map((room) => (
                       <div key={room.id} className="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                          <h6 className="mb-1">Room {room.id}</h6>
-                          <small className="text-muted">
-                            Players: {room.playerCount}/2 | Spectators: {room.spectatorCount}
-                            {room.hasWinner ? ' | Finished' : ` | Turn: ${room.turn}`}
-                          </small>
+                        <div className="flex-grow-1">
+                          <div className="row">
+                            <div className="col-6">
+                              <strong>Room {room.id}</strong>
+                            </div>
+                            <div className="col-6">
+                              <small className="text-muted">Players: {room.playerCount}/2 ({room.spectatorCount} watching)</small>
+                            </div>
+                          </div>
+                          <div className="row">
+                            <div className="col-6">
+                              <small className="text-muted">
+                                {room.config ? `${formatRules(room.config.rules)} - ${formatSetup(room.config.setup)}` : '-'}
+                              </small>
+                            </div>
+                            <div className="col-6">
+                              <small className="text-muted">{room.hasWinner ? 'Finished' : `Turn: ${room.turn}`}</small>
+                            </div>
+                          </div>
                         </div>
-                        <button 
-                          className="btn btn-primary btn-sm"
+                        <button
+                          style={{
+                            '--bs-btn-padding-y': '0.3rem',
+                            '--bs-btn-padding-x': '0.8rem',
+                            '--bs-btn-font-size': '1rem'
+                          }}
+                          className="btn btn-primary ms-3"
                           onClick={() => {
                             onJoinRoom(room.id);
                             setShowRoomList(false);

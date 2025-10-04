@@ -17,11 +17,12 @@ interface Room {
   config: GameConfig;
 }
 
-const makeId = () => Math.random().toString(36).slice(2, 8).toUpperCase();
+const makeId = () => `${new Date().getFullYear()}${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
 export function createRoomsManager(io: Server) {
   const rooms = new Map<string, Room>();
   const socketToRooms = new Map<string, Set<string>>();
+  const userSessions = new Map<string, Set<string>>(); // userId -> Set of socketIds
 
   function createRoom(options?: { isPrivate?: boolean; password?: string; config?: GameConfig }): { roomId: string } {
     const roomId = makeId();
@@ -61,6 +62,15 @@ export function createRoomsManager(io: Server) {
       }
     }
 
+    // Prevent self-play for authenticated users
+    if (userId) {
+      const existingPlayer = room.players.find(p => p.userId === userId);
+      if (existingPlayer && existingPlayer.socketId !== socket.id) {
+        logger.warn('Join room failed - user already in room', { gameId: roomId, userId, playerName: name });
+        return ack?.({ error: 'You are already playing in this room' });
+      }
+    }
+
     const current = room.players.map(p => p.socketId);
     if (current.includes(socket.id)) return ack?.({ ok: true, color: room.players.find(p=>p.socketId===socket.id)?.color });
 
@@ -69,6 +79,14 @@ export function createRoomsManager(io: Server) {
       room.players.push({ socketId: socket.id, name, color, userId });
       socket.join(roomId);
       addSocketRoom(socket.id, roomId);
+      
+      // Track user session
+      if (userId) {
+        const sessions = userSessions.get(userId) || new Set();
+        sessions.add(socket.id);
+        userSessions.set(userId, sessions);
+      }
+      
       io.to(roomId).emit('room:state', publicState(room));
       logger.info('Player joined room', { gameId: roomId, playerName: name, color, userId });
       ack?.({ ok: true, color });
@@ -137,6 +155,17 @@ export function createRoomsManager(io: Server) {
   function leaveAll(socket: Socket) {
     const set = socketToRooms.get(socket.id);
     if (!set) return;
+    
+    // Clean up user sessions
+    for (const [userId, sessions] of userSessions.entries()) {
+      if (sessions.has(socket.id)) {
+        sessions.delete(socket.id);
+        if (sessions.size === 0) {
+          userSessions.delete(userId);
+        }
+      }
+    }
+    
     for (const roomId of set) {
       const room = rooms.get(roomId);
       if (!room) continue;
@@ -213,5 +242,16 @@ export function createRoomsManager(io: Server) {
       }));
   }
 
-  return { createRoom, joinRoom, handleMove, leaveAll, saveGame, loadGame, listRooms };
+  function getUserActiveGames(userId: string) {
+    return Array.from(rooms.values())
+      .filter(room => room.players.some(p => p.userId === userId && !room.state.winner))
+      .map(room => ({
+        roomId: room.id,
+        playerColor: room.players.find(p => p.userId === userId)?.color,
+        turn: room.state.turn,
+        config: room.config
+      }));
+  }
+
+  return { createRoom, joinRoom, handleMove, leaveAll, saveGame, loadGame, listRooms, getUserActiveGames };
 }

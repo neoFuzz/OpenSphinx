@@ -14,32 +14,32 @@ export function Board() {
   const [selectedPos, setSelectedPos] = useState<Pos | null>(null);
   const [unstackMode, setUnstackMode] = useState(false);
   const [lockedStacks, setLockedStacks] = useState<Set<string>>(new Set());
-  const [animatingPieces, setAnimatingPieces] = useState<Map<string, {x: number, y: number, rotation: number}>>(new Map());
+  const [animatingPieces, setAnimatingPieces] = useState<Map<string, { x: number, y: number, rotation: number }>>(new Map());
   const animationRefs = useRef<Map<string, number>>(new Map());
   const prevStateRef = useRef(state);
   const boardRef = useRef<HTMLDivElement>(null);
-  
+
   // Detect piece movements and destroyed pieces
   useEffect(() => {
     if (!state || !prevStateRef.current) {
       prevStateRef.current = state;
       return;
     }
-    
+
     const prevState = prevStateRef.current;
-    
+
     // Find destroyed pieces (only check if laser was fired)
     if (state.lastLaserPath && state.lastLaserPath.length > 0) {
       for (let r = 0; r < ROWS; r++) {
         for (let c = 0; c < COLS; c++) {
           const prevCell = prevState.board[r][c];
           const currentCell = state.board[r][c];
-          
+
           // Check if piece was destroyed (not moved) by seeing if it exists elsewhere
           if (prevCell && prevCell.length > 0 && (!currentCell || currentCell.length === 0)) {
             const prevPiece = prevCell[prevCell.length - 1];
             let pieceMovedElsewhere = false;
-            
+
             // Check if this piece moved to another location
             for (let nr = 0; nr < ROWS && !pieceMovedElsewhere; nr++) {
               for (let nc = 0; nc < COLS && !pieceMovedElsewhere; nc++) {
@@ -49,7 +49,7 @@ export function Board() {
                 }
               }
             }
-            
+
             // Only show explosion if piece was actually destroyed (not moved)
             if (!pieceMovedElsewhere && boardRef.current) {
               const x = c * 50 + 25;
@@ -61,14 +61,14 @@ export function Board() {
         }
       }
     }
-    
+
     // Find pieces that moved
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const currentCell = state.board[r][c];
         if (!currentCell || currentCell.length === 0) continue;
         const currentPiece = currentCell[currentCell.length - 1];
-        
+
         // Find where this piece was in the previous state
         for (let pr = 0; pr < ROWS; pr++) {
           for (let pc = 0; pc < COLS; pc++) {
@@ -85,7 +85,7 @@ export function Board() {
         }
       }
     }
-    
+
     prevStateRef.current = state;
   }, [state]);
 
@@ -123,9 +123,9 @@ export function Board() {
               targetPiece.kind === 'OBELISK' ||
               targetPiece.kind === 'ANUBIS')) {
               moves.push({ r: newR, c: newC, type: 'swap' });
-            } else if (piece.kind === 'OBELISK' && targetPiece.kind === 'OBELISK' && 
-                       piece.owner === targetPiece.owner && state.config?.rules === 'CLASSIC' &&
-                       targetCell.length < 2) {
+            } else if (piece.kind === 'OBELISK' && targetPiece.kind === 'OBELISK' &&
+              piece.owner === targetPiece.owner && state.config?.rules === 'CLASSIC' &&
+              targetCell.length < 2) {
               moves.push({ r: newR, c: newC, type: 'stack' });
             }
           }
@@ -153,7 +153,7 @@ export function Board() {
           // Move to empty space
           const selectedCell = state.board[selectedPos.r][selectedPos.c];
           const move: any = { type: 'MOVE', from: selectedPos, to: pos };
-          
+
           // Handle obelisk stack movement
           if (selectedPiece?.kind === 'OBELISK' && selectedCell && selectedCell.length > 1) {
             // Check if trying to unstack a locked obelisk
@@ -163,18 +163,18 @@ export function Board() {
             }
             move.moveStack = !unstackMode;
           }
-          
+
           sendMove(move);
           setSelectedPos(null);
           return;
-        } else if (selectedPiece?.kind === 'DJED' && 
+        } else if (selectedPiece?.kind === 'DJED' &&
           (piece.kind === 'PYRAMID' || piece.kind === 'OBELISK' || piece.kind === 'ANUBIS')) {
           // Djed swap with any pyramid/obelisk/anubis (friendly or enemy)
           sendMove({ type: 'MOVE', from: selectedPos, to: pos });
           setSelectedPos(null);
           return;
-        } else if (selectedPiece?.kind === 'OBELISK' && piece.kind === 'OBELISK' && 
-                   selectedPiece.owner === piece.owner && state.config?.rules === 'CLASSIC') {
+        } else if (selectedPiece?.kind === 'OBELISK' && piece.kind === 'OBELISK' &&
+          selectedPiece.owner === piece.owner && state.config?.rules === 'CLASSIC') {
           // Obelisk stacking - check stack limit
           const targetCell = state.board[pos.r][pos.c];
           if (targetCell && targetCell.length >= 2) {
@@ -182,7 +182,7 @@ export function Board() {
             setSelectedPos(null);
             return;
           }
-          
+
           const selectedCell = state.board[selectedPos.r][selectedPos.c];
           const move: any = { type: 'MOVE', from: selectedPos, to: pos };
           if (selectedCell && selectedCell.length > 1) {
@@ -198,7 +198,7 @@ export function Board() {
           return;
         }
       }
-      
+
       // If we get here, either invalid move or selecting new piece
       if (piece && piece.owner === color) {
         setSelectedPos(pos);
@@ -216,18 +216,18 @@ export function Board() {
   const animateMove = useCallback((pieceId: string, deltaX: number, deltaY: number) => {
     const startTime = Date.now();
     const duration = 300;
-    
+
     const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
-      
+
       setAnimatingPieces(prev => new Map(prev).set(pieceId, {
         x: -deltaX * (1 - eased),
         y: -deltaY * (1 - eased),
         rotation: 0
       }));
-      
+
       if (progress < 1) {
         animationRefs.current.set(pieceId, requestAnimationFrame(animate));
       } else {
@@ -239,26 +239,26 @@ export function Board() {
         animationRefs.current.delete(pieceId);
       }
     };
-    
+
     animate();
   }, []);
-  
+
   const animateRotation = useCallback((pieceId: string, direction: 'cw' | 'ccw') => {
     const startTime = Date.now();
     const duration = 250;
     const targetRotation = direction === 'cw' ? 90 : -90;
-    
+
     const animate = () => {
       const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      
+
       setAnimatingPieces(prev => new Map(prev).set(pieceId, {
         x: 0,
         y: 0,
         rotation: targetRotation * eased
       }));
-      
+
       if (progress < 1) {
         animationRefs.current.set(pieceId, requestAnimationFrame(animate));
       } else {
@@ -270,7 +270,7 @@ export function Board() {
         animationRefs.current.delete(pieceId);
       }
     };
-    
+
     animate();
   }, []);
 
@@ -314,14 +314,14 @@ export function Board() {
   );
 }
 
-function Cell({ r, c, onCellClick, selectedPos, validMoves, animatingPieces, setSelectedPos, animateRotation, unstackMode, setUnstackMode, lockedStacks, setLockedStacks }: Pos & { onCellClick: (pos: Pos) => void; selectedPos: Pos | null; validMoves: Array<{ r: number, c: number, type: string }>; animatingPieces: Map<string, {x: number, y: number, rotation: number}>; setSelectedPos: React.Dispatch<React.SetStateAction<Pos | null>>; animateRotation: (pieceId: string, direction: 'cw' | 'ccw') => void; unstackMode: boolean; setUnstackMode: React.Dispatch<React.SetStateAction<boolean>>; lockedStacks: Set<string>; setLockedStacks: React.Dispatch<React.SetStateAction<Set<string>>> }) {
+function Cell({ r, c, onCellClick, selectedPos, validMoves, animatingPieces, setSelectedPos, animateRotation, unstackMode, setUnstackMode, lockedStacks, setLockedStacks }: Pos & { onCellClick: (pos: Pos) => void; selectedPos: Pos | null; validMoves: Array<{ r: number, c: number, type: string }>; animatingPieces: Map<string, { x: number, y: number, rotation: number }>; setSelectedPos: React.Dispatch<React.SetStateAction<Pos | null>>; animateRotation: (pieceId: string, direction: 'cw' | 'ccw') => void; unstackMode: boolean; setUnstackMode: React.Dispatch<React.SetStateAction<boolean>>; lockedStacks: Set<string>; setLockedStacks: React.Dispatch<React.SetStateAction<Set<string>>> }) {
   const state = useGame(s => s.state)!;
   const sendMove = useGame(s => s.sendMove);
   const cell = state.board[r][c];
   const piece = cell && cell.length > 0 ? cell[cell.length - 1] : null;
   const isSelected = selectedPos?.r === r && selectedPos?.c === c;
   const moveHighlight = validMoves.find(m => m.r === r && m.c === c);
-  
+
   // Check if selected piece is in unstack mode
   const selectedCell = selectedPos ? state.board[selectedPos.r][selectedPos.c] : null;
   const selectedPiece = selectedCell && selectedCell.length > 0 ? selectedCell[selectedCell.length - 1] : null;
@@ -366,7 +366,7 @@ function Cell({ r, c, onCellClick, selectedPos, validMoves, animatingPieces, set
   );
 }
 
-function PieceView({ r, c, isSelected, animatingPieces, setSelectedPos, animateRotation, unstackMode, setUnstackMode, lockedStacks, setLockedStacks }: Pos & { isSelected: boolean; animatingPieces: Map<string, {x: number, y: number, rotation: number}>; setSelectedPos: React.Dispatch<React.SetStateAction<Pos | null>>; animateRotation: (pieceId: string, direction: 'cw' | 'ccw') => void; unstackMode: boolean; setUnstackMode: React.Dispatch<React.SetStateAction<boolean>>; lockedStacks: Set<string>; setLockedStacks: React.Dispatch<React.SetStateAction<Set<string>>> }) {
+function PieceView({ r, c, isSelected, animatingPieces, setSelectedPos, animateRotation, unstackMode, setUnstackMode, lockedStacks, setLockedStacks }: Pos & { isSelected: boolean; animatingPieces: Map<string, { x: number, y: number, rotation: number }>; setSelectedPos: React.Dispatch<React.SetStateAction<Pos | null>>; animateRotation: (pieceId: string, direction: 'cw' | 'ccw') => void; unstackMode: boolean; setUnstackMode: React.Dispatch<React.SetStateAction<boolean>>; lockedStacks: Set<string>; setLockedStacks: React.Dispatch<React.SetStateAction<Set<string>>> }) {
   const state = useGame(s => s.state)!;
   const color = useGame(s => s.color)!;
   const sendMove = useGame(s => s.sendMove);
@@ -376,10 +376,10 @@ function PieceView({ r, c, isSelected, animatingPieces, setSelectedPos, animateR
 
   const onRotate = (delta: 90 | -90) => {
     if (!isMyTurn) return;
-    
+
     const direction = delta === 90 ? 'cw' : 'ccw';
     animateRotation(piece.id, direction);
-    
+
     sendMove({ type: 'ROTATE', from: { r, c }, rotation: delta });
     setSelectedPos(null);
   };
@@ -391,10 +391,10 @@ function PieceView({ r, c, isSelected, animatingPieces, setSelectedPos, animateR
   };
 
   const animationState = animatingPieces.get(piece.id);
-  
+
   let transform = '';
   let zIndex = 1;
-  
+
   if (animationState) {
     transform = `translate(${animationState.x}px, ${animationState.y}px) rotate(${animationState.rotation}deg)`;
     zIndex = 100;

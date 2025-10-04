@@ -9,6 +9,10 @@ import { JoinRoomForm } from './components/JoinRoomForm';
 import { Replay } from './components/Replay';
 import { Footer } from './components/Footer';
 import { Header } from './components/Header';
+import { Stats } from './components/Stats';
+import { Rules } from './components/Rules';
+import { TermsOfService } from './components/TermsOfService';
+import { About } from './components/About';
 
 const Board2D = React.lazy(() => import('./components/Board').then(m => ({ default: m.Board })));
 const Board3D = React.lazy(() => import('./components/Board3D').then(m => ({ default: m.Board3D })));
@@ -16,7 +20,8 @@ const Board3D = React.lazy(() => import('./components/Board3D').then(m => ({ def
 export default function App() {
     const { checkAuth } = useAuth();
     const connectRoom = useGame(s => s.connectRoom);
-    
+    const [currentPage, setCurrentPage] = useState<'home' | 'stats' | 'rules' | 'terms' | 'about'>('home');
+
     React.useEffect(() => {
         checkAuth();
     }, [checkAuth]);
@@ -25,9 +30,17 @@ export default function App() {
     const state = useGame(s => s.state);
     const [roomId, setRoomId] = useState(''); // maybe ROOM1
     const [name, setName] = useState('Player');
-    const [useThree, setUseThree] = useState(true);
+    const [useThree, setUseThree] = useState(() => {
+        const saved = localStorage.getItem('opensphinx-use3d');
+        return saved ? JSON.parse(saved) : true;
+    });
     const [isTransitioning, setIsTransitioning] = useState(false);
-    const [environmentPreset, setEnvironmentPreset] = useState('park');
+    const [environmentPreset, setEnvironmentPreset] = useState(() => {
+        return localStorage.getItem('opensphinx-environment') || 'basic';
+    });
+    const [cubeMapQuality, setCubeMapQuality] = useState<'off' | 'low' | 'medium' | 'high' | 'ultra'>(() => {
+        return (localStorage.getItem('opensphinx-cubemap-quality') as 'off' | 'low' | 'medium' | 'high' | 'ultra') || 'low';
+    });
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [showJoinForm, setShowJoinForm] = useState(false);
     const [showLoadDialog, setShowLoadDialog] = useState(false);
@@ -37,7 +50,7 @@ export default function App() {
 
     const { user } = useAuth();
     const handleSaveGame = () => setShowSaveDialog(true);
-    
+
     // Use Discord username when logged in
     const playerName = user?.username || name;
     const handleLoadGame = () => setShowLoadDialog(true);
@@ -46,7 +59,7 @@ export default function App() {
 
     return (
         <div className="d-flex flex-column min-vh-100">
-            <Header 
+            <Header
                 inGame={!!state}
                 onSaveGame={handleSaveGame}
                 onLoadGame={handleLoadGame}
@@ -57,76 +70,99 @@ export default function App() {
                     if (isTransitioning) return;
                     setIsTransitioning(true);
                     setUseThree(checked);
+                    localStorage.setItem('opensphinx-use3d', JSON.stringify(checked));
                     setTimeout(() => setIsTransitioning(false), 1000);
                 }}
                 isTransitioning={isTransitioning}
                 environmentPreset={environmentPreset}
-                onEnvironmentChange={setEnvironmentPreset}
+                onEnvironmentChange={(preset) => {
+                    setEnvironmentPreset(preset);
+                    localStorage.setItem('opensphinx-environment', preset);
+                }}
+                cubeMapQuality={cubeMapQuality}
+                onCubeMapQualityChange={(quality) => {
+                    setCubeMapQuality(quality);
+                    localStorage.setItem('opensphinx-cubemap-quality', quality);
+                }}
+                currentPage={currentPage}
+                onNavigate={setCurrentPage}
             />
             <div className="container-fluid p-3 flex-grow-1">
-                <div className="d-flex gap-2 align-items-center mb-3">
-                    <input className="form-control" placeholder="Room ID" value={roomId} onChange={e => setRoomId(e.target.value)} style={{ width: '150px' }} />
-                    {!user && <input className="form-control" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} style={{ width: '150px' }} />}
-                    <button className="btn btn-primary" disabled={!roomId.trim() || !playerName.trim()} onClick={() => roomId ? connectRoom(roomId, playerName) : setShowJoinForm(true)}>Join</button>
-                    <button className="btn btn-success" onClick={() => setShowCreateForm(true)}>Create</button>
-                    <SavedGames onReplaySelect={setReplayId} />
-                    {state && !replayId && <RoomList onJoinRoom={(roomId) => { setRoomId(roomId); connectRoom(roomId, playerName); }} />}
-                </div>
+                {currentPage === 'stats' ? (
+                    <Stats />
+                ) : currentPage === 'rules' ? (
+                    <Rules />
+                ) : currentPage === 'terms' ? (
+                    <TermsOfService />
+                ) : currentPage === 'about' ? (
+                    <About />
+                ) : (
+                    <>
+                        <div className="d-flex gap-2 align-items-center mb-3 justify-content-start flex-wrap">
+                            <input className="form-control" id="txtRoomId" placeholder="Room ID" value={roomId} onChange={e => setRoomId(e.target.value)} style={{ width: '150px' }} />
+                            {!user && <input className="form-control" id="txtPlayerName" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} style={{ width: '150px' }} />}
+                            <button className="btn btn-primary" disabled={!roomId.trim() || !playerName.trim()} onClick={() => roomId ? connectRoom(roomId, playerName) : setShowJoinForm(true)}>Join</button>
+                            <button className="btn btn-success" onClick={() => setShowCreateForm(true)}>Create</button>
+                            <SavedGames onReplaySelect={setReplayId} />
+                            {state && !replayId && <RoomList onJoinRoom={(roomId) => { setRoomId(roomId); connectRoom(roomId, playerName); }} />}
+                        </div>
 
-                <React.Suspense fallback={<div className="text-center">Loading…</div>}>
-                    <GameArea useThree={useThree} replayId={replayId} setReplayId={setReplayId} isTransitioning={isTransitioning} environmentPreset={environmentPreset} />
-                </React.Suspense>
+                        <React.Suspense fallback={<div className="text-center">Loading…</div>}>
+                            <GameArea useThree={useThree} replayId={replayId} setReplayId={setReplayId} isTransitioning={isTransitioning} environmentPreset={environmentPreset} cubeMapQuality={cubeMapQuality} />
+                        </React.Suspense>
 
-                <GameModal />
-                {showCreateForm && (
-                    <CreateRoomForm
-                        onSubmit={(options) => {
-                            createRoom(options, (id: string) => {
-                                setRoomId(id);
-                                connectRoom(id, playerName, options.password);
-                            });
-                            setShowCreateForm(false);
-                        }}
-                        onCancel={() => setShowCreateForm(false)}
-                    />
+                        <GameModal />
+                        {showCreateForm && (
+                            <CreateRoomForm
+                                onSubmit={(options) => {
+                                    createRoom(options, (id: string) => {
+                                        setRoomId(id);
+                                        connectRoom(id, playerName, options.password);
+                                    });
+                                    setShowCreateForm(false);
+                                }}
+                                onCancel={() => setShowCreateForm(false)}
+                            />
+                        )}
+                        {showJoinForm && (
+                            <JoinRoomForm
+                                initialName={name}
+                                onSubmit={(roomId, inputName, password) => {
+                                    const finalName = user?.username || inputName;
+                                    connectRoom(roomId, finalName, password);
+                                    setRoomId(roomId);
+                                    if (!user) setName(inputName);
+                                    setShowJoinForm(false);
+                                }}
+                                onCancel={() => setShowJoinForm(false)}
+                            />
+                        )}
+                        <SaveGameDialog
+                            show={showSaveDialog}
+                            saveName={saveName}
+                            setSaveName={setSaveName}
+                            onSave={() => {
+                                if (saveName.trim()) {
+                                    saveGame(saveName.trim(), user?.id);
+                                    setSaveName('');
+                                    setShowSaveDialog(false);
+                                }
+                            }}
+                            onCancel={() => setShowSaveDialog(false)}
+                        />
+                        <LoadGameDialog
+                            show={showLoadDialog}
+                            onCancel={() => setShowLoadDialog(false)}
+                        />
+                    </>
                 )}
-                {showJoinForm && (
-                    <JoinRoomForm
-                        initialName={name}
-                        onSubmit={(roomId, inputName, password) => {
-                            const finalName = user?.username || inputName;
-                            connectRoom(roomId, finalName, password);
-                            setRoomId(roomId);
-                            if (!user) setName(inputName);
-                            setShowJoinForm(false);
-                        }}
-                        onCancel={() => setShowJoinForm(false)}
-                    />
-                )}
-                <SaveGameDialog 
-                    show={showSaveDialog}
-                    saveName={saveName}
-                    setSaveName={setSaveName}
-                    onSave={() => {
-                        if (saveName.trim()) {
-                            saveGame(saveName.trim(), user?.id);
-                            setSaveName('');
-                            setShowSaveDialog(false);
-                        }
-                    }}
-                    onCancel={() => setShowSaveDialog(false)}
-                />
-                <LoadGameDialog 
-                    show={showLoadDialog}
-                    onCancel={() => setShowLoadDialog(false)}
-                />
             </div>
-            <Footer />
+            <Footer onNavigate={setCurrentPage} />
         </div>
     );
 }
 
-function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmentPreset }: { useThree: boolean; replayId: string; setReplayId: (id: string) => void; isTransitioning: boolean; environmentPreset: string }) {
+function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmentPreset, cubeMapQuality }: { useThree: boolean; replayId: string; setReplayId: (id: string) => void; isTransitioning: boolean; environmentPreset: string; cubeMapQuality: 'off' | 'low' | 'medium' | 'high' | 'ultra' }) {
     const state = useGame(s => s.state);
     const [webglKey, setWebglKey] = React.useState(0);
 
@@ -167,7 +203,7 @@ function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmen
                     <p className="mt-2">Switching view mode...</p>
                 </div>
             ) : useThree ? (
-                <Board3D key={webglKey} environmentPreset={environmentPreset} />
+                <Board3D key={webglKey} environmentPreset={environmentPreset} cubeMapQuality={cubeMapQuality} />
             ) : (
                 <Board2D />
             )}
@@ -181,6 +217,14 @@ function RoomListDisplay() {
     const { user } = useAuth();
     const [name] = useState('Player');
     const playerName = user?.username || name;
+
+    const formatRules = (rules: string) => {
+        return rules === 'KHET_2_0' ? 'Khet 2.0' : rules === 'CLASSIC' ? 'Classic' : rules;
+    };
+
+    const formatSetup = (setup: string) => {
+        return setup === 'CLASSIC' ? 'Classic' : setup.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    };
 
     const fetchRooms = async () => {
         try {
@@ -209,16 +253,30 @@ function RoomListDisplay() {
                 <div className="list-group">
                     {rooms.map((room) => (
                         <div key={room.id} className="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <h6 className="mb-1">Room {room.id}</h6>
-                                <small className="text-muted">
-                                    Players: {room.playerCount}/2 | Spectators: {room.spectatorCount}
-                                    {room.hasWinner ? ' | Finished' : ` | Turn: ${room.turn}`}
-                                    {room.config && ` | ${room.config.rules} / ${room.config.setup}`}
-                                </small>
+                            <div className="flex-grow-1">
+                                <div className="row">
+                                    <div className="col">
+                                        <h6 className="mb-1">Room {room.id}</h6>
+                                    </div>
+                                </div>
+                                <div className="row">
+                                    <div className="col-3">
+                                        <small className="text-muted">
+                                            {room.config && `${formatRules(room.config.rules)} - ${formatSetup(room.config.setup)} `}
+                                        </small>
+                                    </div>
+                                    <div className="col-3">
+                                        <small className="text-muted">Players: {room.playerCount}/2 ({room.spectatorCount}&nbsp;watching)</small>
+                                    </div>
+                                    <div className="col-3">
+                                        <small className="text-muted">
+                                            {room.hasWinner ? 'Game Finished' : ` Turn: ${room.turn}`}
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
                             <button
-                                className="btn btn-primary btn-sm"
+                                className="btn btn-primary"
                                 onClick={() => connectRoom(room.id, playerName)}
                             >
                                 Join
@@ -281,9 +339,9 @@ function SaveGameDialog({ show, saveName, setSaveName, onSave, onCancel }: {
                         <button type="button" className="btn-close" onClick={onCancel}></button>
                     </div>
                     <div className="modal-body">
-                        <input 
-                            type="text" 
-                            className="form-control" 
+                        <input
+                            type="text"
+                            className="form-control"
                             placeholder="Enter game name"
                             value={saveName}
                             onChange={(e) => setSaveName(e.target.value)}
@@ -335,13 +393,13 @@ function LoadGameDialog({ show, onCancel }: {
                                             </small>
                                         </div>
                                         <div>
-                                            <button 
+                                            <button
                                                 className="btn btn-primary btn-sm me-2"
                                                 onClick={() => handleLoad(game.id)}
                                             >
                                                 Load
                                             </button>
-                                            <button 
+                                            <button
                                                 className="btn btn-danger btn-sm"
                                                 onClick={() => deleteSavedGame(game.id)}
                                             >

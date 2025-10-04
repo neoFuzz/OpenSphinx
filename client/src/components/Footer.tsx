@@ -1,4 +1,8 @@
-export function Footer() {
+interface FooterProps {
+    onNavigate?: (page: 'home' | 'stats' | 'rules' | 'terms' | 'about') => void;
+}
+
+export function Footer({ onNavigate }: FooterProps) {
     return (
         <footer className="bg-dark text-light py-3 mt-auto">
             <div className="container-fluid">
@@ -10,10 +14,10 @@ export function Footer() {
                         <a href="https://github.com/neofuzz/OpenSphinx" className="text-light me-3" target="_blank" rel="noopener noreferrer">
                             GitHub
                         </a>
-                        <a href="#" className="text-light me-3">Rules</a>
-                        <a href="#" className="text-light me-3">Terms of Service</a>
+                        <a href="#" className="text-light me-3" onClick={(e) => { e.preventDefault(); onNavigate?.('rules'); }}>Rules</a>
+                        <a href="#" className="text-light me-3" onClick={(e) => { e.preventDefault(); onNavigate?.('terms'); }}>Terms of Service</a>
                         <a href="#" className="text-light me-3">Privacy Policy</a>
-                        <a href="#" className="text-light">About</a>
+                        <a href="#" className="text-light" onClick={(e) => { e.preventDefault(); onNavigate?.('about'); }}>About</a>
                     </div>
                 </div>
             </div>

@@ -104,7 +104,7 @@ function findLaserEmitter(board: Cell[][], turn: 'RED' | 'SILVER'): { pos: Pos; 
       }
     }
   }
-  
+
   // Classic rules: off-board lasers fire down specific columns
   if (turn === 'RED') {
     return { pos: { r: -1, c: 0 }, dir: 'S' };
@@ -120,7 +120,7 @@ function traceLaserPath(board: Cell[][], start: { pos: Pos; dir: Dir }, gameId?:
 
   let [dr, dc] = dirStep[dir];
   r += dr; c += dc;
-  
+
   // Handle off-board starting positions
   if (!inBounds(r, c) && (start.pos.r === -1 || start.pos.r === 8)) {
     r = start.pos.r === -1 ? 0 : 7;
@@ -200,29 +200,29 @@ function handleCellInteraction(piece: Piece, dir: Dir, pos: Pos, gameId?: string
 function handleAnubisInteraction(piece: Piece, dir: Dir, pos: Pos, gameId?: string) {
   const { r, c } = pos;
   const blockMap = { N: 'S', E: 'W', S: 'N', W: 'E', O: 'O' };
-  
+
   if (piece.orientation && piece.orientation === blockMap[dir]) {
     logger.info(`BLOCKED: ${piece.owner} ANUBIS at ${r},${c} blocks laser from front (${dir})`, { gameId });
     return { stop: true, result: {}, newDir: undefined };
   }
-  
+
   logger.info(`DESTROYED: ${piece.owner} ANUBIS at ${r},${c} by laser traveling ${dir}`, { gameId });
   return { stop: true, result: { destroyed: { pos, piece } }, newDir: undefined };
 }
 
 function handlePyramidInteraction(piece: Piece, dir: Dir, pos: Pos, gameId?: string) {
   const { r, c } = pos;
-  
+
   if (!piece.orientation) {
     logger.info('WARNING: Pyramid missing orientation in laser logic, using default N', { gameId });
     piece.orientation = 'N';
   }
-  
+
   if (!canReflectFromPyramid(dir, piece.orientation)) {
     logger.info(`DESTROYED: ${piece.owner} PYRAMID at ${r},${c} (orientation: ${piece.orientation}) by laser traveling ${dir}`, { gameId });
     return { stop: true, result: { destroyed: { pos, piece } }, newDir: undefined };
   }
-  
+
   const newDir = reflectFromPyramid(dir, piece.orientation);
   logger.debug(`REFLECTED: ${piece.owner} PYRAMID at ${r},${c} (orientation: ${piece.orientation}) reflects laser traveling ${dir} -> ${newDir}`, { gameId });
   return { stop: false, newDir, result: undefined };
@@ -232,7 +232,7 @@ function handleDjedInteraction(piece: Piece, dir: Dir, pos: Pos) {
   if (!piece.mirror) {
     return { stop: true, result: { destroyed: { pos, piece } }, newDir: undefined };
   }
-  
+
   const newDir = reflect(dir, piece.mirror);
   return { stop: false, newDir, result: undefined };
 }

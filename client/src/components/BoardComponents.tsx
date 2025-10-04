@@ -30,7 +30,7 @@ export function PieceSVG({ piece, cell }: { piece: NonNullable<GameState['board'
             <rect x="12" y="12" width="16" height="16" fill={color} stroke="#000" strokeWidth="1" />
             <line x1="16" y1="16" x2="24" y2="24" stroke="#fff" strokeWidth="2" />
             <line x1="24" y1="16" x2="16" y2="24" stroke="#fff" strokeWidth="2" />
-            
+
             {/* Second obelisk if stacked - positioned north */}
             {cell && cell.length > 1 && (
               <>

@@ -54,7 +54,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       const response = await fetch(`${serverUrl}/auth/me`, {
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         set({ user: data.user, loading: false });
@@ -74,11 +74,11 @@ export const useAuth = create<AuthState>((set, get) => ({
   fetchStats: async () => {
     const { user } = get();
     if (!user) return;
-    
+
     try {
       const serverUrl = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001';
       const response = await fetch(`${serverUrl}/api/stats/${user.id}`);
-      
+
       if (response.ok) {
         const stats = await response.json();
         set({ stats });

@@ -16,8 +16,8 @@ export function CreateRoomForm({ onSubmit, onCancel }: CreateRoomFormProps) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit({ 
-            isPrivate, 
+        onSubmit({
+            isPrivate,
             password: isPrivate ? password : undefined,
             config: { rules, setup }
         });
@@ -35,7 +35,7 @@ export function CreateRoomForm({ onSubmit, onCancel }: CreateRoomFormProps) {
                         <div className="modal-body">
                             <div className="mb-3">
                                 <label htmlFor="rules" className="form-label">Rules</label>
-                                <select 
+                                <select
                                     className="form-select"
                                     id="rules"
                                     value={rules}
@@ -47,7 +47,7 @@ export function CreateRoomForm({ onSubmit, onCancel }: CreateRoomFormProps) {
                             </div>
                             <div className="mb-3">
                                 <label htmlFor="setup" className="form-label">Setup</label>
-                                <select 
+                                <select
                                     className="form-select"
                                     id="setup"
                                     value={setup}
@@ -59,9 +59,9 @@ export function CreateRoomForm({ onSubmit, onCancel }: CreateRoomFormProps) {
                                 </select>
                             </div>
                             <div className="form-check mb-3">
-                                <input 
-                                    className="form-check-input" 
-                                    type="checkbox" 
+                                <input
+                                    className="form-check-input"
+                                    type="checkbox"
                                     id="isPrivate"
                                     checked={isPrivate}
                                     onChange={e => setIsPrivate(e.target.checked)}
@@ -73,7 +73,7 @@ export function CreateRoomForm({ onSubmit, onCancel }: CreateRoomFormProps) {
                             {isPrivate && (
                                 <div className="mb-3">
                                     <label htmlFor="password" className="form-label">Password</label>
-                                    <input 
+                                    <input
                                         type="password"
                                         className="form-control"
                                         id="password"

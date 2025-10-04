@@ -115,28 +115,44 @@ class DatabaseManager {
   loadGame(id: string): Promise<SavedGame | null> {
     const row = this.db.prepare('SELECT * FROM saved_games WHERE id = ?').get(id) as any;
     if (!row) return Promise.resolve(null);
-    return Promise.resolve({
-      id: row.id,
-      name: row.name,
-      gameState: JSON.parse(row.game_state),
-      userId: row.user_id,
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at)
-    });
+    try {
+      const gameState = JSON.parse(row.game_state);
+      return Promise.resolve({
+        id: row.id,
+        name: row.name,
+        gameState,
+        userId: row.user_id,
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at)
+      });
+    } catch (error) {
+      throw new Error('Invalid game state data');
+    }
   }
 
   listGames(): Promise<(Omit<SavedGame, 'gameState'> & { winner?: string })[]> {
     const rows = this.db.prepare('SELECT id, name, game_state, user_id, created_at, updated_at FROM saved_games ORDER BY updated_at DESC').all() as any[];
     return Promise.resolve(rows.map(row => {
-      const gameState = JSON.parse(row.game_state);
-      return {
-        id: row.id,
-        name: row.name,
-        userId: row.user_id,
-        createdAt: new Date(row.created_at),
-        updatedAt: new Date(row.updated_at),
-        winner: gameState.winner
-      };
+      try {
+        const gameState = JSON.parse(row.game_state);
+        return {
+          id: row.id,
+          name: row.name,
+          userId: row.user_id,
+          createdAt: new Date(row.created_at),
+          updatedAt: new Date(row.updated_at),
+          winner: gameState.winner
+        };
+      } catch (error) {
+        return {
+          id: row.id,
+          name: row.name,
+          userId: row.user_id,
+          createdAt: new Date(row.created_at),
+          updatedAt: new Date(row.updated_at),
+          winner: undefined
+        };
+      }
     }));
   }
 
@@ -157,13 +173,18 @@ class DatabaseManager {
   loadReplay(id: string): Promise<GameReplay | null> {
     const row = this.db.prepare('SELECT * FROM game_replays WHERE id = ?').get(id) as any;
     if (!row) return Promise.resolve(null);
-    return Promise.resolve({
-      id: row.id,
-      name: row.name,
-      gameStates: JSON.parse(row.game_states),
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at)
-    });
+    try {
+      const gameStates = JSON.parse(row.game_states);
+      return Promise.resolve({
+        id: row.id,
+        name: row.name,
+        gameStates,
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at)
+      });
+    } catch (error) {
+      throw new Error('Invalid game states data');
+    }
   }
 
   listReplays(): Promise<Omit<GameReplay, 'gameStates'>[]> {

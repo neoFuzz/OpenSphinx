@@ -28,7 +28,7 @@ export function JoinRoomForm({ onSubmit, onCancel, initialName }: JoinRoomFormPr
                         <div className="modal-body">
                             <div className="mb-3">
                                 <label htmlFor="roomId" className="form-label">Room ID</label>
-                                <input 
+                                <input
                                     type="text"
                                     className="form-control"
                                     id="roomId"
@@ -39,7 +39,7 @@ export function JoinRoomForm({ onSubmit, onCancel, initialName }: JoinRoomFormPr
                             </div>
                             <div className="mb-3">
                                 <label htmlFor="playerName" className="form-label">Your Name</label>
-                                <input 
+                                <input
                                     type="text"
                                     className="form-control"
                                     id="playerName"
@@ -50,7 +50,7 @@ export function JoinRoomForm({ onSubmit, onCancel, initialName }: JoinRoomFormPr
                             </div>
                             <div className="mb-3">
                                 <label htmlFor="roomPassword" className="form-label">Password (if required)</label>
-                                <input 
+                                <input
                                     type="password"
                                     className="form-control"
                                     id="roomPassword"

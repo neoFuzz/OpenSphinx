@@ -72,7 +72,7 @@ export const useGame = create<GameStore>((set, get) => ({
 
         // Get current user from auth state
         const userId = (window as any).authUser?.id;
-        
+
         socket.emit('room:join', { roomId, name, password, userId }, (res: any) => {
             if (res?.ok) {
                 set({ roomId, color: res.color });

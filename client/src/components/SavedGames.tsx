@@ -16,7 +16,7 @@ export function SavedGames({ onReplaySelect }: { onReplaySelect?: (id: string) =
     const [showLoadDialog, setShowLoadDialog] = useState(false);
     const [showReplayDialog, setShowReplayDialog] = useState(false);
     const [replayId, setReplayId] = useState('');
-    
+
     const { savedGames, replays, saveGame, loadGame, deleteSavedGame, fetchReplays, state } = useGame();
 
     const handleSave = () => {
@@ -35,26 +35,26 @@ export function SavedGames({ onReplaySelect }: { onReplaySelect?: (id: string) =
     return (
         <div className="d-flex gap-2">
             {state && (
-                <button 
-                    className="btn btn-outline-primary btn-sm" 
+                <button
+                    className="btn btn-outline-primary btn-sm"
                     onClick={() => setShowSaveDialog(true)}
                 >
                     Save Game
                 </button>
             )}
-            
+
             {!state && (
-                <button 
-                    className="btn btn-outline-secondary btn-sm" 
+                <button
+                    className="btn btn-outline-secondary btn-sm"
                     onClick={() => setShowLoadDialog(true)}
                 >
                     Load Game
                 </button>
             )}
-            
+
             {!state && (
-                <button 
-                    className="btn btn-outline-info btn-sm" 
+                <button
+                    className="btn btn-outline-info btn-sm"
                     onClick={() => { setShowReplayDialog(true); fetchReplays(); }}
                 >
                     View Replays
@@ -71,9 +71,9 @@ export function SavedGames({ onReplaySelect }: { onReplaySelect?: (id: string) =
                                 <button type="button" className="btn-close" onClick={() => setShowSaveDialog(false)}></button>
                             </div>
                             <div className="modal-body">
-                                <input 
-                                    type="text" 
-                                    className="form-control" 
+                                <input
+                                    type="text"
+                                    className="form-control"
                                     placeholder="Enter game name"
                                     value={saveName}
                                     onChange={(e) => setSaveName(e.target.value)}
@@ -112,13 +112,13 @@ export function SavedGames({ onReplaySelect }: { onReplaySelect?: (id: string) =
                                                     </small>
                                                 </div>
                                                 <div>
-                                                    <button 
+                                                    <button
                                                         className="btn btn-primary btn-sm me-2"
                                                         onClick={() => handleLoad(game.id)}
                                                     >
                                                         Load
                                                     </button>
-                                                    <button 
+                                                    <button
                                                         className="btn btn-danger btn-sm"
                                                         onClick={() => deleteSavedGame(game.id)}
                                                     >
@@ -160,7 +160,7 @@ export function SavedGames({ onReplaySelect }: { onReplaySelect?: (id: string) =
                                                         Created: {new Date(replay.createdAt).toLocaleString()}
                                                     </small>
                                                 </div>
-                                                <button 
+                                                <button
                                                     className="btn btn-primary btn-sm"
                                                     onClick={() => {
                                                         if (onReplaySelect) {
@@ -185,11 +185,11 @@ export function SavedGames({ onReplaySelect }: { onReplaySelect?: (id: string) =
                     </div>
                 </div>
             )}
-            
+
             {replayId && !onReplaySelect && (
-                <Replay 
-                    replayId={replayId} 
-                    onClose={() => setReplayId('')} 
+                <Replay
+                    replayId={replayId}
+                    onClose={() => setReplayId('')}
                 />
             )}
         </div>

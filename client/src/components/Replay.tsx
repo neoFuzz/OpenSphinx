@@ -50,28 +50,28 @@ export function Replay({ replayId, onClose }: ReplayProps) {
       </div>
       <div className="d-flex justify-content-between align-items-center mb-3">
         <div>
-          <button 
+          <button
             className="btn btn-sm btn-outline-secondary me-2"
             onClick={() => setCurrentMove(0)}
             disabled={currentMove === 0}
           >
             ⏮️ Start
           </button>
-          <button 
+          <button
             className="btn btn-sm btn-outline-secondary me-2"
             onClick={() => setCurrentMove(Math.max(0, currentMove - 1))}
             disabled={currentMove === 0}
           >
             ⏪ Prev
           </button>
-          <button 
+          <button
             className="btn btn-sm btn-outline-secondary me-2"
             onClick={() => setCurrentMove(Math.min(replay.gameStates.length - 1, currentMove + 1))}
             disabled={currentMove === replay.gameStates.length - 1}
           >
             ⏩ Next
           </button>
-          <button 
+          <button
             className="btn btn-sm btn-outline-secondary"
             onClick={() => setCurrentMove(replay.gameStates.length - 1)}
             disabled={currentMove === replay.gameStates.length - 1}
@@ -81,7 +81,7 @@ export function Replay({ replayId, onClose }: ReplayProps) {
         </div>
         <span>Move {currentMove} / {replay.gameStates.length - 1}</span>
       </div>
-      
+
       <div className="text-center">
         <div>
           <div style={{ marginBottom: 8 }}>
@@ -92,7 +92,7 @@ export function Replay({ replayId, onClose }: ReplayProps) {
               const r = Math.floor(i / COLS);
               const c = i % COLS;
               const piece = currentState.board[r][c];
-              
+
               let bgColor = undefined;
               if (c === 0 || (c === 8 && (r === 0 || r === 7))) {
                 bgColor = '#ffcccc';
@@ -112,7 +112,7 @@ export function Replay({ replayId, onClose }: ReplayProps) {
           </div>
         </div>
       </div>
-      
+
       {currentState.winner && (
         <div className="alert alert-success mt-3 text-center">
           Winner: {currentState.winner}

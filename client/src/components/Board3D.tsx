@@ -1152,7 +1152,7 @@ const GroundMesh = React.memo(() => {
  * Renders the 3D board with pieces and laser paths
  * @returns JSX.Element | null
  */
-export function Board3D({ environmentPreset = 'park' }: { environmentPreset?: string }) {
+export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: { environmentPreset?: string; cubeMapQuality?: 'off' | 'low' | 'medium' | 'high' | 'ultra' }) {
     const state = useGame(s => s.state);
     const color = useGame(s => s.color);
     const sendMove = useGame(s => s.sendMove);
@@ -1603,12 +1603,16 @@ export function Board3D({ environmentPreset = 'park' }: { environmentPreset?: st
                 camera={{ position: color === 'RED' ? [0, 8, -10] : [0, 8, 10], fov: 45, near: 0.1, far: 100 }}
                 style={{ background: '#000000', height: 'calc(100% - 50px)' }}
             >
-                <EnvironmentErrorBoundary fallback={<SceneLights isClassic={state.config?.rules === 'CLASSIC'} />}>
-                    <Environment preset={environmentPreset as any} background={true} />
-                </EnvironmentErrorBoundary>
+                {environmentPreset === 'basic' ? (
+                    <SceneLights isClassic={state.config?.rules === 'CLASSIC'} />
+                ) : (
+                    <EnvironmentErrorBoundary fallback={<SceneLights isClassic={state.config?.rules === 'CLASSIC'} />}>
+                        <Environment preset={environmentPreset as any} background={true} />
+                    </EnvironmentErrorBoundary>
+                )}
 
                 {/* Cube camera for reflections */}
-                <CubeCamera position={[0, 2, 0]} onUpdate={setEnvMap} />
+                <CubeCamera position={[0, 2, 0]} onUpdate={setEnvMap} quality={cubeMapQuality} />
 
                 {/* Large ground disc with dirt texture */}
                 <GroundMesh />

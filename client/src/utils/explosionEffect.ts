@@ -5,7 +5,7 @@ async function initAudio() {
     if (!audioContext) {
         audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
-    
+
     if (!explosionBuffer) {
         try {
             const response = await fetch('/sounds/explosion.mp3');
@@ -39,13 +39,13 @@ export function showExplosionEffect(x: number, y: number, container: HTMLElement
     img.style.zIndex = '1000';
     img.style.opacity = '1';
     img.style.transition = 'opacity 0.5s ease-out';
-    
+
     container.appendChild(img);
-    
+
     requestAnimationFrame(() => {
         img.style.opacity = '0';
     });
-    
+
     setTimeout(() => {
         container.removeChild(img);
     }, 500);
