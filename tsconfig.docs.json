@@ -11,6 +11,7 @@
     "declarationMap": true
   },
   "include": [
+    "client/src/**/*",
     "shared/src/**/*", 
     "server/src/**/*"
   ]

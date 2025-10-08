@@ -825,8 +825,6 @@ const GroundMesh = React.memo(() => {
  * Board3D component.
  * Renders the 3D board with pieces and laser paths
  *
- * @param environmentPreset The environment preset to use
- * @param cubeMapQuality The quality of the cube map for the environment
  * @returns JSX.Element | null
  */
 export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: { environmentPreset?: string; cubeMapQuality?: 'off' | 'low' | 'medium' | 'high' | 'ultra' }) {

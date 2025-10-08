@@ -17,10 +17,24 @@ const reflectBackslash: Record<Dir, Dir> = {
   N: 'W', W: 'N', S: 'E', E: 'S', O: 'O'
 };
 
+/**
+ * Reflects a laser direction off a mirror (Djed piece).
+ * 
+ * @param dir - The incoming laser direction
+ * @param mirror - The mirror orientation ('/' or '\\')
+ * @returns The new laser direction after reflection
+ */
 function reflect(dir: Dir, mirror: '/' | '\\'): Dir {
   return mirror === '/' ? reflectSlash[dir] : reflectBackslash[dir];
 }
 
+/**
+ * Determines if a laser can be reflected by a pyramid based on the laser direction and pyramid orientation.
+ * 
+ * @param laserDir - The direction the laser is traveling
+ * @param pyramidOrientation - The orientation of the pyramid piece
+ * @returns True if the laser can be reflected, false if the pyramid is destroyed
+ */
 function canReflectFromPyramid(laserDir: Dir, pyramidOrientation: Dir): boolean {
   // Pyramid reflection rules:
   // N: north ↔ east reflection
@@ -83,6 +97,14 @@ export interface LaserResult {
 
 /**
  * Fire current player's laser, compute reflections and destruction.
+ * 
+ * This is the core laser tracing function that simulates firing a laser from the current player's
+ * laser emitter (either a SPHINX piece or off-board laser). The laser travels in a straight line
+ * until it hits a piece, at which point it may be reflected, blocked, or destroy the piece.
+ * 
+ * @param state - The current game state containing the board and turn information
+ * @param gameId - Optional game ID for logging purposes
+ * @returns LaserResult containing the laser path and any destruction/winner information
  */
 export function fireLaser(state: GameState, gameId?: string): LaserResult {
   const start = findLaserEmitter(state.board, state.turn);

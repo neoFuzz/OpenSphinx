@@ -1,14 +1,16 @@
 {
   "entryPoints": [
+    "./client/src/**/*.{ts,tsx}",
     "./shared/src/**/*.ts", 
     "./server/src/**/*.ts"
   ],
   "entryPointStrategy": "expand",
   "tsconfig": "./tsconfig.docs.json",
-  "out": "./docs",
+  "out": "./out/jsdoc",
   "readme": "./README.md",
   "theme": "default",
   "includeVersion": true,
   "excludeExternals": true,
-  "excludePrivate": true
+  "excludePrivate": true,
+  "skipErrorChecking": true
 }
