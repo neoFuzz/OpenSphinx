@@ -41,6 +41,11 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 const app = express();
 
+// Trust proxy for production deployments
+if (IS_PRODUCTION) {
+  app.set('trust proxy', 1);
+}
+
 // Security middleware
 app.use(helmet({
   hidePoweredBy: true,

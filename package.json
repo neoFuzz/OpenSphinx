@@ -9,13 +9,12 @@
   ],
   "license": "AGPL 3.0",
   "dependencies": {
-    "dotenv": "^17.2.3",
-    "jsdoc": "^4.0.5"
+    "dotenv": "^17.2.3"
   },
   "scripts": {
-    "generate-docs": "jsdoc --configure jsdoc.json --verbose"
+    "generate-docs": "typedoc --options typedoc.json"
   },
   "devDependencies": {
-    "clean-jsdoc-theme": "^4.3.0"
+    "typedoc": "^0.28.13"
   }
 }

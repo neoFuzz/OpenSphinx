@@ -140,7 +140,7 @@ function traceLaserPath(board: Cell[][], start: { pos: Pos; dir: Dir }, gameId?:
     const topPiece = cell[cell.length - 1]; // Get top piece
     const interaction = handleCellInteraction(topPiece, dir, { r, c }, gameId, cell);
     if (interaction.stop) {
-      return { path, ...interaction.result };
+      return { path, ...(interaction.result || {}) };
     }
     if (interaction.newDir) {
       dir = interaction.newDir;
@@ -225,7 +225,7 @@ function handlePyramidInteraction(piece: Piece, dir: Dir, pos: Pos, gameId?: str
 
   const newDir = reflectFromPyramid(dir, piece.orientation);
   logger.debug(`REFLECTED: ${piece.owner} PYRAMID at ${r},${c} (orientation: ${piece.orientation}) reflects laser traveling ${dir} -> ${newDir}`, { gameId });
-  return { stop: false, newDir, result: undefined };
+  return { stop: false, newDir };
 }
 
 function handleDjedInteraction(piece: Piece, dir: Dir, pos: Pos) {
@@ -234,5 +234,5 @@ function handleDjedInteraction(piece: Piece, dir: Dir, pos: Pos) {
   }
 
   const newDir = reflect(dir, piece.mirror);
-  return { stop: false, newDir, result: undefined };
+  return { stop: false, newDir };
 }

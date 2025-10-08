@@ -7,7 +7,7 @@ import { logger } from '../../shared/src/logger';
 
 interface Room {
   id: string;
-  players: { socketId: string; name: string; color: 'RED'|'SILVER'; userId?: string }[];
+  players: { socketId: string; name: string; color: 'RED' | 'SILVER'; userId?: string }[];
   state: GameState;
   spectators: Set<string>;
   savedName?: string;
@@ -50,8 +50,8 @@ export function createRoomsManager(io: Server) {
       password: options?.password,
       config,
     });
-    logger.info('Room created', { 
-      gameId: roomId, 
+    logger.info('Room created', {
+      gameId: roomId,
       isPrivate: !!options?.isPrivate,
       passwordProtected: !!(options?.isPrivate && options?.password),
       rules: config.rules,
@@ -84,21 +84,22 @@ export function createRoomsManager(io: Server) {
     }
 
     const current = room.players.map(p => p.socketId);
-    if (current.includes(socket.id)) return ack?.({ ok: true, color: room.players.find(p=>p.socketId===socket.id)?.color });
+    if (current.includes(socket.id)) 
+      return ack?.({ ok: true, color: room.players.find(p => p.socketId === socket.id)?.color });
 
     if (room.players.length < 2) {
-      const color: 'RED'|'SILVER' = room.players.length === 0 ? 'RED' : 'SILVER';
+      const color: 'RED' | 'SILVER' = room.players.length === 0 ? 'RED' : 'SILVER';
       room.players.push({ socketId: socket.id, name, color, userId });
       socket.join(roomId);
       addSocketRoom(socket.id, roomId);
-      
+
       // Track user session
       if (userId) {
         const sessions = userSessions.get(userId) || new Set();
         sessions.add(socket.id);
         userSessions.set(userId, sessions);
       }
-      
+
       io.to(roomId).emit('room:state', publicState(room));
       logger.info('Player joined room', { gameId: roomId, playerName: name, color, userId });
       ack?.({ ok: true, color });
@@ -134,32 +135,32 @@ export function createRoomsManager(io: Server) {
     const next = applyMove(room.state, payload.move, room.id);
     room.state = next;
     room.gameStates.push(next);
-    
+
     logger.info('Move applied', { gameId: room.id, player: player.color, moveType: payload.move.type });
-    
+
     io.to(room.id).emit('game:state', { state: next, ack: payload.move.clientMoveId });
 
     if (next.winner) {
       logger.info('Game ended', { gameId: room.id, winner: next.winner });
       room.finishedAt = Date.now();
       io.to(room.id).emit('game:end', { winner: next.winner });
-      
+
       // Update player stats
       room.players.forEach(p => {
         if (p.userId) {
           const won = p.color === next.winner;
-          database.updatePlayerStats(p.userId, won).catch(error => 
+          database.updatePlayerStats(p.userId, won).catch(error =>
             logger.error('Failed to update player stats', { gameId: room.id, userId: p.userId, error })
           );
         }
       });
-      
+
       // Auto-save completed game and replay
       const gameName = `Game ${room.id} - ${next.winner} wins`;
-      database.saveGame(room.id, gameName, next).catch(error => 
+      database.saveGame(room.id, gameName, next).catch(error =>
         logger.error('Auto-save failed', { gameId: room.id, error })
       );
-      database.saveReplay(room.id, gameName, room.gameStates).catch(error => 
+      database.saveReplay(room.id, gameName, room.gameStates).catch(error =>
         logger.error('Auto-save replay failed', { gameId: room.id, error })
       );
     }
@@ -168,7 +169,7 @@ export function createRoomsManager(io: Server) {
   function leaveAll(socket: Socket) {
     const set = socketToRooms.get(socket.id);
     if (!set) return;
-    
+
     // Clean up user sessions
     for (const [userId, sessions] of userSessions.entries()) {
       if (sessions.has(socket.id)) {
@@ -178,7 +179,7 @@ export function createRoomsManager(io: Server) {
         }
       }
     }
-    
+
     for (const roomId of set) {
       const room = rooms.get(roomId);
       if (!room) continue;
