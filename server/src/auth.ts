@@ -11,8 +11,17 @@ const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI!;
 const JWT_SECRET = process.env.JWT_SECRET!;
 
 router.get('/discord', (req, res) => {
-  const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(DISCORD_REDIRECT_URI)}&response_type=code&scope=identify`;
-  res.redirect(discordAuthUrl);
+  try {
+    const redirectUrl = new URL(DISCORD_REDIRECT_URI);
+    if (!['localhost', '127.0.0.1'].includes(redirectUrl.hostname) &&
+     !redirectUrl.hostname.endsWith(process.env.ALLOWED_DOMAIN || '')) {
+      throw new Error('Invalid redirect URI');
+    }
+    const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUrl.href)}&response_type=code&scope=identify`;
+    res.redirect(discordAuthUrl);
+  } catch (error) {
+    res.status(400).json({ error: 'Invalid configuration' });
+  }
 });
 
 router.get('/discord/callback', async (req, res) => {

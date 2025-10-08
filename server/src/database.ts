@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import { randomUUID } from 'crypto';
 import { GameState, Move } from '../../shared/src/types';
 
 export interface GameReplay {
@@ -198,7 +199,7 @@ class DatabaseManager {
   }
 
   async createUser(discordId: string, username: string, avatarUrl?: string): Promise<User> {
-    const id = crypto.randomUUID();
+    const id = randomUUID();
     const stmt = this.db.prepare(`
       INSERT INTO users (id, discord_id, username, avatar_url)
       VALUES (?, ?, ?, ?)

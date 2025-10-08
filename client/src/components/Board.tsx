@@ -277,7 +277,7 @@ export function Board() {
   if (!state) return <div>Waiting for state…</div>;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '10vh', justifyContent: 'center' }}>
+    <div className='d-flex flex-column align-items-center justify-content-center' style={{ minHeight: '10vh' }}>
       <div style={{ marginBottom: 8 }}>
         <b>Turn:</b> {state.turn} {myTurn ? '(your move)' : ''}
       </div>

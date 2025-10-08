@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import DOMPurify from 'dompurify';
+import { SERVER_URL } from '../config/server';
 
 interface Room {
   id: string;
@@ -22,13 +24,13 @@ export function RoomList({ onJoinRoom }: RoomListProps) {
   };
 
   const formatSetup = (setup: string) => {
-    return setup.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const sanitized = DOMPurify.sanitize(setup, { ALLOWED_TAGS: [] });
+    return sanitized.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
   };
 
   const fetchRooms = async () => {
     try {
-      const serverUrl = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001';
-      const response = await fetch(`${serverUrl}/api/rooms`);
+      const response = await fetch(`${SERVER_URL}/api/rooms`);
       const roomData = await response.json();
       setRooms(roomData);
     } catch (error) {

@@ -12,6 +12,7 @@
     "@react-three/drei": "^10.7.4",
     "@react-three/fiber": "^9.3.0",
     "bootstrap": "^5.3.8",
+    "dompurify": "^3.2.7",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "socket.io-client": "^4.7.5",
@@ -19,6 +20,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@types/dompurify": "^3.0.5",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.2",

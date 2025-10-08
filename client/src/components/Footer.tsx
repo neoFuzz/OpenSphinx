@@ -1,5 +1,7 @@
+import { PageType } from '../types/navigation';
+
 interface FooterProps {
-    onNavigate?: (page: 'home' | 'stats' | 'rules' | 'terms' | 'about') => void;
+    onNavigate?: (page: PageType) => void;
 }
 
 export function Footer({ onNavigate }: FooterProps) {

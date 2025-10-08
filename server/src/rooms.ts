@@ -15,6 +15,7 @@ interface Room {
   isPrivate?: boolean;
   password?: string;
   config: GameConfig;
+  finishedAt?: number;
 }
 
 const makeId = () => `${new Date().getFullYear()}${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
@@ -23,6 +24,17 @@ export function createRoomsManager(io: Server) {
   const rooms = new Map<string, Room>();
   const socketToRooms = new Map<string, Set<string>>();
   const userSessions = new Map<string, Set<string>>(); // userId -> Set of socketIds
+
+  // Cleanup finished games every 30 seconds
+  setInterval(() => {
+    const now = Date.now();
+    for (const [roomId, room] of rooms.entries()) {
+      if (room.finishedAt && now - room.finishedAt > 30000) {
+        rooms.delete(roomId);
+        logger.info('Auto-cleaned finished room', { gameId: roomId });
+      }
+    }
+  }, 30000);
 
   function createRoom(options?: { isPrivate?: boolean; password?: string; config?: GameConfig }): { roomId: string } {
     const roomId = makeId();
@@ -129,6 +141,7 @@ export function createRoomsManager(io: Server) {
 
     if (next.winner) {
       logger.info('Game ended', { gameId: room.id, winner: next.winner });
+      room.finishedAt = Date.now();
       io.to(room.id).emit('game:end', { winner: next.winner });
       
       // Update player stats

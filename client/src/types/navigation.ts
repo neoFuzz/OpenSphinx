@@ -1,0 +1,1 @@
+export type PageType = 'home' | 'stats' | 'rules' | 'terms' | 'about';

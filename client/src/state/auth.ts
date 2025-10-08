@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { SERVER_URL } from '../config/server';
 
 interface User {
   id: string;
@@ -31,14 +32,12 @@ export const useAuth = create<AuthState>((set, get) => ({
   stats: null,
 
   login: () => {
-    const serverUrl = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001';
-    window.location.href = `${serverUrl}/auth/discord`;
+    window.location.href = `${SERVER_URL}/auth/discord`;
   },
 
   logout: async () => {
     try {
-      const serverUrl = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001';
-      await fetch(`${serverUrl}/auth/logout`, {
+      await fetch(`${SERVER_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -50,8 +49,7 @@ export const useAuth = create<AuthState>((set, get) => ({
 
   checkAuth: async () => {
     try {
-      const serverUrl = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001';
-      const response = await fetch(`${serverUrl}/auth/me`, {
+      const response = await fetch(`${SERVER_URL}/auth/me`, {
         credentials: 'include'
       });
 
@@ -76,8 +74,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     if (!user) return;
 
     try {
-      const serverUrl = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001';
-      const response = await fetch(`${serverUrl}/api/stats/${user.id}`);
+      const response = await fetch(`${SERVER_URL}/api/stats/${user.id}`);
 
       if (response.ok) {
         const stats = await response.json();

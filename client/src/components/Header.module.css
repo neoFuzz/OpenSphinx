@@ -1,0 +1,15 @@
+.logo {
+  width: 64px;
+  height: 64px;
+}
+
+@media screen and (max-width: 480px) {
+  .logo {
+    width: 32px;
+    height: 32px;
+  }
+  
+  #board {
+    position: absolute;
+  }
+}

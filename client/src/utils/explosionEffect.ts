@@ -3,6 +3,7 @@ let explosionBuffer: AudioBuffer | null = null;
 
 async function initAudio() {
     if (!audioContext) {
+        console.log("audio started");
         audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
 
@@ -17,12 +18,28 @@ async function initAudio() {
     }
 }
 
-export function playExplosionSound() {
+export async function playExplosionSound() {
+    await initAudio();
+    
     if (audioContext && explosionBuffer) {
-        const source = audioContext.createBufferSource();
-        source.buffer = explosionBuffer;
-        source.connect(audioContext.destination);
-        source.start();
+        // Resume audio context if suspended
+        if (audioContext.state === 'suspended') {
+            console.log("audio resumed");
+            await audioContext.resume();
+        }
+        
+        if (audioContext.state === 'running') {
+            console.log("audio playing");
+            try {
+                const source = audioContext.createBufferSource();
+                source.buffer = explosionBuffer;
+                source.connect(audioContext.destination);
+                console.log("audio connected");
+                source.start();
+            } catch (error) {
+                console.warn('Failed to play explosion sound:', error);
+            }
+        }
     }
 }
 

@@ -17,7 +17,26 @@ import { authenticateToken, optionalAuth, AuthenticatedRequest } from './middlew
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
 
-const CLIENT_URLS = process.env.CLIENT_URLS?.split(',') || ['http://localhost:5173'];
+const isValidHostname = (hostname: string): boolean => {
+  const allowedDomain = process.env.ALLOWED_DOMAIN || '.';
+  return hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname.endsWith(allowedDomain);
+};
+
+const validateClientUrls = (urls: string[]): string[] => {
+  return urls.filter(url => {
+    try {
+      const parsed = new URL(url);
+      return ['http:', 'https:'].includes(parsed.protocol) && isValidHostname(parsed.hostname);
+    } catch (error) {
+      logger.warn(`Invalid client URL: ${url}`, error)
+      return false;
+    }
+  });
+};
+
+const CLIENT_URLS = validateClientUrls(process.env.CLIENT_URLS?.split(',') || ['http://localhost:5173']);
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 const app = express();

@@ -1,13 +1,13 @@
-﻿import React, { useMemo, useState, useCallback, useEffect, useRef, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef, Component, ErrorInfo, ReactNode } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Line, useGLTF, Environment } from '@react-three/drei';
+import { OrbitControls, Line, Environment } from '@react-three/drei';
 import { useGame } from '../state/game';
 import { COLS, ROWS } from '../../../shared/src/constants';
 import type { Cell, Dir, GameState, Pos, Piece } from '../../../shared/src/types';
 import { getNextValidSphinxDirection, getSphinxRotationDelta } from '../../../shared/src/engine/sphinx-utils';
-import { playExplosionSound } from '../utils/explosionEffect';
+import { useMovementAnimation, useRotationAnimation, useExplosionAnimation, usePieceAnimation, type RotationAnimation, type MovementAnimation, type ExplosionAnimation } from '../utils/animationUtils';
+import { PharaohGLTF, PyramidGLTF, DjedGLTF, LaserGLTF, ObeliskGLTF, AnubisGLTF, preloadModels } from './models/GameModels';
 import * as THREE from 'three';
-import { metalness, roughness } from 'three/tsl';
 import { CubeCamera } from './CubeCamera';
 
 // --- layout constants ---
@@ -54,76 +54,7 @@ function worldToGrid(x: number, z: number): Pos | null {
     return { r, c };
 }
 
-/**
-* Apply shadows and color tinting to a scene with deep material cloning
-* @param scene The THREE.Object3D scene to apply shadows and colors to
-* @param owner The owner ('RED' or 'SILVER') determining the color tinting
-* @param envMap Optional environment map for reflections
-*/
-function withShadowsAndColor(scene: THREE.Object3D, owner: 'RED' | 'SILVER', envMap?: THREE.CubeTexture) {
-    if (!scene || !scene.traverse) return;
 
-    const baseColor = owner === 'RED' ? new THREE.Color(COLORS.RED) : new THREE.Color(COLORS.SILVER);
-    const metalness = owner === 'SILVER' ? 0.5 : 0.1;
-    const roughness = owner === 'SILVER' ? 0.5 : 0.9;
-
-    try {
-        const lightsToRemove: any[] = [];
-        scene.traverse((o: any) => {
-            if (o.isLight) {
-                lightsToRemove.push(o);
-            }
-            if (o.isMesh) {
-                o.castShadow = true;
-                o.receiveShadow = true;
-
-                const name = o.name.toLowerCase();
-
-                if (name.includes('mirror')) {
-                    // Apply mirror material with environment map
-                    o.material = new THREE.MeshPhysicalMaterial({
-                        color: new THREE.Color('#ffffff'),
-                        metalness: 0.90,
-                        roughness: 0.1,
-                        reflectivity: 1.0,
-                        envMapIntensity: 1.0,
-                        envMap: envMap || null,
-                    });
-                } else if (name.includes('frame')) {
-                    // Apply frame material with tint
-                    o.material = new THREE.MeshStandardMaterial({
-                        color: baseColor.clone(),
-                        metalness,
-                        roughness,
-                        envMapIntensity: 0,
-                    });
-                } else if (o.material) {
-                    if (Array.isArray(o.material)) {
-                        o.material = o.material.map((mat: any) => {
-                            const clonedMat = mat.clone();
-                            clonedMat.color = baseColor.clone();
-                            clonedMat.roughness = roughness;
-                            clonedMat.metalness = metalness;
-                            clonedMat.envMapIntensity = 0;
-                            return clonedMat;
-                        });
-                    } else {
-                        o.material = o.material.clone();
-                        o.material.color = baseColor.clone();
-                        o.material.roughness = roughness;
-                        o.material.metalness = metalness;
-                        o.material.envMapIntensity = 0;
-                    }
-                }
-
-            }
-        });
-        // Remove lights after traversal to avoid modifying during iteration
-        lightsToRemove.forEach(light => light.parent?.remove(light));
-    } catch (error) {
-        console.warn('Error traversing scene:', error);
-    }
-}
 
 /**
  * Converts a cardinal direction to a Y-axis rotation angle in radians
@@ -138,233 +69,6 @@ function dirToY(facing?: Dir) {
         case 'W': return -Math.PI / 2;
         default: return 0;
     }
-}
-
-// --- GLTF model components with owner-based coloring ---
-
-/**
- * Draw the Pharaoh model
- * @param owner The owner ('RED' or 'SILVER') determining the color tinting
- * @returns A themed Pharaoh model
- */
-function PharaohGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
-    const { scene } = useGLTF('/models/pharaoh.glb');
-    const clonedScene = useMemo(() => {
-        if (scene) {
-            const clone = scene.clone();
-            if (clone) withShadowsAndColor(clone, owner);
-            return clone;
-        }
-        return null;
-    }, [scene, owner]);
-    return clonedScene ? <primitive object={clonedScene} /> : null;
-}
-
-/**
- * Draw the Pyramid model
- * @param owner The owner ('RED' or 'SILVER') determining the color tinting
- * @param envMap Optional environment map for reflections
- * @returns A themed Pyramid model
- */
-function PyramidGLTF({ owner, envMap }: { owner: 'RED' | 'SILVER'; envMap?: THREE.CubeTexture }) {
-    const { scene } = useGLTF('/models/pyramid.glb');
-    const clonedScene = useMemo(() => {
-        if (scene) {
-            const clone = scene.clone();
-            if (clone) withShadowsAndColor(clone, owner, envMap);
-            return clone;
-        }
-        return null;
-    }, [scene, owner, envMap]);
-    return clonedScene ? <primitive object={clonedScene} /> : null;
-}
-
-/**
- * Draw the Djed model
- * @param owner The owner ('RED' or 'SILVER') determining the color tinting
- * @param envMap Optional environment map for reflections
- * @returns A themed Djed model
- */
-function DjedGLTF({ owner, envMap }: { owner: 'RED' | 'SILVER'; envMap?: THREE.CubeTexture }) {
-    const { scene } = useGLTF('/models/djed.glb');
-    const clonedScene = useMemo(() => {
-        if (scene) {
-            const clone = scene.clone();
-            if (clone) withShadowsAndColor(clone, owner, envMap);
-            return clone;
-        }
-        return null;
-    }, [scene, owner, envMap]);
-    return clonedScene ? <primitive object={clonedScene} /> : null;
-}
-
-/**
- * Draw the Laser (Sphinx) model
- * @param owner The owner ('RED' or 'SILVER') determining the color tinting
- * @returns A themed Laser model
- */
-function LaserGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
-    const { scene } = useGLTF('/models/laser.glb');
-    const clonedScene = useMemo(() => {
-        if (scene) {
-            const clone = scene.clone();
-            if (clone) withShadowsAndColor(clone, owner);
-            return clone;
-        }
-        return null;
-    }, [scene, owner]);
-    return clonedScene ? <primitive object={clonedScene} /> : null;
-}
-
-/**
- * Draw the Obelisk model
- * @param owner The owner ('RED' or 'SILVER') determining the color tinting
- * @returns A themed Obelisk model
- */
-const ObeliskGLTF = React.memo(({ owner }: { owner: 'RED' | 'SILVER' }) => {
-    const { scene } = useGLTF('/models/obelisk.glb');
-    const clonedScene = useMemo(() => {
-        if (scene) {
-            const clone = scene.clone();
-            if (clone) withShadowsAndColor(clone, owner);
-            return clone;
-        }
-        return null;
-    }, [scene, owner]);
-    return clonedScene ? <primitive object={clonedScene} /> : null;
-});
-
-/**
- * Draw the Anubis model
- * @param owner The owner ('RED' or 'SILVER') determining the color tinting
- * @returns A themed Anubis model
- */
-function AnubisGLTF({ owner }: { owner: 'RED' | 'SILVER' }) {
-    const { scene } = useGLTF('/models/anubis.glb');
-    const clonedScene = useMemo(() => {
-        if (scene) {
-            const clone = scene.clone();
-            if (clone) withShadowsAndColor(clone, owner);
-            return clone;
-        }
-        return null;
-    }, [scene, owner]);
-    return clonedScene ? <primitive object={clonedScene} /> : null;
-}
-
-// --- PIECE MESHES (simple primitives) ---
-/**
- * Draw the Pharaoh mesh
- * @param props The group props
- * @returns A React component with the Pharaoh mesh
- */ // @ts-ignore
-function PharaohMesh(props: JSX.IntrinsicElements['group']) {
-    // a gold cylinder
-    return (
-        <group {...props}>
-            <mesh castShadow receiveShadow>
-                <cylinderGeometry args={[0.35, 0.35, 0.6, 24]} />
-                <meshStandardMaterial color="#c7a83c" metalness={0.6} roughness={0.4} />
-            </mesh>
-        </group>
-    );
-}
-
-/**
- * Draw the Obelisk mesh
- * @param props The group props
- * @returns A React component with the Obelisk mesh
- */// @ts-ignore
-function ObeliskMesh(props: JSX.IntrinsicElements['group']) {
-    return (
-        <group {...props}>
-            <mesh castShadow receiveShadow>
-                <boxGeometry args={[0.7, 0.9, 0.7]} />
-                <meshStandardMaterial color="#666" metalness={0.1} roughness={0.9} />
-            </mesh>
-        </group>
-    );
-}
-
-/**
- * Draw the Pyramid mesh
- * @param mirror The mirror shape ('/' or '\')
- * @returns A React component with the Pyramid mesh
- */
-function PyramidMesh({ mirror }: { mirror?: '/' | '\\' }) {
-    // represent mirror orientation as wedge rotation
-    // we'll use a triangular prism-like wedge
-    const rotY = mirror === '/' ? 0 : Math.PI / 2; // arbitrary mapping
-    return (
-        <group rotation-y={rotY}>
-            <mesh castShadow receiveShadow rotation={[0, 0, 0]}>
-                {/* A thin wedge: make by extruding a triangle, but we'll fake with a box + clipping shape */}
-                <coneGeometry args={[0.45, 0.35, 3]} />
-                <meshStandardMaterial color="#888" metalness={0.2} roughness={0.8} />
-            </mesh>
-            {/* mirror face hint */}
-            <mesh position={[0, 0.18, 0]} rotation={[0, 0, 0]}>
-                <planeGeometry args={[0.4, 0.25]} />
-                <meshStandardMaterial color="#b0e0ff" metalness={1.0} roughness={0.1} envMapIntensity={1} />
-            </mesh>
-        </group>
-    );
-}
-
-/**
- * Draw the Djed mesh
- * @param mirror The mirror shape ('/' or '\')
- * @returns A React component with the Djed mesh
- */
-function DjedMesh({ mirror }: { mirror?: '/' | '\\' }) {
-    // treat as double-sided mirror block
-    const rotY = mirror === '/' ? 0 : Math.PI / 2;
-    return (
-        <group rotation-y={rotY}>
-            <mesh castShadow receiveShadow>
-                <boxGeometry args={[0.65, 0.4, 0.65]} />
-                <meshStandardMaterial color="#9aa" metalness={0.5} roughness={0.4} />
-            </mesh>
-            {/* mirror hints on two faces */}
-            <mesh position={[0, 0.22, 0.32]}>
-                <planeGeometry args={[0.55, 0.25]} />
-                <meshStandardMaterial color="#b0e0ff" metalness={1.0} roughness={0.1} />
-            </mesh>
-            <mesh position={[0, 0.22, -0.32]} rotation={[0, Math.PI, 0]}>
-                <planeGeometry args={[0.55, 0.25]} />
-                <meshStandardMaterial color="#b0e0ff" metalness={1.0} roughness={0.1} />
-            </mesh>
-        </group>
-    );
-}
-
-/**
- * Draw the laser emitter mesh
- * @param facing The facing direction of the laser emitter
- * @param owner The owner of the laser emitter
- * @returns A React component with the laser emitter mesh
- */
-function LaserMesh({ facing, owner }: { facing?: Dir; owner: 'RED' | 'SILVER' }) {
-    const rotY = facing === 'N' ? 0
-        : facing === 'E' ? Math.PI / 2
-            : facing === 'S' ? Math.PI
-                : facing === 'W' ? -Math.PI / 2
-                    : 0;
-
-    return (
-        <group rotation-y={rotY}>
-            {/* base */}
-            <mesh castShadow receiveShadow>
-                <cylinderGeometry args={[0.3, 0.35, 0.25, 20]} />
-                <meshStandardMaterial color={owner === 'RED' ? '#cc4444' : '#8888cc'} />
-            </mesh>
-            {/* emitter tube */}
-            <mesh position={[0, 0.35, 0]}>
-                <cylinderGeometry args={[0.12, 0.12, 0.7, 12]} />
-                <meshStandardMaterial color="#444" metalness={0.3} roughness={0.7} />
-            </mesh>
-        </group>
-    );
 }
 
 /**
@@ -533,16 +237,37 @@ function DebugOverlay({ piece }: { piece: Piece }) { // NOSONAR(6759)
 interface Piece3DProps {
     r: number; c: number; cell: Piece[]; selected: boolean;
     onSelect: (pos: Pos) => void; debugMode: boolean;
-    rotatingPieces: Map<string, { startTime: number, direction: number, startRotation: number, targetRotation: number }>;
-    movingPieces: Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>;
-    setRotatingPieces: React.Dispatch<React.SetStateAction<Map<string, { startTime: number, direction: number, startRotation: number, targetRotation: number }>>>;
-    setMovingPieces: React.Dispatch<React.SetStateAction<Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>>>;
+    rotatingPieces: Map<string, RotationAnimation>;
+    movingPieces: Map<string, MovementAnimation>;
+    setRotatingPieces: React.Dispatch<React.SetStateAction<Map<string, RotationAnimation>>>;
+    setMovingPieces: React.Dispatch<React.SetStateAction<Map<string, MovementAnimation>>>;
     moveStackMode: boolean;
     setMoveStackMode: React.Dispatch<React.SetStateAction<boolean>>;
     isClassic: boolean;
     envMap?: THREE.CubeTexture | null;
 }
 
+/**
+ * Renders a 3D game piece with animations, selection highlighting, and interactive elements.
+ * Handles piece rotation, movement animations, stack management for obelisks, and debug overlays.
+ * 
+ * @param props - Configuration object containing:
+ * @param props.r - Row position on the game board
+ * @param props.c - Column position on the game board  
+ * @param props.cell - Array of pieces at this position (for stacking)
+ * @param props.selected - Whether this piece is currently selected
+ * @param props.onSelect - Callback when piece is clicked
+ * @param props.debugMode - Whether to show debug information
+ * @param props.rotatingPieces - Map of pieces currently rotating
+ * @param props.movingPieces - Map of pieces currently moving
+ * @param props.setRotatingPieces - Setter for rotation animations
+ * @param props.setMovingPieces - Setter for movement animations
+ * @param props.moveStackMode - Whether stack movement mode is enabled
+ * @param props.setMoveStackMode - Setter for stack movement mode
+ * @param props.isClassic - Whether using classic game rules
+ * @param props.envMap - Environment map for reflective materials
+ * @returns JSX element representing the 3D piece with all visual effects
+ */
 function Piece3D(props: Piece3DProps) {
     const { r, c, cell, selected, onSelect, debugMode, rotatingPieces, movingPieces, setRotatingPieces, setMovingPieces, moveStackMode, setMoveStackMode, isClassic, envMap } = props;
     const pos = gridToWorld(r, c);
@@ -552,7 +277,7 @@ function Piece3D(props: Piece3DProps) {
 
     // Debug logging for piece rendering
     if (topPiece.kind === 'PYRAMID' && debugMode) {
-        console.log(`Rendering pyramid at ${r},${c}:`);
+        console.log('Rendering pyramid at position:', { r: Math.floor(r), c: Math.floor(c) });
     }
 
     let pyramidAngle;
@@ -581,89 +306,23 @@ function Piece3D(props: Piece3DProps) {
 
     // Debug current rotation calculation
     if (debugMode && topPiece.kind === 'DJED') {
-        console.log('DJED rotation calc:', topPiece.mirror, 'mirrorRotY:', mirrorRotY, 'currentBaseRotY:', currentBaseRotY);
+        console.log('DJED rotation calc:', {
+            mirror: topPiece.mirror,
+            mirrorRotY: Number(mirrorRotY.toFixed(3)),
+            currentBaseRotY: Number(currentBaseRotY.toFixed(3))
+        });
     }
 
-    // Animation state
-    const [animatedRotY, setAnimatedRotY] = useState(currentBaseRotY);
-    const [animationPos, setAnimationPos] = useState(pos);
-    const [animationY, setAnimationY] = useState(0.2);
-
-    // Update animated rotation when piece state changes (but not during animation)
-    useEffect(() => {
-        if (!rotatingPieces.has(topPiece.id)) {
-            setAnimatedRotY(currentBaseRotY);
-        }
-    }, [currentBaseRotY, topPiece.id]);
-
-    // Smooth animation updates
-    useFrame((state, delta) => {
-        const now = performance.now(); // Use performance.now() consistently
-
-        const rotationData = rotatingPieces.get(topPiece.id);
-        if (rotationData) {
-            const elapsed = now - rotationData.startTime;
-            const progress = Math.min(elapsed / 300, 1);
-
-            if (progress >= 1) {
-                console.log('Rotation animation complete for:', topPiece.id);
-                setRotatingPieces(prev => {
-                    const next = new Map(prev);
-                    next.delete(topPiece.id);
-                    return next;
-                });
-                setAnimatedRotY(rotationData.targetRotation);
-            } else {
-                const eased = 1 - Math.pow(1 - progress, 3);
-                const startRot = rotationData.startRotation;
-                const targetRot = rotationData.targetRotation;
-
-                let diff = targetRot - startRot;
-                // Normalize angle difference to take shortest path
-                while (diff > Math.PI) diff -= 2 * Math.PI;
-                while (diff < -Math.PI) diff += 2 * Math.PI;
-
-                const newRotY = startRot + diff * eased;
-                console.log('Animating rotation:', topPiece.id, 'progress:', progress.toFixed(2), 'from:', startRot.toFixed(2), 'to:', targetRot.toFixed(2), 'current:', newRotY.toFixed(2));
-                setAnimatedRotY(newRotY);
-            }
-        }
-
-        const moveData = movingPieces.get(topPiece.id);
-        if (moveData) {
-            const elapsed = now - moveData.startTime;
-            const progress = Math.min(elapsed / 400, 1);
-
-            if (progress >= 1) {
-                setMovingPieces(prev => {
-                    const next = new Map(prev);
-                    next.delete(topPiece.id);
-                    return next;
-                });
-                setAnimationPos(pos);
-                setAnimationY(0.2);
-            } else {
-                const eased = 1 - Math.pow(1 - progress, 3);
-                const fromPos = gridToWorld(moveData.from.r, moveData.from.c);
-                const toPos = gridToWorld(moveData.to.r, moveData.to.c);
-
-                setAnimationPos(new THREE.Vector3(
-                    fromPos.x + (toPos.x - fromPos.x) * eased,
-                    0,
-                    fromPos.z + (toPos.z - fromPos.z) * eased
-                ));
-
-                if (moveData.isDjedHop) {
-                    setAnimationY(0.2 + Math.sin(progress * Math.PI) * 0.8);
-                } else {
-                    setAnimationY(0.2);
-                }
-            }
-        } else {
-            setAnimationPos(pos);
-            setAnimationY(0.2);
-        }
-    });
+    // Use animation hook
+    const { animatedRotY, animationPos, animationY } = usePieceAnimation(
+        topPiece.id,
+        currentBaseRotY,
+        pos,
+        rotatingPieces,
+        movingPieces,
+        setRotatingPieces,
+        setMovingPieces
+    );
 
     return (
         <group
@@ -766,8 +425,6 @@ function Piece3D(props: Piece3DProps) {
                 </group>
             )}
 
-
-
             {topPiece.kind === 'LASER' && (
                 <group rotation-y={animatedRotY} position={[0, 0, 0]}>
                     <mesh castShadow receiveShadow>
@@ -798,7 +455,11 @@ function Piece3D(props: Piece3DProps) {
  * @param state - Current game state
  * @param onTileClick - Callback when a tile is clicked with position
  */
-function Tiles({ state, onTileClick, selected, getValidMoves }: { state: GameState; onTileClick: (pos: Pos) => void; selected: Pos | null; getValidMoves: (pos: Pos) => Array<{ r: number, c: number, type: string }> }) {
+function Tiles({ state, onTileClick, selected, getValidMoves }:
+    {
+        state: GameState; onTileClick: (pos: Pos) => void; selected: Pos | null;
+        getValidMoves: (pos: Pos) => Array<{ r: number, c: number, type: string }>
+    }) {
     const validMoves = selected ? getValidMoves(selected) : [];
 
     const tiles = useMemo(() => {
@@ -855,6 +516,9 @@ function Tiles({ state, onTileClick, selected, getValidMoves }: { state: GameSta
 
 /**
  * RotateGizmo component - simple circular arrows for rotation
+ *
+ * @param position Position of the gizmo
+ * @param onRotate Callback when the gizmo is clicked with rotation direction
  */
 function RotateGizmo({ position, onRotate }: { position: [number, number, number]; onRotate: (delta: 90 | -90) => void }) {
     return (
@@ -901,10 +565,17 @@ function RotateGizmo({ position, onRotate }: { position: [number, number, number
 
 /**
  * SphinxRotateGizmo component - single arrow showing next valid direction
+ * 
+ * @param position Position of the gizmo
+ * @param onRotate Callback when the gizmo is clicked
+ * @param nextDirection Next valid direction
  */
 function SphinxRotateGizmo({ position, onRotate, nextDirection }: { position: [number, number, number]; onRotate: () => void; nextDirection: Dir }) {
     // Calculate rotation for the arrow to point to the next direction
-    const arrowRotation = dirToY(nextDirection);
+    // Invert North and South directions for correct arrow pointing
+    const arrowRotation = (nextDirection === 'N' || nextDirection === 'S')
+        ? dirToY(nextDirection) + Math.PI
+        : dirToY(nextDirection);
 
     return (
         <group position={position}>
@@ -922,12 +593,12 @@ function SphinxRotateGizmo({ position, onRotate, nextDirection }: { position: [n
                 {/* Rotating arrow group */}
                 <group rotation={[0, arrowRotation, 0]}>
                     {/* Arrow shaft */}
-                    <mesh position={[0, 0.00, 0.0]} rotation={[-Math.PI / 2, 0, 0]}>
+                    <mesh position={[0, 0.00, 0.08]} rotation={[-Math.PI / 2, 0, 0]}>
                         <cylinderGeometry args={[0.015, 0.015, 0.15, 8]} />
                         <meshBasicMaterial color="#0066cc" />
                     </mesh>
                     {/* Arrow head */}
-                    <mesh position={[0, 0.005, 0.1]} rotation={[Math.PI / 2, 0, 0]}>
+                    <mesh position={[0, 0.005, 0.15]} rotation={[Math.PI / 2, 0, 0]}>
                         <coneGeometry args={[0.05, 0.05, 4]} />
                         <meshBasicMaterial color="#0066cc" />
                     </mesh>
@@ -939,8 +610,11 @@ function SphinxRotateGizmo({ position, onRotate, nextDirection }: { position: [n
 
 /**
  * Explosion3D component with billboard sprite and particles
+ * 
+ * @param explosions - Map of explosion animations
+ * @param setExplosions - Function to update the explosions map
  */
-function Explosion3D({ explosions, setExplosions }: { explosions: Map<string, { startTime: number, pos: Pos }>; setExplosions: React.Dispatch<React.SetStateAction<Map<string, { startTime: number, pos: Pos }>>> }) {
+function Explosion3D({ explosions, setExplosions }: { explosions: Map<string, ExplosionAnimation>; setExplosions: React.Dispatch<React.SetStateAction<Map<string, ExplosionAnimation>>> }) {
     const explosionTexture = useMemo(() => new THREE.TextureLoader().load('/explosion.webp'), []);
 
     useFrame(() => {
@@ -1005,7 +679,9 @@ function Explosion3D({ explosions, setExplosions }: { explosions: Map<string, { 
 
 /**
  * LaserPath3D component
+ * 
  * @param path to render
+ * @param state current game state
  * @returns JSX.Element | null
  */
 function LaserPath3D({ path, state }: { path: Pos[] | undefined; state: GameState }) {
@@ -1092,8 +768,6 @@ class EnvironmentErrorBoundary extends Component<
  * Memoized lighting component to prevent multiple light instances
  */
 const SceneLights = React.memo(({ isClassic }: { isClassic: boolean }) => {
-
-
     return (
         <>
             <ambientLight intensity={0.2} />
@@ -1148,8 +822,11 @@ const GroundMesh = React.memo(() => {
 });
 
 /**
- * Board3D component
+ * Board3D component.
  * Renders the 3D board with pieces and laser paths
+ *
+ * @param environmentPreset The environment preset to use
+ * @param cubeMapQuality The quality of the cube map for the environment
  * @returns JSX.Element | null
  */
 export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: { environmentPreset?: string; cubeMapQuality?: 'off' | 'low' | 'medium' | 'high' | 'ultra' }) {
@@ -1161,14 +838,15 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
     const [debugMode, setDebugMode] = useState(false);
     const [moveStackMode, setMoveStackMode] = useState(true); // true = move entire stack, false = move top only
     const [envMap, setEnvMap] = useState<THREE.CubeTexture | null>(null);
-
-    const [rotatingPieces, setRotatingPieces] = useState<Map<string, { startTime: number, direction: number, startRotation: number, targetRotation: number }>>(new Map());
-    const [movingPieces, setMovingPieces] = useState<Map<string, { startTime: number, from: Pos, to: Pos, isDjedHop: boolean }>>(new Map());
-    const [explosions, setExplosions] = useState<Map<string, { startTime: number, pos: Pos }>>(new Map());
     const [fps, setFps] = useState(0);
     const prevStateRef = useRef(state);
     const fpsRef = useRef({ frames: 0, lastTime: performance.now() });
     const controlsRef = useRef<any>(null);
+
+    // Use animation hooks
+    const { rotatingPieces, setRotatingPieces, animateRotation } = useRotationAnimation();
+    const { movingPieces, setMovingPieces, animateMovement } = useMovementAnimation();
+    const { explosions, setExplosions, triggerExplosion } = useExplosionAnimation();
 
     // Cleanup WebGL context on unmount
     useEffect(() => {
@@ -1241,12 +919,7 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
 
                         // Only show explosion if piece was actually destroyed (not moved)
                         if (!pieceMovedElsewhere) {
-                            const explosionId = `explosion-${r}-${c}-${Date.now()}`;
-                            setExplosions(prev => new Map(prev).set(explosionId, {
-                                startTime: performance.now(),
-                                pos: { r, c }
-                            }));
-                            playExplosionSound();
+                            triggerExplosion({ r, c });
                         }
                     }
                 }
@@ -1321,7 +994,13 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
                                         default: return dirToY(currentPiece.orientation);
                                     }
                                 })(currentPiece.kind);
-                                console.log('Rotation detected for piece:', currentPiece.id, 'from', prevValue, 'to', currentValue);
+                                if (process.env.NODE_ENV === 'development') {
+                                    const sanitizedValues = {
+                                        from: String(prevValue || '').replace(/[\r\n\t]/g, '').slice(0, 10),
+                                        to: String(currentValue || '').replace(/[\r\n\t]/g, '').slice(0, 10)
+                                    };
+                                    console.debug('Rotation detected for piece:', sanitizedValues);
+                                }
                                 animateRotation(currentPiece.id, 90, prevBaseRotY, targetRotY);
                             }
                             break;
@@ -1334,7 +1013,7 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
                 if (foundPrevPos && (foundPrevPos.r !== r || foundPrevPos.c !== c)) {
                     const prevCellAtTarget = prevState.board[r][c];
                     const prevPieceAtTarget = prevCellAtTarget && prevCellAtTarget.length > 0 ? prevCellAtTarget[prevCellAtTarget.length - 1] : null;
-                    const isDjedSwap = currentPiece.kind === 'DJED' && prevPieceAtTarget;
+                    const isDjedSwap = currentPiece.kind === 'DJED' && !!prevPieceAtTarget;
 
                     // Check for obelisk stacking/unstacking (hop animation)
                     const prevStackSize = prevState.board[foundPrevPos.r][foundPrevPos.c]?.length || 0;
@@ -1405,19 +1084,25 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
 
     const onSelectPiece = useCallback((pos: Pos) => {
         if (debugMode) {
-            console.log('onSelectPiece called:', pos, 'isMyTurn:', isMyTurn, 'color:', color);
+            console.debug('onSelectPiece called:', {
+                pos: { r: Math.floor(pos.r), c: Math.floor(pos.c) },
+                isMyTurn: Boolean(isMyTurn),
+                color: String(color)
+            });
         }
         if (!isMyTurn) {
             if (debugMode) console.log('Not my turn, ignoring selection');
             return;
         }
         const cell = state?.board[pos.r][pos.c];
-        if (debugMode) console.log('Cell at position:', cell);
+        if (debugMode) {
+            console.debug('Cell at position has pieces:', Boolean(cell && cell.length > 0));
+        }
         if (!cell || cell.length === 0 || cell[cell.length - 1].owner !== color) {
-            if (debugMode) console.log('Cell empty or not owned by player');
+            if (debugMode) console.debug('Cell empty or not owned by player');
             return;
         }
-        if (debugMode) console.log('Setting selected to:', pos);
+        if (debugMode) console.debug('Setting selected to:', { r: Math.floor(pos.r), c: Math.floor(pos.c) });
         setSelected(pos);
         // Reset to default move stack mode when selecting a piece
         setMoveStackMode(true);
@@ -1460,17 +1145,6 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
         setSelected(null);
     }, [isMyTurn, selected, state, sendMove, moveStackMode]);
 
-    const animateMovement = useCallback((pieceId: string, from: Pos, to: Pos, isDjedHop: boolean) => {
-        const startTime = performance.now(); // Use performance.now() to match Three.js timing
-        setMovingPieces(prev => new Map(prev).set(pieceId, { startTime, from, to, isDjedHop }));
-    }, []);
-
-    const animateRotation = useCallback((pieceId: string, direction: number, startRotation: number, targetRotation: number) => {
-        console.log('animateRotation called:', pieceId, direction, startRotation, 'to', targetRotation);
-        const startTime = performance.now(); // Use performance.now() to match Three.js timing
-        setRotatingPieces(prev => new Map(prev).set(pieceId, { startTime, direction, startRotation, targetRotation }));
-    }, []);
-
     const onRotateSelected = useCallback((delta: 90 | -90) => {
         if (!isMyTurn || !selected || !state) return;
 
@@ -1499,16 +1173,9 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
         }
     }, [color]);
 
-
-
     if (!state) return <div>Waiting for state…</div>;
 
-    useGLTF.preload('/models/pharaoh.glb');
-    useGLTF.preload('/models/pyramid.glb');
-    useGLTF.preload('/models/djed.glb');
-    useGLTF.preload('/models/obelisk.glb');
-    useGLTF.preload('/models/laser.glb');
-    useGLTF.preload('/models/anubis.glb');
+    preloadModels();
 
     return (
         <div className="border rounded" style={{ height: 600, overflow: 'hidden', position: 'relative' }}>
@@ -1562,11 +1229,7 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
                         }
                         return null;
                     })()}
-                    <button
-                        className="btn btn-outline-info btn-sm"
-                        onClick={resetCamera}
-                        title="Reset camera to default position"
-                    >
+                    <button className="btn btn-outline-info btn-sm" onClick={resetCamera} title="Reset camera to default position">
                         📷
                     </button>
                 </div>
@@ -1581,19 +1244,12 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
                             <div className="btn-group btn-group-sm">
                                 <button
                                     className={`btn btn-sm ${moveStackMode ? 'btn-primary' : 'btn-outline-primary'}`}
-                                    onClick={() => setMoveStackMode(true)}
-                                >
-                                    Move Stack
-                                </button>
+                                    onClick={() => setMoveStackMode(true)}>Move Stack</button>
                                 <button
                                     className={`btn btn-sm ${!moveStackMode ? 'btn-warning' : 'btn-outline-warning'}`}
                                     onClick={() => setMoveStackMode(false)}
-                                    title="Move only the top obelisk"
-                                >
-                                    Move Top
-                                </button>
+                                    title="Move only the top obelisk">Move Top</button>
                             </div>
-
                         </div>
                     )}
             </div>

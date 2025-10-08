@@ -1,5 +1,7 @@
 
 import React, { useState } from 'react';
+import DOMPurify from 'dompurify';
+import { SERVER_URL } from './config/server';
 import { useGame } from './state/game';
 import { useAuth } from './state/auth';
 import { SavedGames } from './components/SavedGames';
@@ -23,7 +25,7 @@ export default function App() {
     const [currentPage, setCurrentPage] = useState<'home' | 'stats' | 'rules' | 'terms' | 'about'>('home');
 
     React.useEffect(() => {
-        checkAuth();
+        checkAuth().catch(console.error);
     }, [checkAuth]);
     const createRoom = useGame(s => (s as any).createRoom ?? (() => { }));
     const saveGame = useGame(s => s.saveGame);
@@ -223,13 +225,16 @@ function RoomListDisplay() {
     };
 
     const formatSetup = (setup: string) => {
-        return setup === 'CLASSIC' ? 'Classic' : setup.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    };
+        const sanitized = DOMPurify.sanitize(setup, { ALLOWED_TAGS: [] });
+        if (sanitized === 'CLASSIC') return 'Classic';
+
+        const lowercase = sanitized.toLowerCase().replace(/_/g, ' ');
+        return lowercase.replace(/\b\w/g, c => c.toUpperCase());
+    }
 
     const fetchRooms = async () => {
         try {
-            const serverUrl = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001';
-            const response = await fetch(`${serverUrl}/api/rooms`);
+            const response = await fetch(`${SERVER_URL}/api/rooms`);
             const roomData = await response.json();
             setRooms(roomData);
         } catch (error) {
@@ -260,27 +265,26 @@ function RoomListDisplay() {
                                     </div>
                                 </div>
                                 <div className="row">
-                                    <div className="col-3">
+                                    <div className="col-4">
                                         <small className="text-muted">
                                             {room.config && `${formatRules(room.config.rules)} - ${formatSetup(room.config.setup)} `}
                                         </small>
                                     </div>
-                                    <div className="col-3">
+                                    <div className="col-4">
                                         <small className="text-muted">Players: {room.playerCount}/2 ({room.spectatorCount}&nbsp;watching)</small>
                                     </div>
-                                    <div className="col-3">
+                                    <div className="col-4">
                                         <small className="text-muted">
                                             {room.hasWinner ? 'Game Finished' : ` Turn: ${room.turn}`}
                                         </small>
                                     </div>
                                 </div>
                             </div>
-                            <button
-                                className="btn btn-primary"
-                                onClick={() => connectRoom(room.id, playerName)}
-                            >
-                                Join
-                            </button>
+                            <div>
+                                <button className="btn btn-primary" onClick={() => connectRoom(room.id, playerName)}>
+                                    Join
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>

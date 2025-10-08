@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { AuthButton } from './AuthButton';
+import styles from './Header.module.css';
+import { PageType } from '../types/navigation';
 
 interface HeaderProps {
   title?: string;
@@ -16,8 +18,8 @@ interface HeaderProps {
   onEnvironmentChange?: (preset: string) => void;
   cubeMapQuality?: 'off' | 'low' | 'medium' | 'high' | 'ultra';
   onCubeMapQualityChange?: (quality: 'off' | 'low' | 'medium' | 'high' | 'ultra') => void;
-  currentPage?: 'home' | 'stats' | 'rules';
-  onNavigate?: (page: 'home' | 'stats' | 'rules') => void;
+  currentPage?: PageType;
+  onNavigate?: (page: PageType) => void;
 }
 
 export function Header({
@@ -43,9 +45,10 @@ export function Header({
 
   return (
     <>
+
       <div className="mb-3 bg-dark text-light py-3 mt-auto d-flex align-items-center justify-content-between">
         <div className="d-flex align-items-center">
-          <img src="logo.svg" width="64" className="me-3 ms-3"></img>
+          <img src="logo.svg" className={`me-3 ms-3 ${styles.logo}`} title="OpenSphinx logo" alt="Sphinx coloured yellow, blue and red"></img>
           <div>
             <h1 className="mb-0">{title}</h1>
             {subtitle && <small className="text-secondary">{subtitle}</small>}

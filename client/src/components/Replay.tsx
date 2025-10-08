@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { GameState } from '../../../shared/src/types';
 import { COLS, ROWS } from '../../../shared/src/constants';
 import { PieceSVG } from './BoardComponents';
+import { SERVER_URL } from '../config/server';
 import './board.css';
 
 interface ReplayData {
@@ -23,8 +24,7 @@ export function Replay({ replayId, onClose }: ReplayProps) {
   useEffect(() => {
     const fetchReplay = async () => {
       try {
-        const serverUrl = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001';
-        const response = await fetch(`${serverUrl}/api/replays/${replayId}`);
+        const response = await fetch(`${SERVER_URL}/api/replays/${replayId}`);
         const data = await response.json();
         setReplay(data);
         setCurrentState(data.gameStates[0]);

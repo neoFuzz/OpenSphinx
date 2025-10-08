@@ -1,7 +1,7 @@
-
 import { create } from 'zustand';
 import type { GameState, Move } from '../../../shared/src/types';
 import { socket } from '../socket';
+import { SERVER_URL } from '../config/server';
 
 interface SavedGame {
     id: string;
@@ -108,8 +108,7 @@ export const useGame = create<GameStore>((set, get) => ({
 
     fetchSavedGames: async () => {
         try {
-            const serverUrl = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001';
-            const response = await fetch(`${serverUrl}/api/games`);
+            const response = await fetch(`${SERVER_URL}/api/games`);
             const games = await response.json();
             set({ savedGames: games });
         } catch (error) {
@@ -119,19 +118,17 @@ export const useGame = create<GameStore>((set, get) => ({
 
     deleteSavedGame: async (gameId) => {
         try {
-            const serverUrl = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001';
-            await fetch(`${serverUrl}/api/games/${gameId}`, { method: 'DELETE' });
-            get().fetchSavedGames();
+            const response = await fetch(`${SERVER_URL}/api/games/${gameId}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            await get().fetchSavedGames();
         } catch (error) {
             get().showModal('Error', 'Failed to delete game');
-            console.log('Failed to delete game:', error);
         }
     },
 
     fetchReplays: async () => {
         try {
-            const serverUrl = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3001';
-            const response = await fetch(`${serverUrl}/api/replays`);
+            const response = await fetch(`${SERVER_URL}/api/replays`);
             const replays = await response.json();
             set({ replays });
         } catch (error) {
