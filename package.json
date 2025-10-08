@@ -1,5 +1,6 @@
 {
   "name": "laser-chess-ts",
+  "version": "1.0.0",
   "private": true,
   "workspaces": [
     "server",
@@ -8,6 +9,13 @@
   ],
   "license": "AGPL 3.0",
   "dependencies": {
-    "dotenv": "^17.2.3"
+    "dotenv": "^17.2.3",
+    "jsdoc": "^4.0.5"
+  },
+  "scripts": {
+    "generate-docs": "jsdoc --configure jsdoc.json --verbose"
+  },
+  "devDependencies": {
+    "clean-jsdoc-theme": "^4.3.0"
   }
 }

@@ -143,3 +143,5 @@ vite.config.ts.timestamp-*
 games.db
 server/games.db-wal
 server/games.db-shm
+
+docs/
