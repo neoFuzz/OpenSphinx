@@ -23,7 +23,6 @@ interface CubeCameraProps {
 
 /**
  * A component that creates a cube camera for environment mapping and reflections
- * @component
  * 
  * @param {Object} props - Component props
  * @param {[number, number, number]} [props.position=[0, 2, 0]] - Position of the cube camera in 3D space

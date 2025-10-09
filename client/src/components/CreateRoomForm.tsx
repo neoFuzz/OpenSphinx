@@ -35,7 +35,6 @@ interface CreateRoomFormProps {
  * A form component for creating a new game room with customizable settings.
  * Renders a modal dialog with options for game rules, board setup, and privacy settings.
  * 
- * @component
  * @param {CreateRoomFormProps} props - The component props
  * @param {function} props.onSubmit - Callback function called when form is submitted with room configuration
  * @param {function} props.onCancel - Callback function called when form is cancelled

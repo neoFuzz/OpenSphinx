@@ -11,7 +11,6 @@ import React from 'react';
  * - Laser mechanics
  * - Win conditions
  * 
- * @component
  * @returns {JSX.Element} A Bootstrap-styled card containing game rules
  */
 export function Rules() {

@@ -16,6 +16,7 @@ import authRoutes from './auth';
 import { authenticateToken, optionalAuth, AuthenticatedRequest } from './middleware';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
+import { all } from 'axios';
 
 const isValidHostname = (hostname: string): boolean => {
   const allowedDomain = process.env.ALLOWED_DOMAIN || '.';
@@ -41,9 +42,9 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 console.log("Running in production mode:", IS_PRODUCTION)
 console.log('*** Start up information ***');
-logger.info('NODE_ENV:', process.env.NODE_ENV);
-logger.info('ALLOWED_DOMAIN:', process.env.ALLOWED_DOMAIN);
-logger.info('CLIENT_URLS from env:', process.env.CLIENT_URLS);
+logger.info(`NODE_ENV: ${process.env.NODE_ENV}`);
+logger.info(`ALLOWED_DOMAIN: ${process.env.ALLOWED_DOMAIN}`);
+logger.info(`CLIENT_URLS from env: ${process.env.CLIENT_URLS}`);
 logger.info('Validated CLIENT_URLS:', CLIENT_URLS);
 
 const app = express();

@@ -828,41 +828,57 @@ const GroundMesh = React.memo(() => {
 });
 
 /**
- * Main 3D game board component that renders the Khet board and pieces using Three.js/React Three Fiber
- * 
- * Features:
- * - Renders 3D board tiles with alternating colors and player zones
- * - Displays 3D game pieces with animations for movement and rotation
- * - Shows laser beam paths with reflections
- * - Handles piece selection and valid move highlighting
- * - Includes explosion effects for destroyed pieces
- * - Provides rotation controls for applicable pieces
- * - Supports obelisk stacking controls in classic rules
- * - Has debug mode toggle (press 'd')
- * - Camera reset button
- * - Environment mapping for reflective materials
- * - Shadow rendering
- * 
- * State management:
- * - Uses game state from useGame hook
- * - Tracks selected piece
- * - Manages animation states for piece movement/rotation
- * - Handles explosion effects
- * - Maintains FPS counter in debug mode
- * 
- * Key interactions:
- * - Click to select/move pieces
- * - Rotation buttons for applicable pieces
- * - Stack/unstack controls for obelisks
- * - Camera reset button
- * - Debug mode toggle ('d' key)
- * 
- * Props:
- * - environmentPreset - Preset name for the environment lighting/background
- * - cubeMapQuality - Quality level for cubemap reflections
+ * Main 3D game board component that renders the Khet board and pieces using Three.js and React Three Fiber.
  *
- * @param environmentPreset - The environment preset to use for lighting/reflections ('park', 'sunset', etc)
- * @param cubeMapQuality - Quality level for cubemap reflections ('off', 'low', 'medium', 'high', 'ultra') 
+ * ## Features
+ * - Renders 3D board tiles with alternating colours and player zones.
+ * - Displays 3D game pieces with animations for movement and rotation.
+ * - Visualises laser beam paths with accurate reflections.
+ * - Handles piece selection and valid move highlighting.
+ * - Includes explosion effects for destroyed pieces.
+ * - Provides rotation controls for applicable pieces.
+ * - Supports obelisk stacking controls (classic rules).
+ * - Debug mode toggle (press `'d'`).
+ * - Camera reset button.
+ * - Environment mapping for reflective materials.
+ * - Shadow rendering for realistic lighting.
+ *
+ * ## State Management
+ * - Uses game state from the `useGame` hook.
+ * - Tracks selected piece and move states.
+ * - Manages animation states for movement and rotation.
+ * - Controls explosion effects and timing.
+ * - Displays an FPS counter in debug mode.
+ *
+ * ## Key Interactions
+ * - Click to select or move pieces.
+ * - Use rotation buttons for applicable pieces.
+ * - Stack/unstack controls for obelisks.
+ * - Camera reset button for repositioning.
+ * - Toggle debug mode using the `'d'` key.
+ *
+ * ## Props
+ * - `environmentPreset` — Preset name for the environment lighting/background.
+ * - `cubeMapQuality` — Quality level for cubemap reflections.
+ *
+ * @param {Object} props - The component properties.
+ * @param {string} [props.environmentPreset='park'] - The name of the environment preset to use.  
+ * Common presets include `'sunset'`, `'studio'`, `'city'`, and `'forest'`.
+ *
+ * @param {'off' | 'low' | 'medium' | 'high' | 'ultra'} [props.cubeMapQuality='low'] - 
+ * Determines the quality of the environment cube map used for reflections and lighting.
+ * - `'off'` disables cube map reflections.  
+ * - `'low'` prioritises performance.  
+ * - `'medium'` balances performance and visual fidelity.  
+ * - `'high'` offers sharper reflections.  
+ * - `'ultra'` enables maximum realism at a higher performance cost.
+ *
+ * @returns {JSX.Element} The rendered 3D board scene component.
+ *
+ * @example
+ * ```tsx
+ * <Board3D environmentPreset="studio" cubeMapQuality="high" />
+ * ```
  */
 export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: { environmentPreset?: string; cubeMapQuality?: 'off' | 'low' | 'medium' | 'high' | 'ultra' }) {
     const state = useGame(s => s.state);
