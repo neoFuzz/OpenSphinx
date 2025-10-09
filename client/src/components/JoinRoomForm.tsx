@@ -1,11 +1,28 @@
 import React, { useState } from 'react';
 
+/**
+ * Props for the JoinRoomForm component
+ */
 interface JoinRoomFormProps {
+    /** Callback when form is submitted with room details */
     onSubmit: (roomId: string, name: string, password?: string) => void;
+    /** Callback when form is cancelled */
     onCancel: () => void;
+    /** Initial player name to populate the form */
     initialName?: string;
 }
 
+/**
+ * Modal form for joining an existing game room
+ * 
+ * Displays a modal with input fields for:
+ * - Room ID (required)
+ * - Player name (required, pre-filled with initialName if provided)
+ * - Password (optional)
+ * 
+ * @param props - JoinRoomForm component props
+ * @returns JSX element representing the join room modal
+ */
 export function JoinRoomForm({ onSubmit, onCancel, initialName }: JoinRoomFormProps) {
     const [roomId, setRoomId] = useState('');
     const [name, setName] = useState(initialName || 'Player');

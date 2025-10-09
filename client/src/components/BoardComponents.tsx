@@ -1,7 +1,14 @@
 import React from 'react';
 import { GameState } from '../../../shared/src/types';
 
-export function PieceSVG({ piece, cell }: { piece: NonNullable<GameState['board'][0][0]>; cell?: NonNullable<GameState['board'][0][0]>[] }) {
+/**
+ * Renders an SVG representation of a game piece
+ * @param {Object} props - Component props
+ * @param {Object} props.piece - The piece object containing properties like owner, kind, orientation, facing, and mirror
+ * @param {Object} [props.cell] - Optional cell object containing information about stacked pieces
+ * @returns {JSX.Element} SVG element representing the game piece
+ */
+export function PieceSVG({ piece, cell }: { piece: NonNullable<GameState['board'][0][0]>[number]; cell?: NonNullable<GameState['board'][0][0]> }) {
   const color = piece.owner === 'RED' ? '#cc4444' : '#4444cc';
   const rotation = piece.orientation ? ['N', 'E', 'S', 'W'].indexOf(piece.orientation) * 90 :
     piece.facing ? ['N', 'E', 'S', 'W'].indexOf(piece.facing) * 90 : 0;

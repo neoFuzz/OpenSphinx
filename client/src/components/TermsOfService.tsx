@@ -1,5 +1,19 @@
 import React from 'react';
 
+/**
+ * Terms of Service display component
+ * 
+ * Renders a static page containing the complete terms of service
+ * for the OpenSphinx laser chess game, including:
+ * - Service definitions and scope
+ * - Discord authentication requirements
+ * - User conduct rules
+ * - Data collection and privacy information
+ * - Liability disclaimers and warranties
+ * - Service modification and termination policies
+ * 
+ * @returns JSX element representing the terms of service page
+ */
 export function TermsOfService() {
   return (
     <div className="container mt-4">

@@ -1,5 +1,18 @@
 import React from 'react';
 
+/**
+ * 'About' component that displays information about the OpenSphinx project.
+ * 
+ * This component renders a static informational page containing:
+ * - Project description and overview
+ * - Feature list highlighting key capabilities
+ * - Technology stack details
+ * - Open source information and licensing
+ * 
+ * The component uses Bootstrap classes for responsive layout and styling.
+ * 
+ * @returns {JSX.Element} A card-based layout with project information
+ */
 export function About() {
   return (
     <div className="container mt-4">

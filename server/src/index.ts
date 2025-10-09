@@ -39,6 +39,13 @@ const validateClientUrls = (urls: string[]): string[] => {
 const CLIENT_URLS = validateClientUrls(process.env.CLIENT_URLS?.split(',') || ['http://localhost:5173']);
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
+console.log("Running in production mode:", IS_PRODUCTION)
+console.log('*** Start up information ***');
+logger.info('NODE_ENV:', process.env.NODE_ENV);
+logger.info('ALLOWED_DOMAIN:', process.env.ALLOWED_DOMAIN);
+logger.info('CLIENT_URLS from env:', process.env.CLIENT_URLS);
+logger.info('Validated CLIENT_URLS:', CLIENT_URLS);
+
 const app = express();
 
 // Trust proxy for production deployments

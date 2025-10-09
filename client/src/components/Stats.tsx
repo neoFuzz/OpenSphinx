@@ -1,6 +1,19 @@
 import React from 'react';
 import { useAuth } from '../state/auth';
 
+/**
+ * Player statistics display component
+ * 
+ * Shows authenticated user's game statistics including:
+ * - Total games played
+ * - Number of wins and losses
+ * - Win rate percentage
+ * 
+ * Displays a login prompt for unauthenticated users
+ * and a loading spinner while fetching stats.
+ * 
+ * @returns JSX element representing the statistics page
+ */
 export function Stats() {
   const { user, stats } = useAuth();
 

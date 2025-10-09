@@ -1,5 +1,19 @@
 import React from 'react';
 
+/**
+ * Rules component that displays the game rules for Khet/Laser Chess
+ * 
+ * Renders a card containing:
+ * - Game objective
+ * - Initial setup instructions
+ * - Turn structure
+ * - Description of game pieces and their behaviors
+ * - Laser mechanics
+ * - Win conditions
+ * 
+ * @component
+ * @returns {JSX.Element} A Bootstrap-styled card containing game rules
+ */
 export function Rules() {
   return (
     <div className="container mt-4">

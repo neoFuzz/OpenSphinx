@@ -7,6 +7,33 @@ import { PieceSVG } from './BoardComponents';
 import { showExplosionEffect, playExplosionSound } from '../utils/explosionEffect';
 import './board.css';
 
+/**
+ * Main game board component that renders the Khet board and handles game logic.
+ * 
+ * Manages:
+ * - Rendering the 10x8 game board grid
+ * - Piece selection and movement
+ * - Valid move highlighting
+ * - Piece animations (movement and rotation)
+ * - Piece destruction effects
+ * - Turn management
+ * - Obelisk stacking/unstacking
+ * - Player zones (red/silver)
+ * - Laser indicators for Classic rules
+ * 
+ * Uses game state from useGame hook to:
+ * - Track current game state
+ * - Get player color
+ * - Send moves to game server
+ * 
+ * State includes:
+ * - selectedPos: Currently selected piece position
+ * - unstackMode: Whether obelisk unstacking is active
+ * - lockedStacks: Set of locked obelisk stack positions
+ * - animatingPieces: Map of pieces currently being animated
+ * 
+ * @returns React component that renders the game board
+ */
 export function Board() {
   const state = useGame(s => s.state);
   const color = useGame(s => s.color);
@@ -19,7 +46,7 @@ export function Board() {
   const prevStateRef = useRef(state);
   const boardRef = useRef<HTMLDivElement>(null);
 
-  // Detect piece movements and destroyed pieces
+  /* Detect piece movements and destroyed pieces */
   useEffect(() => {
     if (!state || !prevStateRef.current) {
       prevStateRef.current = state;
@@ -85,12 +112,25 @@ export function Board() {
         }
       }
     }
-
     prevStateRef.current = state;
   }, [state]);
 
   const myTurn = state && color && state.turn === color && !state.winner;
 
+  /**
+   * Gets valid moves for a piece at the given position.
+   * 
+   * Checks:
+   * - Basic movement to adjacent empty cells
+   * - Zone restrictions (can't move into opponent's zone)
+   * - Special moves:
+   *   - Djed swapping with pyramids/obelisks/anubis
+   *   - Obelisk stacking in Classic rules
+   * - Excludes moves for laser and sphinx pieces
+   *
+   * @param pos - Position to check moves from
+   * @returns Array of valid move positions and types ('move', 'swap', 'stack')
+   */
   const getValidMoves = (pos: Pos) => {
     if (!state) return [];
     const cell = state.board[pos.r][pos.c];
@@ -135,6 +175,23 @@ export function Board() {
     return moves;
   };
 
+  /**
+   * Handles clicks on board cells for piece selection and movement.
+   * 
+   * Manages:
+   * - Selecting own pieces when clicked
+   * - Moving selected pieces to valid target cells
+   * - Special moves:
+   *   - Djed swapping with pyramids/obelisks/anubis
+   *   - Obelisk stacking/unstacking in Classic rules
+   * - Enforces:
+   *   - Turn order
+   *   - Valid move restrictions
+   *   - Stack locking for obelisks
+   *
+   * @param pos - Position {r,c} of clicked cell
+   * @returns void
+   */
   const onCellClick = (pos: Pos) => {
     if (!myTurn || !state) return;
 
@@ -213,6 +270,18 @@ export function Board() {
     }
   };
 
+  /**
+   * Animates piece movement across the board.
+   * 
+   * Handles smooth animation of pieces moving between cells using:
+   * - CSS transforms for translation
+   * - Cubic easing for natural movement
+   * - Cleanup of animation frames
+   * 
+   * @param pieceId - ID of the piece to animate
+   * @param deltaX - X distance to move in pixels 
+   * @param deltaY - Y distance to move in pixels
+   */
   const animateMove = useCallback((pieceId: string, deltaX: number, deltaY: number) => {
     const startTime = Date.now();
     const duration = 300;
@@ -243,6 +312,18 @@ export function Board() {
     animate();
   }, []);
 
+   /**
+   * Animates piece rotation on the board.
+   * 
+   * Handles smooth rotation animation of pieces using:
+   * - CSS transforms for rotation
+   * - Cubic easing for natural movement
+   * - Cleanup of animation frames
+   * - Support for both clockwise and counter-clockwise rotation
+   *
+   * @param pieceId - ID of the piece to animate
+   * @param direction - Direction to rotate ('cw' for clockwise, 'ccw' for counter-clockwise)
+   */     
   const animateRotation = useCallback((pieceId: string, direction: 'cw' | 'ccw') => {
     const startTime = Date.now();
     const duration = 250;
@@ -314,6 +395,31 @@ export function Board() {
   );
 }
 
+/**
+ * Renders an individual cell on the game board.
+ * 
+ * Handles:
+ * - Displaying pieces in the cell
+ * - Cell highlighting for selection and valid moves
+ * - Player zone coloring (red/silver zones)
+ * - Laser path visualization
+ * - Click handling for piece selection and movement
+ * - Unstack mode interactions for obelisk pieces
+ *
+ * @param r - Row index of the cell
+ * @param c - Column index of the cell 
+ * @param onCellClick - Callback function when cell is clicked
+ * @param selectedPos - Currently selected piece position
+ * @param validMoves - Array of valid moves for selected piece
+ * @param animatingPieces - Map of pieces currently being animated
+ * @param setSelectedPos - Function to update selected position
+ * @param animateRotation - Function to animate piece rotation
+ * @param unstackMode - Whether obelisk unstacking mode is active
+ * @param setUnstackMode - Function to toggle unstack mode
+ * @param lockedStacks - Set of locked obelisk stack positions
+ * @param setLockedStacks - Function to update locked stacks
+ * @returns React component that renders a single board cell
+ */
 function Cell({ r, c, onCellClick, selectedPos, validMoves, animatingPieces, setSelectedPos, animateRotation, unstackMode, setUnstackMode, lockedStacks, setLockedStacks }: Pos & { onCellClick: (pos: Pos) => void; selectedPos: Pos | null; validMoves: Array<{ r: number, c: number, type: string }>; animatingPieces: Map<string, { x: number, y: number, rotation: number }>; setSelectedPos: React.Dispatch<React.SetStateAction<Pos | null>>; animateRotation: (pieceId: string, direction: 'cw' | 'ccw') => void; unstackMode: boolean; setUnstackMode: React.Dispatch<React.SetStateAction<boolean>>; lockedStacks: Set<string>; setLockedStacks: React.Dispatch<React.SetStateAction<Set<string>>> }) {
   const state = useGame(s => s.state)!;
   const sendMove = useGame(s => s.sendMove);
@@ -366,6 +472,29 @@ function Cell({ r, c, onCellClick, selectedPos, validMoves, animatingPieces, set
   );
 }
 
+/**
+ * Renders an individual game piece with rotation controls and stacking functionality.
+ * 
+ * Handles:
+ * - Displaying the piece SVG
+ * - Rotation controls for pieces
+ * - Special rotation handling for Sphinx pieces
+ * - Obelisk stacking/unstacking controls
+ * - Piece movement animations
+ * - Z-index management during animations
+ *
+ * @param r - Row index of the piece
+ * @param c - Column index of the piece
+ * @param isSelected - Whether this piece is currently selected
+ * @param animatingPieces - Map of pieces currently being animated
+ * @param setSelectedPos - Function to update selected position
+ * @param animateRotation - Function to animate piece rotation
+ * @param unstackMode - Whether obelisk unstacking mode is active
+ * @param setUnstackMode - Function to toggle unstack mode
+ * @param lockedStacks - Set of locked obelisk stack positions
+ * @param setLockedStacks - Function to update locked stacks
+ * @returns React component that renders a game piece with controls
+ */
 function PieceView({ r, c, isSelected, animatingPieces, setSelectedPos, animateRotation, unstackMode, setUnstackMode, lockedStacks, setLockedStacks }: Pos & { isSelected: boolean; animatingPieces: Map<string, { x: number, y: number, rotation: number }>; setSelectedPos: React.Dispatch<React.SetStateAction<Pos | null>>; animateRotation: (pieceId: string, direction: 'cw' | 'ccw') => void; unstackMode: boolean; setUnstackMode: React.Dispatch<React.SetStateAction<boolean>>; lockedStacks: Set<string>; setLockedStacks: React.Dispatch<React.SetStateAction<Set<string>>> }) {
   const state = useGame(s => s.state)!;
   const color = useGame(s => s.color)!;

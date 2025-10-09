@@ -2,14 +2,39 @@ import React, { useState } from 'react';
 import { useGame } from '../state/game';
 import { Replay } from './Replay';
 
+/**
+ * Saved game data structure
+ */
 interface SavedGame {
+    /** Unique game identifier */
     id: string;
+    /** Display name of the saved game */
     name: string;
+    /** Timestamp when the game was created */
     createdAt: string;
+    /** Timestamp when the game was last updated */
     updatedAt: string;
+    /** Winner of the game, if finished */
     winner?: string;
 }
 
+/**
+ * Game save/load management component
+ * 
+ * Provides buttons and modals for:
+ * - Saving current game with custom name
+ * - Loading unfinished saved games
+ * - Viewing and watching game replays
+ * - Deleting saved games
+ * 
+ * Shows different buttons based on game state:
+ * - Save button when in an active game
+ * - Load and Replay buttons when not in a game
+ * 
+ * @param props - Component props
+ * @param props.onReplaySelect - Optional callback for replay selection (if not provided, opens replay viewer directly)
+ * @returns JSX element representing the save/load controls
+ */
 export function SavedGames({ onReplaySelect }: { onReplaySelect?: (id: string) => void }) {
     const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [saveName, setSaveName] = useState('');

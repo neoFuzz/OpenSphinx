@@ -4,27 +4,49 @@ import type { Pos } from '../../../shared/src/types';
 import { playExplosionSound } from './explosionEffect';
 import * as THREE from 'three';
 
-// Animation state types
+/**
+ * Animation state for piece rotation
+ */
 export interface RotationAnimation {
+    /** Timestamp when the rotation animation started */
     startTime: number;
+    /** Direction of rotation (1 for clockwise, -1 for counterclockwise) */
     direction: number;
+    /** Initial rotation angle in radians */
     startRotation: number;
+    /** Target rotation angle in radians */
     targetRotation: number;
 }
 
+/**
+ * Animation state for piece movement
+ */
 export interface MovementAnimation {
+    /** Timestamp when the movement animation started */
     startTime: number;
+    /** Starting grid position */
     from: Pos;
+    /** Target grid position */
     to: Pos;
+    /** Whether this is a Djed piece hopping animation */
     isDjedHop: boolean;
 }
 
+/**
+ * Animation state for explosion effects
+ */
 export interface ExplosionAnimation {
+    /** Timestamp when the explosion animation started */
     startTime: number;
+    /** Grid position where the explosion occurs */
     pos: Pos;
 }
 
-// Animation hook for piece movement
+/**
+ * Hook for managing piece movement animations
+ * 
+ * @returns Object containing movement state and animation trigger function
+ */
 export function useMovementAnimation() {
     const [movingPieces, setMovingPieces] = useState<Map<string, MovementAnimation>>(new Map());
 
@@ -36,7 +58,11 @@ export function useMovementAnimation() {
     return { movingPieces, setMovingPieces, animateMovement };
 }
 
-// Animation hook for piece rotation
+/**
+ * Hook for managing piece rotation animations
+ * 
+ * @returns Object containing rotation state and animation trigger function
+ */
 export function useRotationAnimation() {
     const [rotatingPieces, setRotatingPieces] = useState<Map<string, RotationAnimation>>(new Map());
 
@@ -56,7 +82,11 @@ export function useRotationAnimation() {
     return { rotatingPieces, setRotatingPieces, animateRotation };
 }
 
-// Animation hook for explosions
+/**
+ * Hook for managing explosion animations
+ * 
+ * @returns Object containing explosion state and trigger function
+ */
 export function useExplosionAnimation() {
     const [explosions, setExplosions] = useState<Map<string, ExplosionAnimation>>(new Map());
 
@@ -72,7 +102,21 @@ export function useExplosionAnimation() {
     return { explosions, setExplosions, triggerExplosion };
 }
 
-// Hook for piece animation frame updates
+/**
+ * Hook for managing individual piece animations with frame updates
+ * 
+ * Handles smooth interpolation of rotation and movement animations
+ * using Three.js useFrame for 60fps updates.
+ * 
+ * @param pieceId - Unique identifier for the piece
+ * @param currentBaseRotY - Base rotation angle when not animating
+ * @param gridPosition - Current grid position as world coordinates
+ * @param rotatingPieces - Map of active rotation animations
+ * @param movingPieces - Map of active movement animations
+ * @param setRotatingPieces - State setter for rotation animations
+ * @param setMovingPieces - State setter for movement animations
+ * @returns Object containing animated rotation, position, and height values
+ */
 export function usePieceAnimation(
     pieceId: string,
     currentBaseRotY: number,
@@ -175,14 +219,20 @@ export function usePieceAnimation(
     return { animatedRotY, animationPos, animationY };
 }
 
-// Utility function to convert grid coordinates to world coordinates
+/**
+ * Converts grid coordinates to Three.js world coordinates
+ * 
+ * @param r - Grid row (0-7)
+ * @param c - Grid column (0-9)
+ * @returns Three.js Vector3 representing world position
+ */
 function gridToWorld(r: number, c: number) {
     const TILE_SIZE = 1;
     const BOARD_W = 10 * TILE_SIZE;
     const BOARD_H = 8 * TILE_SIZE;
     const ORIGIN_X = -BOARD_W / 2 + TILE_SIZE / 2;
     const ORIGIN_Z = -BOARD_H / 2 + TILE_SIZE / 2;
-    
+
     return new THREE.Vector3(
         ORIGIN_X + c * TILE_SIZE,
         0,

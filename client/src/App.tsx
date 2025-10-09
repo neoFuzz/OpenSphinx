@@ -16,9 +16,23 @@ import { Rules } from './components/Rules';
 import { TermsOfService } from './components/TermsOfService';
 import { About } from './components/About';
 
+/** Lazy-loaded 2D board component */
 const Board2D = React.lazy(() => import('./components/Board').then(m => ({ default: m.Board })));
+/** Lazy-loaded 3D board component */
 const Board3D = React.lazy(() => import('./components/Board3D').then(m => ({ default: m.Board3D })));
 
+/**
+ * Main application component for OpenSphinx laser chess game
+ * 
+ * Manages the overall application state including:
+ * - Page navigation (home, stats, rules, terms, about)
+ * - Game room creation and joining
+ * - 2D/3D view mode switching with localStorage persistence
+ * - Environment and graphics quality settings
+ * - User authentication and game save/load functionality
+ * 
+ * @returns JSX element representing the complete application
+ */
 export default function App() {
     const { checkAuth } = useAuth();
     const connectRoom = useGame(s => s.connectRoom);
@@ -164,6 +178,21 @@ export default function App() {
     );
 }
 
+/**
+ * Game area component that renders the appropriate game view
+ * 
+ * Handles switching between 2D/3D modes, replay viewing, and WebGL context cleanup.
+ * Shows room list when not in a game, and manages view mode transitions.
+ * 
+ * @param props - GameArea component props
+ * @param props.useThree - Whether to use 3D rendering
+ * @param props.replayId - ID of replay to show, empty string if not viewing replay
+ * @param props.setReplayId - Function to set replay ID
+ * @param props.isTransitioning - Whether currently transitioning between 2D/3D modes
+ * @param props.environmentPreset - 3D environment preset name
+ * @param props.cubeMapQuality - Quality setting for cube map reflections
+ * @returns JSX element representing the game area
+ */
 function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmentPreset, cubeMapQuality }: { useThree: boolean; replayId: string; setReplayId: (id: string) => void; isTransitioning: boolean; environmentPreset: string; cubeMapQuality: 'off' | 'low' | 'medium' | 'high' | 'ultra' }) {
     const state = useGame(s => s.state);
     const [webglKey, setWebglKey] = React.useState(0);
@@ -213,6 +242,17 @@ function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmen
     );
 }
 
+/**
+ * Component displaying available game rooms with auto-refresh
+ * 
+ * Fetches and displays active rooms every 5 seconds, showing:
+ * - Room ID and player counts
+ * - Game configuration (rules and setup)
+ * - Game status (turn or finished)
+ * - Join buttons for each room
+ * 
+ * @returns JSX element representing the room list
+ */
 function RoomListDisplay() {
     const [rooms, setRooms] = useState<{ id: string; playerCount: number; spectatorCount: number; hasWinner: boolean; turn: 'RED' | 'SILVER'; config?: { rules: string; setup: string } }[]>([]);
     const connectRoom = useGame(s => s.connectRoom);
@@ -293,6 +333,15 @@ function RoomListDisplay() {
     );
 }
 
+/**
+ * Modal dialog for displaying game notifications and messages
+ * 
+ * Shows system messages like game over notifications, save confirmations,
+ * and error messages. Provides special handling for game over modals
+ * with an "Exit to Home" option.
+ * 
+ * @returns JSX element representing the modal dialog or null if no modal
+ */
 function GameModal() {
     const modal = useGame(s => s.modal);
     const hideModal = useGame(s => s.hideModal);
@@ -325,6 +374,20 @@ function GameModal() {
     );
 }
 
+/**
+ * Modal dialog for saving the current game
+ * 
+ * Provides an input field for entering a custom game name
+ * and handles save/cancel actions.
+ * 
+ * @param props - SaveGameDialog component props
+ * @param props.show - Whether to display the dialog
+ * @param props.saveName - Current save name input value
+ * @param props.setSaveName - Function to update save name
+ * @param props.onSave - Callback when save is confirmed
+ * @param props.onCancel - Callback when dialog is cancelled
+ * @returns JSX element representing the save dialog or null if hidden
+ */
 function SaveGameDialog({ show, saveName, setSaveName, onSave, onCancel }: {
     show: boolean;
     saveName: string;
@@ -362,6 +425,17 @@ function SaveGameDialog({ show, saveName, setSaveName, onSave, onCancel }: {
     );
 }
 
+/**
+ * Modal dialog for loading saved games
+ * 
+ * Displays a list of unfinished saved games with load and delete options.
+ * Filters out completed games to show only resumable games.
+ * 
+ * @param props - LoadGameDialog component props
+ * @param props.show - Whether to display the dialog
+ * @param props.onCancel - Callback when dialog is cancelled
+ * @returns JSX element representing the load dialog or null if hidden
+ */
 function LoadGameDialog({ show, onCancel }: {
     show: boolean;
     onCancel: () => void;

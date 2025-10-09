@@ -1,13 +1,53 @@
 import React, { useState } from 'react';
 
+/**
+ * Represents the available rule variants for the game.
+ * - CLASSIC: The original rule set
+ * - KHET_2_0: Updated rules from Khet 2.0 version
+ */
 type RuleVariant = 'CLASSIC' | 'KHET_2_0';
+
+/**
+ * Represents the available board setup variants for the game.
+ * - CLASSIC: The traditional board layout
+ * - IMHOTEP: Alternative setup named after the ancient Egyptian architect
+ * - DYNASTY: Setup variant representing different Egyptian dynasty layouts
+ */
 type SetupVariant = 'CLASSIC' | 'IMHOTEP' | 'DYNASTY';
 
+/**
+ * Props interface for the CreateRoomForm component
+ * @interface CreateRoomFormProps
+ * @property {function} onSubmit - Callback function called when form is submitted. Takes an options object with room configuration
+ * @property {function} onCancel - Callback function called when form is cancelled
+ * @property {object} options.isPrivate - Boolean indicating if room is private
+ * @property {string} options.password - Optional password for private rooms
+ * @property {object} options.config - Optional configuration object
+ * @property {RuleVariant} options.config.rules - Game rules variant (CLASSIC or KHET_2_0)
+ * @property {SetupVariant} options.config.setup - Board setup variant (CLASSIC, IMHOTEP, or DYNASTY)
+ */
 interface CreateRoomFormProps {
     onSubmit: (options: { isPrivate: boolean; password?: string; config?: { rules: RuleVariant; setup: SetupVariant } }) => void;
     onCancel: () => void;
 }
 
+/**
+ * A form component for creating a new game room with customizable settings.
+ * Renders a modal dialog with options for game rules, board setup, and privacy settings.
+ * 
+ * @component
+ * @param {CreateRoomFormProps} props - The component props
+ * @param {function} props.onSubmit - Callback function called when form is submitted with room configuration
+ * @param {function} props.onCancel - Callback function called when form is cancelled
+ * 
+ * @returns {JSX.Element} A modal dialog containing the room creation form
+ * 
+ * @example
+ * <CreateRoomForm 
+ *   onSubmit={(options) => handleRoomCreation(options)}
+ *   onCancel={() => setShowModal(false)}
+ * />
+ */
 export function CreateRoomForm({ onSubmit, onCancel }: CreateRoomFormProps) {
     const [isPrivate, setIsPrivate] = useState(false);
     const [password, setPassword] = useState('');

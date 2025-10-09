@@ -1,9 +1,19 @@
 import React, { useState } from 'react';
 import { useAuth } from '../state/auth';
 
+/**
+ * Authentication button component that handles user login/logout state.
+ * 
+ * Displays different UI based on authentication state:
+ * - Loading spinner during auth operations
+ * - User info with logout button when authenticated
+ * - Discord login button when not authenticated
+ * 
+ * @returns {JSX.Element} Conditional UI based on auth state
+ */
 export function AuthButton() {
   const { user, loading, login, logout } = useAuth();
-  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false); // Currently unused but reserved for future dropdown functionality
 
   if (loading) {
     return (

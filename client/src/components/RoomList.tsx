@@ -2,19 +2,44 @@ import React, { useState, useEffect } from 'react';
 import DOMPurify from 'dompurify';
 import { SERVER_URL } from '../config/server';
 
+/**
+ * Room information structure
+ */
 interface Room {
+  /** Unique room identifier */
   id: string;
+  /** Number of active players in the room */
   playerCount: number;
+  /** Number of spectators watching the game */
   spectatorCount: number;
+  /** Whether the game has ended with a winner */
   hasWinner: boolean;
+  /** Current player's turn */
   turn: 'RED' | 'SILVER';
+  /** Game configuration including rules and setup variant */
   config?: { rules: string; setup: string };
 }
 
+/**
+ * Props for the RoomList component
+ */
 interface RoomListProps {
+  /** Callback when user selects a room to join */
   onJoinRoom: (roomId: string) => void;
 }
 
+/**
+ * Room browser component for viewing and joining active game rooms
+ * 
+ * Displays a modal with:
+ * - List of active rooms with player counts and game status
+ * - Room configuration details (rules and setup variant)
+ * - Join buttons for each available room
+ * - Auto-refresh every 3 seconds when open
+ * 
+ * @param props - RoomList component props
+ * @returns JSX element representing the room browser
+ */
 export function RoomList({ onJoinRoom }: RoomListProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [showRoomList, setShowRoomList] = useState(false);

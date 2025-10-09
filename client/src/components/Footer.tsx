@@ -1,9 +1,18 @@
 import { PageType } from '../types/navigation';
 
+/**
+ * Props for the Footer component
+ */
 interface FooterProps {
+    /** Optional callback function to handle navigation to different pages */
     onNavigate?: (page: PageType) => void;
 }
 
+/**
+ * Footer component that displays copyright information and navigation links
+ * @param props - The component props
+ * @returns JSX element representing the footer
+ */
 export function Footer({ onNavigate }: FooterProps) {
     return (
         <footer className="bg-dark text-light py-3 mt-auto">

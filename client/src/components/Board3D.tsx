@@ -16,7 +16,7 @@ const GAP = 0.02;             // small gap between tiles
 const BOARD_W = COLS * TILE_SIZE;
 const BOARD_H = ROWS * TILE_SIZE;
 
-// --- color constants ---
+/** color constants for the players */
 const COLORS = {
     RED: '#ff6666',
     SILVER: '#fff'
@@ -53,8 +53,6 @@ function worldToGrid(x: number, z: number): Pos | null {
     if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return null;
     return { r, c };
 }
-
-
 
 /**
  * Converts a cardinal direction to a Y-axis rotation angle in radians
@@ -678,11 +676,19 @@ function Explosion3D({ explosions, setExplosions }: { explosions: Map<string, Ex
 }
 
 /**
- * LaserPath3D component
+ * Renders a 3D laser beam path visualization.
  * 
- * @param path to render
- * @param state current game state
- * @returns JSX.Element | null
+ * @param path - Array of board positions that the laser travels through
+ * @param state - Current game state to determine laser origin position
+ * @returns JSX element for the laser path visualization or null if no path
+ * 
+ * The laser path is rendered as a bright red line starting from either:
+ * - The SPHINX piece position for modern rules
+ * - The board edge position (0,0 for RED or 7,9 for SILVER) for classic rules
+ * 
+ * The line follows each point in the path array, showing reflections and the 
+ * final impact point. The path is rendered slightly elevated above the board
+ * for better visibility.
  */
 function LaserPath3D({ path, state }: { path: Pos[] | undefined; state: GameState }) {
     if (!path || path.length === 0) return null;
@@ -822,10 +828,41 @@ const GroundMesh = React.memo(() => {
 });
 
 /**
- * Board3D component.
- * Renders the 3D board with pieces and laser paths
+ * Main 3D game board component that renders the Khet board and pieces using Three.js/React Three Fiber
+ * 
+ * Features:
+ * - Renders 3D board tiles with alternating colors and player zones
+ * - Displays 3D game pieces with animations for movement and rotation
+ * - Shows laser beam paths with reflections
+ * - Handles piece selection and valid move highlighting
+ * - Includes explosion effects for destroyed pieces
+ * - Provides rotation controls for applicable pieces
+ * - Supports obelisk stacking controls in classic rules
+ * - Has debug mode toggle (press 'd')
+ * - Camera reset button
+ * - Environment mapping for reflective materials
+ * - Shadow rendering
+ * 
+ * State management:
+ * - Uses game state from useGame hook
+ * - Tracks selected piece
+ * - Manages animation states for piece movement/rotation
+ * - Handles explosion effects
+ * - Maintains FPS counter in debug mode
+ * 
+ * Key interactions:
+ * - Click to select/move pieces
+ * - Rotation buttons for applicable pieces
+ * - Stack/unstack controls for obelisks
+ * - Camera reset button
+ * - Debug mode toggle ('d' key)
+ * 
+ * Props:
+ * - environmentPreset - Preset name for the environment lighting/background
+ * - cubeMapQuality - Quality level for cubemap reflections
  *
- * @returns JSX.Element | null
+ * @param environmentPreset - The environment preset to use for lighting/reflections ('park', 'sunset', etc)
+ * @param cubeMapQuality - Quality level for cubemap reflections ('off', 'low', 'medium', 'high', 'ultra') 
  */
 export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: { environmentPreset?: string; cubeMapQuality?: 'off' | 'low' | 'medium' | 'high' | 'ultra' }) {
     const state = useGame(s => s.state);

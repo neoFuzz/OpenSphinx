@@ -2,7 +2,9 @@ import React, { useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
-// --- color constants ---
+/**
+ * color constants for the 2 teams
+ */
 const COLORS = {
     RED: '#ff6666',
     SILVER: '#fff'
@@ -289,7 +291,9 @@ function LaserMesh({ facing, owner }: { facing?: Dir; owner: 'RED' | 'SILVER' })
     );
 }
 
-// Preload all models
+/**
+ *  Preloads all models 
+ */
 export function preloadModels() {
     useGLTF.preload('/models/pharaoh.glb');
     useGLTF.preload('/models/pyramid.glb');

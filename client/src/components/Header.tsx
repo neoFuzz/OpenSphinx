@@ -3,25 +3,56 @@ import { AuthButton } from './AuthButton';
 import styles from './Header.module.css';
 import { PageType } from '../types/navigation';
 
+/**
+ * Props for the Header component
+ */
 interface HeaderProps {
+  /** Main title displayed in the header */
   title?: string;
+  /** Subtitle displayed below the title */
   subtitle?: string;
+  /** Whether the user is currently in a game */
   inGame?: boolean;
+  /** Callback to save the current game */
   onSaveGame?: () => void;
+  /** Callback to load a saved game */
   onLoadGame?: () => void;
+  /** Callback to start a new game */
   onNewGame?: () => void;
+  /** Callback to leave the current game */
   onLeaveGame?: () => void;
+  /** Whether 3D rendering is enabled */
   useThree?: boolean;
+  /** Callback when 3D toggle is changed */
   onToggleThree?: (checked: boolean) => void;
+  /** Whether the app is transitioning between 2D/3D modes */
   isTransitioning?: boolean;
+  /** Current environment preset name */
   environmentPreset?: string;
+  /** Callback when environment preset is changed */
   onEnvironmentChange?: (preset: string) => void;
+  /** Current cube map quality setting */
   cubeMapQuality?: 'off' | 'low' | 'medium' | 'high' | 'ultra';
+  /** Callback when cube map quality is changed */
   onCubeMapQualityChange?: (quality: 'off' | 'low' | 'medium' | 'high' | 'ultra') => void;
+  /** Current active page */
   currentPage?: PageType;
+  /** Callback to navigate to a different page */
   onNavigate?: (page: PageType) => void;
 }
 
+/**
+ * Header component with navigation, game controls, and settings
+ * 
+ * Provides the main application header with:
+ * - Logo and title display
+ * - Game control buttons (save, load, new game, leave)
+ * - Settings sidebar with 3D toggle and environment options
+ * - Account menu with navigation and authentication
+ * 
+ * @param props - Header component props
+ * @returns JSX element representing the header
+ */
 export function Header({
   title = "OpenSphinx",
   subtitle = "Open Source Laser Chess",

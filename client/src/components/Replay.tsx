@@ -5,17 +5,40 @@ import { PieceSVG } from './BoardComponents';
 import { SERVER_URL } from '../config/server';
 import './board.css';
 
+/**
+ * Data structure for replay information
+ */
 interface ReplayData {
+  /** Unique identifier for the replay */
   id: string;
+  /** Display name of the replay */
   name: string;
+  /** Array of game states representing each move */
   gameStates: GameState[];
 }
 
+/**
+ * Props for the Replay component
+ */
 interface ReplayProps {
+  /** ID of the replay to load and display */
   replayId: string;
+  /** Callback when user closes the replay viewer */
   onClose: () => void;
 }
 
+/**
+ * Replay viewer component for watching recorded games
+ * 
+ * Fetches and displays a saved game replay with:
+ * - Navigation controls (start, previous, next, end)
+ * - Visual game board showing piece positions
+ * - Laser path visualization
+ * - Move counter and winner display
+ * 
+ * @param props - Replay component props
+ * @returns JSX element representing the replay viewer
+ */
 export function Replay({ replayId, onClose }: ReplayProps) {
   const [replay, setReplay] = useState<ReplayData | null>(null);
   const [currentMove, setCurrentMove] = useState(0);
@@ -91,7 +114,8 @@ export function Replay({ replayId, onClose }: ReplayProps) {
             {Array.from({ length: ROWS * COLS }, (_, i) => {
               const r = Math.floor(i / COLS);
               const c = i % COLS;
-              const piece = currentState.board[r][c];
+              const cell = currentState.board[r][c];
+              const piece = cell && cell.length > 0 ? cell[0] : null;
 
               let bgColor = undefined;
               if (c === 0 || (c === 8 && (r === 0 || r === 7))) {
@@ -121,4 +145,3 @@ export function Replay({ replayId, onClose }: ReplayProps) {
     </div>
   );
 }
-

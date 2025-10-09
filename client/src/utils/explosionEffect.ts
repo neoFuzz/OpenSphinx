@@ -1,6 +1,14 @@
+/** Web Audio API context for playing sounds */
 let audioContext: AudioContext | null = null;
+/** Decoded audio buffer for explosion sound */
 let explosionBuffer: AudioBuffer | null = null;
 
+/**
+ * Initialize Web Audio API context and load explosion sound
+ * 
+ * Creates audio context and loads the explosion.mp3 file into a buffer
+ * for efficient playback. Handles browser compatibility and errors gracefully.
+ */
 async function initAudio() {
     if (!audioContext) {
         console.log("audio started");
@@ -18,16 +26,23 @@ async function initAudio() {
     }
 }
 
+/**
+ * Play explosion sound effect
+ * 
+ * Initializes audio if needed, resumes suspended audio context,
+ * and plays the explosion sound using Web Audio API for low latency.
+ * Handles various audio context states and errors gracefully.
+ */
 export async function playExplosionSound() {
     await initAudio();
-    
+
     if (audioContext && explosionBuffer) {
         // Resume audio context if suspended
         if (audioContext.state === 'suspended') {
             console.log("audio resumed");
             await audioContext.resume();
         }
-        
+
         if (audioContext.state === 'running') {
             console.log("audio playing");
             try {
@@ -43,6 +58,16 @@ export async function playExplosionSound() {
     }
 }
 
+/**
+ * Display visual explosion effect at specified coordinates
+ * 
+ * Creates a temporary image element with explosion graphic that fades out.
+ * The effect is positioned absolutely within the provided container.
+ * 
+ * @param x - X coordinate in pixels relative to container
+ * @param y - Y coordinate in pixels relative to container  
+ * @param container - HTML element to append the explosion effect to
+ */
 export function showExplosionEffect(x: number, y: number, container: HTMLElement) {
     const img = document.createElement('img');
     img.src = '/explosion.webp';
@@ -68,5 +93,8 @@ export function showExplosionEffect(x: number, y: number, container: HTMLElement
     }, 500);
 }
 
-// Initialize audio on first user interaction
+/**
+ * Initialize audio on first user interaction to comply with browser autoplay policies
+ * Uses 'once' option to ensure the listener is removed after first execution
+ */
 document.addEventListener('click', initAudio, { once: true });
