@@ -2,6 +2,7 @@ import { Cell, Dir, GameState, Pos, Piece } from '../types';
 import { inBounds } from '../constants';
 import { logger } from '../logger';
 
+/** Direction step vectors for laser movement */
 const dirStep: Record<Dir, [number, number]> = {
   N: [-1, 0],
   E: [0, 1],
@@ -10,9 +11,11 @@ const dirStep: Record<Dir, [number, number]> = {
   O: [0, 0] // flag to destroy piece
 };
 
+/** Reflection mapping for '/' mirror orientation */
 const reflectSlash: Record<Dir, Dir> = {
   N: 'E', E: 'N', S: 'W', W: 'S', O: 'O'
 };
+/** Reflection mapping for '\' mirror orientation */
 const reflectBackslash: Record<Dir, Dir> = {
   N: 'W', W: 'N', S: 'E', E: 'S', O: 'O'
 };
@@ -51,6 +54,12 @@ function canReflectFromPyramid(laserDir: Dir, pyramidOrientation: Dir): boolean 
   return reflectMap[pyramidOrientation].includes(laserDir);
 }
 
+/**
+ * Calculates the new laser direction after reflection from a pyramid
+ * @param laserDir - The incoming laser direction
+ * @param pyramidOrientation - The pyramid's orientation
+ * @returns The reflected laser direction or 'O' if destroyed
+ */
 function reflectFromPyramid(laserDir: Dir, pyramidOrientation: Dir): Dir {
   // Pyramid reflection based on orientation rules
   const reflections: Record<Dir, Record<Dir, Dir>> = {
@@ -89,6 +98,7 @@ function reflectFromPyramid(laserDir: Dir, pyramidOrientation: Dir): Dir {
   return reflections[pyramidOrientation][laserDir];
 }
 
+/** Result of firing a laser, including path and any destruction */
 export interface LaserResult {
   path: Pos[];
   destroyed?: { pos: Pos; piece: Piece; remainingStack?: Piece[] };
@@ -113,6 +123,12 @@ export function fireLaser(state: GameState, gameId?: string): LaserResult {
   return traceLaserPath(state.board, start, gameId);
 }
 
+/**
+ * Finds the laser emitter for the current player
+ * @param board - The game board
+ * @param turn - Current player's turn
+ * @returns Laser emitter position and direction, or null if not found
+ */
 function findLaserEmitter(board: Cell[][], turn: 'RED' | 'SILVER'): { pos: Pos; dir: Dir } | null {
   // Check for SPHINX pieces on board
   for (let r = 0; r < board.length; r++) {
@@ -135,6 +151,13 @@ function findLaserEmitter(board: Cell[][], turn: 'RED' | 'SILVER'): { pos: Pos; 
   }
 }
 
+/**
+ * Traces the laser path from start position until it stops
+ * @param board - The game board
+ * @param start - Starting position and direction
+ * @param gameId - Optional game ID for logging
+ * @returns LaserResult with path and any destruction
+ */
 function traceLaserPath(board: Cell[][], start: { pos: Pos; dir: Dir }, gameId?: string): LaserResult {
   let { r, c } = start.pos;
   let dir: Dir = start.dir;
@@ -174,6 +197,15 @@ function traceLaserPath(board: Cell[][], start: { pos: Pos; dir: Dir }, gameId?:
   return { path };
 }
 
+/**
+ * Handles laser interaction with a piece at a cell
+ * @param piece - The piece being hit by the laser
+ * @param dir - Laser direction
+ * @param pos - Position of the piece
+ * @param gameId - Optional game ID for logging
+ * @param cell - Optional full cell stack for obelisk handling
+ * @returns Interaction result with stop flag and new direction
+ */
 function handleCellInteraction(piece: Piece, dir: Dir, pos: Pos, gameId?: string, cell?: Piece[]) {
   const { r, c } = pos;
 
@@ -219,6 +251,14 @@ function handleCellInteraction(piece: Piece, dir: Dir, pos: Pos, gameId?: string
   return { stop: false, newDir: undefined };
 }
 
+/**
+ * Handles laser interaction with an Anubis piece
+ * @param piece - The Anubis piece
+ * @param dir - Laser direction
+ * @param pos - Position of the piece
+ * @param gameId - Optional game ID for logging
+ * @returns Interaction result
+ */
 function handleAnubisInteraction(piece: Piece, dir: Dir, pos: Pos, gameId?: string) {
   const { r, c } = pos;
   const blockMap = { N: 'S', E: 'W', S: 'N', W: 'E', O: 'O' };
@@ -232,6 +272,14 @@ function handleAnubisInteraction(piece: Piece, dir: Dir, pos: Pos, gameId?: stri
   return { stop: true, result: { destroyed: { pos, piece } }, newDir: undefined };
 }
 
+/**
+ * Handles laser interaction with a Pyramid piece
+ * @param piece - The Pyramid piece
+ * @param dir - Laser direction
+ * @param pos - Position of the piece
+ * @param gameId - Optional game ID for logging
+ * @returns Interaction result with potential reflection
+ */
 function handlePyramidInteraction(piece: Piece, dir: Dir, pos: Pos, gameId?: string) {
   const { r, c } = pos;
 
@@ -250,6 +298,13 @@ function handlePyramidInteraction(piece: Piece, dir: Dir, pos: Pos, gameId?: str
   return { stop: false, newDir };
 }
 
+/**
+ * Handles laser interaction with a Djed (mirror) piece
+ * @param piece - The Djed piece
+ * @param dir - Laser direction
+ * @param pos - Position of the piece
+ * @returns Interaction result with reflection or destruction
+ */
 function handleDjedInteraction(piece: Piece, dir: Dir, pos: Pos) {
   if (!piece.mirror) {
     return { stop: true, result: { destroyed: { pos, piece } }, newDir: undefined };

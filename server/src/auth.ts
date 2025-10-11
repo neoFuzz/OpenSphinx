@@ -3,18 +3,29 @@ import jwt from 'jsonwebtoken';
 import axios from 'axios';
 import { database } from './database';
 
+/** Express router for authentication endpoints */
 const router = express.Router();
 
+/** Discord OAuth client ID from environment variables */
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID!;
+/** Discord OAuth client secret from environment variables */
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET!;
+/** Discord OAuth redirect URI from environment variables */
 const DISCORD_REDIRECT_URI = process.env.DISCORD_REDIRECT_URI!;
+/** JWT secret key from environment variables */
 const JWT_SECRET = process.env.JWT_SECRET!;
 
+/**
+ * Initiates Discord OAuth flow by redirecting to Discord authorization URL
+ * @route GET /auth/discord
+ * @param {express.Request} req - Express request object
+ * @param {express.Response} res - Express response object
+ */
 router.get('/discord', (req, res) => {
   try {
     const redirectUrl = new URL(DISCORD_REDIRECT_URI);
     if (!['localhost', '127.0.0.1'].includes(redirectUrl.hostname) &&
-     !redirectUrl.hostname.endsWith(process.env.ALLOWED_DOMAIN || '')) {
+      !redirectUrl.hostname.endsWith(process.env.ALLOWED_DOMAIN || '')) {
       throw new Error('Invalid redirect URI');
     }
     const discordAuthUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUrl.href)}&response_type=code&scope=identify`;
@@ -24,9 +35,16 @@ router.get('/discord', (req, res) => {
   }
 });
 
+/**
+ * Handles Discord OAuth callback, exchanges code for access token,
+ * fetches user data, creates/updates user in database, and sets JWT cookie
+ * @route GET /auth/discord/callback
+ * @param {express.Request} req - Express request object with code query parameter
+ * @param {express.Response} res - Express response object
+ */
 router.get('/discord/callback', async (req, res) => {
   const { code } = req.query;
-  
+
   if (!code) {
     return res.status(400).json({ error: 'No code provided' });
   }
@@ -49,9 +67,9 @@ router.get('/discord/callback', async (req, res) => {
     });
 
     const discordUser = userResponse.data;
-    const avatarUrl = discordUser.avatar 
-      ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
-      : undefined;
+    const avatarUrl = discordUser.avatar ?
+      `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png` :
+      undefined;
 
     let user = await database.getUserByDiscordId(discordUser.id);
     if (!user) {
@@ -62,8 +80,8 @@ router.get('/discord/callback', async (req, res) => {
 
     const token = jwt.sign({ userId: user!.id, discordId: user!.discordId }, JWT_SECRET, { expiresIn: '7d' });
 
-    res.cookie('auth_token', token, { 
-      httpOnly: true, 
+    res.cookie('auth_token', token, {
+      httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000,
       secure: DISCORD_REDIRECT_URI.startsWith('https:')
     });
@@ -74,14 +92,26 @@ router.get('/discord/callback', async (req, res) => {
   }
 });
 
+/**
+ * Logs out user by clearing the authentication cookie
+ * @route POST /auth/logout
+ * @param {express.Request} req - Express request object
+ * @param {express.Response} res - Express response object
+ */
 router.post('/logout', (req, res) => {
   res.clearCookie('auth_token');
   res.json({ success: true });
 });
 
+/**
+ * Gets current authenticated user information from JWT token
+ * @route GET /auth/me
+ * @param {express.Request} req - Express request object with auth_token cookie
+ * @param {express.Response} res - Express response object
+ */
 router.get('/me', async (req, res) => {
   const token = req.cookies.auth_token;
-  
+
   if (!token) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
@@ -89,7 +119,7 @@ router.get('/me', async (req, res) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     const user = await database.getUserByDiscordId(decoded.discordId);
-    
+
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
     }

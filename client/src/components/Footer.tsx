@@ -25,6 +25,9 @@ export function Footer({ onNavigate }: FooterProps) {
                         <a href="https://github.com/neofuzz/OpenSphinx" className="text-light me-3" target="_blank" rel="noopener noreferrer">
                             GitHub
                         </a>
+                        <a href="https://discord.gg/8eYTA7gkQV" className="text-light me-3" target="_blank" rel="noopener noreferrer">
+                            Discord
+                        </a>
                         <a href="#" className="text-light me-3" onClick={(e) => { e.preventDefault(); onNavigate?.('rules'); }}>Rules</a>
                         <a href="#" className="text-light me-3" onClick={(e) => { e.preventDefault(); onNavigate?.('terms'); }}>Terms of Service</a>
                         <a href="#" className="text-light me-3">Privacy Policy</a>

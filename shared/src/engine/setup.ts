@@ -3,11 +3,13 @@ import { Cell, GameState, createPiece, GameConfig, RuleVariant, SetupVariant } f
 import { COLS, ROWS } from '../constants';
 
 /**
- * Board is using a Y-X coordinate system
+ * Creates the initial game state based on the specified configuration
+ * @param config - Optional game configuration specifying rules and setup variant
+ * @returns Initial game state with board setup and starting player
  */
 export function createInitialState(config?: GameConfig): GameState {
   const gameConfig: GameConfig = config || { rules: 'CLASSIC', setup: 'CLASSIC' };
-  
+
   switch (gameConfig.setup) {
     case 'IMHOTEP':
       return createImhotepSetup(gameConfig);
@@ -19,13 +21,20 @@ export function createInitialState(config?: GameConfig): GameState {
   }
 }
 
+/**
+ * Creates the classic game setup with standard piece placement
+ * @param config - Game configuration
+ * @returns Game state with classic board setup
+ */
 function createClassicSetup(config: GameConfig): GameState {
+  /** Initialize empty board */
   const board: Cell[][] = Array.from({ length: ROWS }, () =>
     Array.from({ length: COLS }, () => null)
   );
 
+  /** Check if using classic rules (affects piece types) */
   const isClassic = config.rules === 'CLASSIC';
-  
+
   // Lasers (Classic: off-board, Khet 2.0: movable SPHINX)
   if (!isClassic) {
     board[0][0] = [createPiece({ id: 'L_RED', owner: 'RED', kind: 'SPHINX', facing: 'S' })];
@@ -47,7 +56,7 @@ function createClassicSetup(config: GameConfig): GameState {
 
   board[3][4] = [createPiece({ id: 'R_DJED1', owner: 'RED', kind: 'DJED', mirror: '\\' })];
   board[3][5] = [createPiece({ id: 'R_DJED2', owner: 'RED', kind: 'DJED', mirror: '/' })];
-  
+
   // Classic: OBELISK, Khet 2.0: ANUBIS
   if (isClassic) {
     board[0][4] = [createPiece({ id: 'R_OBE1_1', owner: 'RED', kind: 'OBELISK' }), createPiece({ id: 'R_OBE1_2', owner: 'RED', kind: 'OBELISK' })];
@@ -68,7 +77,7 @@ function createClassicSetup(config: GameConfig): GameState {
 
   board[4][4] = [createPiece({ id: 'S_DJED2', owner: 'SILVER', kind: 'DJED', mirror: '/' })];
   board[4][5] = [createPiece({ id: 'S_DJED1', owner: 'SILVER', kind: 'DJED', mirror: '\\' })];
-  
+
   // Classic: OBELISK, Khet 2.0: ANUBIS
   if (isClassic) {
     board[7][3] = [createPiece({ id: 'S_OBE1_1', owner: 'SILVER', kind: 'OBELISK' }), createPiece({ id: 'S_OBE1_2', owner: 'SILVER', kind: 'OBELISK' })];
@@ -81,13 +90,20 @@ function createClassicSetup(config: GameConfig): GameState {
   return { board, turn: 'RED', config };
 }
 
+/**
+ * Creates the Imhotep variant setup with alternative piece placement
+ * @param config - Game configuration
+ * @returns Game state with Imhotep board setup
+ */
 function createImhotepSetup(config: GameConfig): GameState {
+  /** Initialize empty board */
   const board: Cell[][] = Array.from({ length: ROWS }, () =>
     Array.from({ length: COLS }, () => null)
   );
 
+  /** Check if using classic rules (affects piece types) */
   const isClassic = config.rules === 'CLASSIC';
-  
+
   // Lasers
   if (!isClassic) {
     board[0][0] = [createPiece({ id: 'L_RED', owner: 'RED', kind: 'SPHINX', facing: 'S' })];
@@ -109,7 +125,7 @@ function createImhotepSetup(config: GameConfig): GameState {
 
   board[3][3] = [createPiece({ id: 'R_DJED1', owner: 'RED', kind: 'DJED', mirror: '\\' })];
   board[4][6] = [createPiece({ id: 'R_DJED2', owner: 'RED', kind: 'DJED', mirror: '/' })];
-  
+
   if (isClassic) {
     board[0][3] = [createPiece({ id: 'R_OBE1_1', owner: 'RED', kind: 'OBELISK' }), createPiece({ id: 'R_OBE1_2', owner: 'RED', kind: 'OBELISK' })];
     board[0][5] = [createPiece({ id: 'R_OBE2_1', owner: 'RED', kind: 'OBELISK' }), createPiece({ id: 'R_OBE2_2', owner: 'RED', kind: 'OBELISK' })];
@@ -129,7 +145,7 @@ function createImhotepSetup(config: GameConfig): GameState {
 
   board[3][6] = [createPiece({ id: 'S_DJED1', owner: 'SILVER', kind: 'DJED', mirror: '/' })];
   board[4][3] = [createPiece({ id: 'S_DJED2', owner: 'SILVER', kind: 'DJED', mirror: '\\' })];
-  
+
   if (isClassic) {
     board[7][4] = [createPiece({ id: 'S_OBE1_1', owner: 'SILVER', kind: 'OBELISK' }), createPiece({ id: 'S_OBE1_2', owner: 'SILVER', kind: 'OBELISK' })];
     board[7][6] = [createPiece({ id: 'S_OBE2_1', owner: 'SILVER', kind: 'OBELISK' }), createPiece({ id: 'S_OBE2_2', owner: 'SILVER', kind: 'OBELISK' })];
@@ -141,13 +157,20 @@ function createImhotepSetup(config: GameConfig): GameState {
   return { board, turn: 'RED', config };
 }
 
+/**
+ * Creates the Dynasty variant setup with alternative piece placement
+ * @param config - Game configuration
+ * @returns Game state with Dynasty board setup
+ */
 function createDynastySetup(config: GameConfig): GameState {
+  /** Initialize empty board */
   const board: Cell[][] = Array.from({ length: ROWS }, () =>
     Array.from({ length: COLS }, () => null)
   );
 
+  /** Check if using classic rules (affects piece types) */
   const isClassic = config.rules === 'CLASSIC';
-  
+
   // Lasers
   if (!isClassic) {
     board[0][0] = [createPiece({ id: 'L_RED', owner: 'RED', kind: 'SPHINX', facing: 'S' })];
@@ -169,7 +192,7 @@ function createDynastySetup(config: GameConfig): GameState {
 
   board[3][5] = [createPiece({ id: 'R_DJED1', owner: 'RED', kind: 'DJED', mirror: '\\' })];
   board[4][4] = [createPiece({ id: 'R_DJED2', owner: 'RED', kind: 'DJED', mirror: '/' })];
-  
+
   if (isClassic) {
     board[0][4] = [createPiece({ id: 'R_OBE1_1', owner: 'RED', kind: 'OBELISK' }), createPiece({ id: 'R_OBE1_2', owner: 'RED', kind: 'OBELISK' })];
     board[0][6] = [createPiece({ id: 'R_OBE2_1', owner: 'RED', kind: 'OBELISK' }), createPiece({ id: 'R_OBE2_2', owner: 'RED', kind: 'OBELISK' })];
@@ -189,7 +212,7 @@ function createDynastySetup(config: GameConfig): GameState {
 
   board[3][4] = [createPiece({ id: 'S_DJED1', owner: 'SILVER', kind: 'DJED', mirror: '/' })];
   board[4][5] = [createPiece({ id: 'S_DJED2', owner: 'SILVER', kind: 'DJED', mirror: '\\' })];
-  
+
   if (isClassic) {
     board[7][3] = [createPiece({ id: 'S_OBE1_1', owner: 'SILVER', kind: 'OBELISK' }), createPiece({ id: 'S_OBE1_2', owner: 'SILVER', kind: 'OBELISK' })];
     board[7][5] = [createPiece({ id: 'S_OBE2_1', owner: 'SILVER', kind: 'OBELISK' }), createPiece({ id: 'S_OBE2_2', owner: 'SILVER', kind: 'OBELISK' })];

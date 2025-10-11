@@ -18,6 +18,11 @@ import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import { all } from 'axios';
 
+/**
+ * Validates if a hostname is allowed based on environment configuration
+ * @param hostname - Hostname to validate
+ * @returns True if hostname is allowed
+ */
 const isValidHostname = (hostname: string): boolean => {
   const allowedDomain = process.env.ALLOWED_DOMAIN || '.';
   return hostname === 'localhost' ||
@@ -25,6 +30,11 @@ const isValidHostname = (hostname: string): boolean => {
     hostname.endsWith(allowedDomain);
 };
 
+/**
+ * Validates and filters client URLs based on protocol and hostname
+ * @param urls - Array of client URLs to validate
+ * @returns Filtered array of valid URLs
+ */
 const validateClientUrls = (urls: string[]): string[] => {
   return urls.filter(url => {
     try {
@@ -37,7 +47,9 @@ const validateClientUrls = (urls: string[]): string[] => {
   });
 };
 
+/** Validated client URLs for CORS */
 const CLIENT_URLS = validateClientUrls(process.env.CLIENT_URLS?.split(',') || ['http://localhost:5173']);
+/** Production environment flag */
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 console.log("Running in production mode:", IS_PRODUCTION)
@@ -47,6 +59,7 @@ logger.info(`ALLOWED_DOMAIN: ${process.env.ALLOWED_DOMAIN}`);
 logger.info(`CLIENT_URLS from env: ${process.env.CLIENT_URLS}`);
 logger.info('Validated CLIENT_URLS:', CLIENT_URLS);
 
+/** Express application instance */
 const app = express();
 
 // Trust proxy for production deployments
@@ -68,7 +81,7 @@ app.use(cors({
 app.use(cookieParser());
 app.use(express.json());
 
-// CSRF protection
+/** CSRF protection middleware */
 const csrfProtection = csrf({
   cookie: true
 });
@@ -78,7 +91,7 @@ app.get('/api/csrf-token', csrfProtection, (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
 });
 
-// Rate limiting for auth endpoints
+/** Rate limiter for authentication endpoints */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // 100 attempts per window
@@ -87,7 +100,7 @@ const authLimiter = rateLimit({
   legacyHeaders: false
 });
 
-// General API rate limiting
+/** General API rate limiter */
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000, // 1000 requests per window
@@ -96,7 +109,10 @@ const apiLimiter = rateLimit({
   legacyHeaders: false
 });
 
-// Game management endpoints (before rate limiter)
+/**
+ * GET /api/games - Lists all saved games
+ * @route GET /api/games
+ */
 app.get('/api/games', optionalAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const games = await database.listGames();
@@ -109,6 +125,10 @@ app.get('/api/games', optionalAuth, async (req: AuthenticatedRequest, res) => {
 
 
 
+/**
+ * GET /api/stats/:userId - Gets player statistics
+ * @route GET /api/stats/:userId
+ */
 app.get('/api/stats/:userId', async (req, res) => {
   try {
     const stats = await database.getPlayerStats(req.params.userId);
@@ -119,6 +139,10 @@ app.get('/api/stats/:userId', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/replays - Lists all game replays
+ * @route GET /api/replays
+ */
 app.get('/api/replays', async (_req, res) => {
   try {
     const replays = await database.listReplays();
@@ -129,6 +153,10 @@ app.get('/api/replays', async (_req, res) => {
   }
 });
 
+/**
+ * GET /api/replays/:id - Gets specific replay by ID
+ * @route GET /api/replays/:id
+ */
 app.get('/api/replays/:id', async (req, res) => {
   try {
     const replay = await database.loadReplay(req.params.id);
@@ -147,6 +175,10 @@ app.use('/api', apiLimiter);
 app.use('/auth', authLimiter, authRoutes);
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
+/**
+ * DELETE /api/games/:id - Deletes a saved game
+ * @route DELETE /api/games/:id
+ */
 app.delete('/api/games/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
   try {
     await database.deleteGame(req.params.id);
@@ -157,7 +189,7 @@ app.delete('/api/games/:id', authenticateToken, async (req: AuthenticatedRequest
   }
 });
 
-// HTTPS setup for production
+/** HTTP/HTTPS server instance */
 let server;
 if (IS_PRODUCTION && process.env.SSL_KEY && process.env.SSL_CERT) {
   const options = {
@@ -168,6 +200,7 @@ if (IS_PRODUCTION && process.env.SSL_KEY && process.env.SSL_CERT) {
 } else {
   server = http.createServer(app);
 }
+/** Socket.IO server instance */
 const io = new Server(server, {
   cors: {
     origin: CLIENT_URLS,
@@ -175,12 +208,16 @@ const io = new Server(server, {
   }
 });
 
+/** Rooms manager instance */
 const rooms = createRoomsManager(io);
 
 // Create a default room on startup with classic setup and khet 2.0 rules
 rooms.createRoom({ config: { rules: 'KHET_2_0', setup: 'CLASSIC' } });
 
-// Add rooms endpoint after rooms is created
+/**
+ * GET /api/rooms - Lists all public rooms
+ * @route GET /api/rooms
+ */
 app.get('/api/rooms', (_req, res) => {
   try {
     const roomList = rooms.listRooms();
@@ -191,6 +228,10 @@ app.get('/api/rooms', (_req, res) => {
   }
 });
 
+/**
+ * GET /api/user/active-games - Gets user's active games
+ * @route GET /api/user/active-games
+ */
 app.get('/api/user/active-games', authenticateToken, (req: AuthenticatedRequest, res) => {
   try {
     const activeGames = rooms.getUserActiveGames(req.user!.id);
@@ -201,7 +242,10 @@ app.get('/api/user/active-games', authenticateToken, (req: AuthenticatedRequest,
   }
 });
 
-// Socket authentication middleware
+/**
+ * Socket.IO authentication middleware
+ * Extracts JWT token and sets user data on socket
+ */
 io.use((socket, next) => {
   const token = socket.handshake.auth.token || socket.handshake.headers.cookie?.split('auth_token=')[1]?.split(';')[0];
 
@@ -217,9 +261,17 @@ io.use((socket, next) => {
   next();
 });
 
+/**
+ * Socket.IO connection handler
+ * Sets up event listeners for game actions
+ */
 io.on('connection', (socket) => {
-  socket.on('room:create', (options: { isPrivate?: boolean; password?: string; config?: GameConfig }, ack?: Function) => ack?.(rooms.createRoom(options)));
-  socket.on('room:join', ({ roomId, name, password }: { roomId: string; name: string; password?: string }, ack?: Function) => {
+  socket.on('room:create',
+    (options: { isPrivate?: boolean; password?: string; config?: GameConfig }, ack?: Function) =>
+      ack?.(rooms.createRoom(options)));
+  socket.on('room:join', ({ roomId, name, password }: {
+    roomId: string; name: string; password?: string
+  }, ack?: Function) => {
     const userId = socket.data.userId;
     rooms.joinRoom(socket, roomId, name, password, userId, ack);
   });
@@ -232,6 +284,8 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => rooms.leaveAll(socket));
 });
 
+/** Server port from environment or default */
 const PORT = Number(process.env.PORT) || 3001;
+/** Server host from environment or default */
 const HOST = process.env.HOST || '0.0.0.0';
 server.listen(PORT, HOST, () => logger.info(`Server listening on ${HOST}:${PORT}`));

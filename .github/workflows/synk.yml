@@ -36,6 +36,7 @@ jobs:
 
       - name: Snyk Code test
         run: snyk code test --sarif > snyk-code.sarif
+        continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 

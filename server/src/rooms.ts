@@ -5,6 +5,7 @@ import { applyMove, createInitialState } from '../../shared/src/engine';
 import { database } from './database';
 import { logger } from '../../shared/src/logger';
 
+/** Represents a game room with players, state, and configuration */
 interface Room {
   id: string;
   players: { socketId: string; name: string; color: 'RED' | 'SILVER'; userId?: string }[];
@@ -18,12 +19,21 @@ interface Room {
   finishedAt?: number;
 }
 
+/** Generates a unique room ID with current year and random string */
 const makeId = () => `${new Date().getFullYear()}${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
+/**
+ * Creates and returns a rooms manager for handling game rooms
+ * @param io - Socket.IO server instance
+ * @returns Object with room management functions
+ */
 export function createRoomsManager(io: Server) {
+  /** Map of room IDs to Room objects */
   const rooms = new Map<string, Room>();
+  /** Map of socket IDs to their joined room IDs */
   const socketToRooms = new Map<string, Set<string>>();
-  const userSessions = new Map<string, Set<string>>(); // userId -> Set of socketIds
+  /** Map of user IDs to their active socket IDs */
+  const userSessions = new Map<string, Set<string>>();
 
   // Cleanup finished games every 30 seconds
   setInterval(() => {
@@ -36,6 +46,11 @@ export function createRoomsManager(io: Server) {
     }
   }, 30000);
 
+  /**
+   * Creates a new game room
+   * @param options - Room configuration options
+   * @returns Object containing the new room ID
+   */
   function createRoom(options?: { isPrivate?: boolean; password?: string; config?: GameConfig }): { roomId: string } {
     const roomId = makeId();
     const config: GameConfig = options?.config || { rules: 'CLASSIC', setup: 'CLASSIC' };
@@ -60,6 +75,15 @@ export function createRoomsManager(io: Server) {
     return { roomId };
   }
 
+  /**
+   * Handles a player joining a room
+   * @param socket - Socket.IO socket instance
+   * @param roomId - ID of room to join
+   * @param name - Player display name
+   * @param password - Optional room password
+   * @param userId - Optional authenticated user ID
+   * @param ack - Optional acknowledgment callback
+   */
   function joinRoom(socket: Socket, roomId: string, name: string, password?: string, userId?: string, ack?: Function) {
     const room = rooms.get(roomId);
     if (!room) {
@@ -84,7 +108,7 @@ export function createRoomsManager(io: Server) {
     }
 
     const current = room.players.map(p => p.socketId);
-    if (current.includes(socket.id)) 
+    if (current.includes(socket.id))
       return ack?.({ ok: true, color: room.players.find(p => p.socketId === socket.id)?.color });
 
     if (room.players.length < 2) {
@@ -114,6 +138,11 @@ export function createRoomsManager(io: Server) {
     }
   }
 
+  /**
+   * Returns public room state for clients
+   * @param room - Room object
+   * @returns Public room state without sensitive data
+   */
   function publicState(room: Room) {
     return {
       roomId: room.id,
@@ -123,6 +152,11 @@ export function createRoomsManager(io: Server) {
     };
   }
 
+  /**
+   * Handles a player move in a game
+   * @param socket - Socket.IO socket instance
+   * @param payload - Move payload with room ID and move data
+   */
   function handleMove(socket: Socket, payload: { roomId: string; move: Move }) {
     const room = rooms.get(payload.roomId);
     if (!room) return;
@@ -166,6 +200,10 @@ export function createRoomsManager(io: Server) {
     }
   }
 
+  /**
+   * Removes a socket from all rooms and cleans up
+   * @param socket - Socket.IO socket instance to remove
+   */
   function leaveAll(socket: Socket) {
     const set = socketToRooms.get(socket.id);
     if (!set) return;
@@ -194,12 +232,22 @@ export function createRoomsManager(io: Server) {
     socketToRooms.delete(socket.id);
   }
 
+  /**
+   * Associates a socket with a room
+   * @param socketId - Socket ID to associate
+   * @param roomId - Room ID to associate with
+   */
   function addSocketRoom(socketId: string, roomId: string) {
     const set = socketToRooms.get(socketId) ?? new Set<string>();
     set.add(roomId);
     socketToRooms.set(socketId, set);
   }
 
+  /**
+   * Saves the current game state to database
+   * @param socket - Socket.IO socket instance
+   * @param payload - Save payload with room ID, name, and optional user ID
+   */
   async function saveGame(socket: Socket, payload: { roomId: string; name: string; userId?: string }) {
     const room = rooms.get(payload.roomId);
     if (!room) return;
@@ -217,6 +265,12 @@ export function createRoomsManager(io: Server) {
     }
   }
 
+  /**
+   * Loads a saved game and creates a new room
+   * @param socket - Socket.IO socket instance
+   * @param payload - Load payload with game ID
+   * @param ack - Optional acknowledgment callback
+   */
   async function loadGame(socket: Socket, payload: { gameId: string }, ack?: Function) {
     try {
       const savedGame = await database.loadGame(payload.gameId);
@@ -243,6 +297,10 @@ export function createRoomsManager(io: Server) {
     }
   }
 
+  /**
+   * Returns list of public rooms
+   * @returns Array of public room information
+   */
   function listRooms() {
     return Array.from(rooms.values())
       .filter(room => !room.isPrivate) // Only show public rooms in the list
@@ -256,6 +314,11 @@ export function createRoomsManager(io: Server) {
       }));
   }
 
+  /**
+   * Returns list of active games for a user
+   * @param userId - User ID to filter games
+   * @returns Array of active game information
+   */
   function getUserActiveGames(userId: string) {
     return Array.from(rooms.values())
       .filter(room => room.players.some(p => p.userId === userId && !room.state.winner))
