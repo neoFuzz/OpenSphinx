@@ -15,6 +15,7 @@ import { Stats } from './components/Stats';
 import { Rules } from './components/Rules';
 import { TermsOfService } from './components/TermsOfService';
 import { About } from './components/About';
+import { AdSense } from './components/AdSense';
 
 /** Lazy-loaded 2D board component */
 const Board2D = React.lazy(() => import('./components/Board').then(m => ({ default: m.Board })));
@@ -127,6 +128,8 @@ export default function App() {
                             <GameArea useThree={useThree} replayId={replayId} setReplayId={setReplayId} isTransitioning={isTransitioning} environmentPreset={environmentPreset} cubeMapQuality={cubeMapQuality} />
                         </React.Suspense>
 
+                        {!state && <div className="my-3"><AdSense slot={import.meta.env.VITE_ADSENSE_SLOT_LOBBY || '1234567890'} /></div>}
+
                         <GameModal />
                         {showCreateForm && (
                             <CreateRoomForm
@@ -212,19 +215,23 @@ function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmen
         <div>
             <div className="alert alert-info">Join a room to start.</div>
             <RoomListDisplay />
+            <div className="my-3"><AdSense slot={import.meta.env.VITE_ADSENSE_SLOT_LOBBY || '1234567890'} /></div>
         </div>
     );
     return (
         <div>
             {state.winner && (
-                <div className="mb-3">
-                    <button
-                        className="btn btn-secondary"
-                        onClick={() => useGame.setState({ roomId: undefined, state: undefined })}
-                    >
-                        Exit to Home
-                    </button>
-                </div>
+                <>
+                    <div className="mb-3">
+                        <button
+                            className="btn btn-secondary"
+                            onClick={() => useGame.setState({ roomId: undefined, state: undefined })}
+                        >
+                            Exit to Home
+                        </button>
+                    </div>
+                    <div className="my-3"><AdSense slot={import.meta.env.VITE_ADSENSE_SLOT_POSTGAME || '9876543210'} /></div>
+                </>
             )}
             {isTransitioning ? (
                 <div className="text-center p-5">

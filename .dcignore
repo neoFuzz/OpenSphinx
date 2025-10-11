@@ -1,0 +1,151 @@
+# Write glob rules for ignored files.
+# Check syntax on https://deepcode.freshdesk.com/support/solutions/articles/60000531055-how-can-i-ignore-files-or-directories-
+# Check examples on https://github.com/github/gitignore
+
+# Hidden directories
+.*/
+
+# AppEngine
+appengine-generated/
+
+# Textpattern
+rpc/
+sites/site*/admin/
+sites/site*/private/
+sites/site*/public/admin/
+sites/site*/public/setup/
+sites/site*/public/theme/
+textpattern/
+
+# CMake
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+_deps
+
+# ExtJs
+build/
+ext/
+
+# Strapi
+Icon
+*~
+$RECYCLE.BIN/
+*#
+nbproject
+lib-cov
+pids
+logs
+results
+build
+node_modules
+testApp
+coverage
+cypress/screenshots
+cypress/videos
+dist
+packages/strapi-generate-new/files/public/
+
+# SPFx
+logs
+node_modules
+dist
+lib
+solution
+temp
+coverage
+bin
+obj
+
+# Vue
+docs/_book
+test/
+
+# JupyterNotebooks
+profile_default/
+
+# Composer
+/vendor/
+
+# Maven
+target/
+
+# Windows
+$RECYCLE.BIN/
+
+# VisualStudio
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+Generated Files/
+[Tt]est[Rr]esult*/
+[Dd]ebugPS/
+[Rr]eleasePS/
+BenchmarkDotNet.Artifacts/
+artifacts/
+_Chutzpah*
+ipch/
+$tf/
+_ReSharper*/
+_TeamCity*
+_NCrunch_*
+nCrunchTemp_*
+AutoTest.Net/
+[Ee]xpress/
+DocProject/buildhelp/
+DocProject/Help/Html2
+DocProject/Help/html
+publish/
+PublishScripts/
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+csx/
+ecf/
+rcf/
+AppPackages/
+BundleArtifacts/
+!?*.[Cc]ache/
+ClientBin/
+~$*
+*~
+Generated_Code/
+_UpgradeReport_Files/
+Backup*/
+ServiceFabricBackup/
+FakesAssemblies/
+node_modules/
+**/*.HTMLClient/GeneratedArtifacts
+**/*.DesktopClient/GeneratedArtifacts
+**/*.Server/GeneratedArtifacts
+_Pvt_Extensions
+paket-files/
+__pycache__/
+OpenCover/
+ASALocalRun/
+healthchecksdb
+MigrationBackup/
+
+# Node
+logs
+pids
+lib-cov
+coverage
+bower_components
+build/Release
+node_modules/
+jspm_packages/
+web_modules/
+out
+dist
