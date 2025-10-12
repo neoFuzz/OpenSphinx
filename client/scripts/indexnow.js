@@ -5,7 +5,6 @@
  * Creates verification key file in public directory
  */
 import fs from 'fs';
-import https from 'https';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -14,6 +13,38 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const key = process.env.INDEXNOW_KEY;
 const siteUrl = process.env.VITE_SITE_URL;
 const adsContent = process.env.ADS_TXT_CONTENT;
+const url = new URL(siteUrl);
+
+async function submitToIndexNow(urls) {
+  try {
+    const payload = {
+      host: url.hostname,
+      key: key,
+      keyLocation: `${url.origin}/${key}.txt`,
+      urlList: urls
+    };
+    console.log("IndexNow Payload: ", payload);
+
+    const response = await fetch("https://api.indexnow.org/IndexNow", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`IndexNow submission failed: ${response.status} - ${text}`);
+    }
+
+    console.log("✅ IndexNow submission successful");
+    const result = await response.json().catch(() => ({}));
+    console.log(result);
+  } catch (err) {
+    console.error("❌ Error submitting to IndexNow:", err);
+  }
+}
 
 // Skip if environment variables not configured
 if (!key || !siteUrl) {
@@ -32,25 +63,10 @@ if (adsContent) {
   const adsFilePath = path.join(distDir, 'ads.txt');
   fs.writeFileSync(adsFilePath, adsContent);
   console.log(`Created ads.txt: ${adsFilePath}`);
+  
+  const appAdsFilePath = path.join(distDir, 'app-ads.txt');
+  fs.writeFileSync(appAdsFilePath, adsContent);
+  console.log(`Created ads.txt: ${appAdsFilePath}`);
 }
 
-// Build IndexNow API payload
-const url = new URL(siteUrl);
-const data = JSON.stringify({
-  host: url.hostname,
-  key,
-  keyLocation: `${url.origin}/${key}.txt`,
-  urlList: [`${url.origin}/`]
-});
-
-// Submit to IndexNow API
-const req = https.request('https://api.indexnow.org/indexnow', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' }
-}, (res) => {
-  console.log(`IndexNow: ${res.statusCode}`);
-});
-
-req.on('error', (e) => console.error('IndexNow failed:', e.message));
-req.write(data);
-req.end();
+submitToIndexNow([`${url.origin}/`, `${url.origin}/sitemap.xml`]);
