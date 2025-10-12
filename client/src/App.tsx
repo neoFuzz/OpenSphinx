@@ -128,8 +128,6 @@ export default function App() {
                             <GameArea useThree={useThree} replayId={replayId} setReplayId={setReplayId} isTransitioning={isTransitioning} environmentPreset={environmentPreset} cubeMapQuality={cubeMapQuality} />
                         </React.Suspense>
 
-                        {!state && <div className="my-3"><AdSense slot={import.meta.env.VITE_ADSENSE_SLOT_LOBBY || '1234567890'} /></div>}
-
                         <GameModal />
                         {showCreateForm && (
                             <CreateRoomForm
