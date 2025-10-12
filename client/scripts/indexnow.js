@@ -21,26 +21,26 @@ if (!key || !siteUrl) {
   process.exit(0);
 }
 
-// Create key file in public directory for verification
-const keyFilePath = path.join(__dirname, '..', 'public', `${key}.txt`);
+// Create key file in dist directory for production deployment
+const distDir = path.join(__dirname, '..', 'dist');
+const keyFilePath = path.join(distDir, `${key}.txt`);
 fs.writeFileSync(keyFilePath, key);
 console.log(`Created key file: ${keyFilePath}`);
 
 // Create ads.txt if content provided
 if (adsContent) {
-  const adsFilePath = path.join(__dirname, '..', 'public', 'ads.txt');
+  const adsFilePath = path.join(distDir, 'ads.txt');
   fs.writeFileSync(adsFilePath, adsContent);
   console.log(`Created ads.txt: ${adsFilePath}`);
-} else {
-  console.log('No ads.txt content provided');
 }
 
 // Build IndexNow API payload
+const url = new URL(siteUrl);
 const data = JSON.stringify({
-  host: new URL(siteUrl).hostname,
+  host: url.hostname,
   key,
-  keyLocation: `${siteUrl}/${key}.txt`,
-  urlList: [siteUrl]
+  keyLocation: `${url.origin}/${key}.txt`,
+  urlList: [`${url.origin}/`]
 });
 
 // Submit to IndexNow API
