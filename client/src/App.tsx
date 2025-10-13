@@ -115,6 +115,8 @@ export default function App() {
                     <About />
                 ) : (
                     <>
+                        {!state && <div className="my-3 text-center"><AdSense slot={import.meta.env.VITE_ADSENSE_SLOT_LOBBY || '1234567890'} /></div>}
+
                         <div className="d-flex gap-2 align-items-center mb-3 justify-content-start flex-wrap">
                             <input className="form-control" id="txtRoomId" placeholder="Room ID" value={roomId} onChange={e => setRoomId(e.target.value)} style={{ width: '150px' }} />
                             {!user && <input className="form-control" id="txtPlayerName" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} style={{ width: '150px' }} />}
@@ -213,7 +215,6 @@ function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmen
         <div>
             <div className="alert alert-info">Join a room to start.</div>
             <RoomListDisplay />
-            <div className="my-3"><AdSense slot={import.meta.env.VITE_ADSENSE_SLOT_LOBBY || '1234567890'} /></div>
         </div>
     );
     return (

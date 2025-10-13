@@ -42,9 +42,49 @@ export function Board() {
   const [unstackMode, setUnstackMode] = useState(false);
   const [lockedStacks, setLockedStacks] = useState<Set<string>>(new Set());
   const [animatingPieces, setAnimatingPieces] = useState<Map<string, { x: number, y: number, rotation: number }>>(new Map());
+  const [laserBeams, setLaserBeams] = useState<Array<{ from: Pos, to: Pos, progress: number }>>([]);
   const animationRefs = useRef<Map<string, number>>(new Map());
   const prevStateRef = useRef(state);
   const boardRef = useRef<HTMLDivElement>(null);
+
+  /* Animate laser beam tracing */
+  useEffect(() => {
+    if (!state?.lastLaserPath || state.lastLaserPath.length < 2) {
+      setLaserBeams([]);
+      return;
+    }
+
+    const path = state.lastLaserPath;
+    const beams: Array<{ from: Pos, to: Pos, progress: number }> = [];
+
+    for (let i = 0; i < path.length - 1; i++) {
+      beams.push({ from: path[i], to: path[i + 1], progress: 0 });
+    }
+
+    setLaserBeams(beams);
+    const startTime = Date.now();
+    const segmentDuration = 50;
+    const totalDuration = beams.length * segmentDuration;
+
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= totalDuration) {
+        setLaserBeams(beams.map(beam => ({ ...beam, progress: 1 })));
+        return;
+      }
+
+      setLaserBeams(beams.map((beam, i) => {
+        const segmentStart = i * segmentDuration;
+        const segmentElapsed = elapsed - segmentStart;
+        const progress = Math.min(Math.max(segmentElapsed / segmentDuration, 0), 1);
+        return { ...beam, progress };
+      }));
+
+      requestAnimationFrame(animate);
+    };
+
+    requestAnimationFrame(animate);
+  }, [state?.lastLaserPath]);
 
   /* Detect piece movements and destroyed pieces */
   useEffect(() => {
@@ -292,8 +332,8 @@ export function Board() {
       const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
 
       setAnimatingPieces(prev => new Map(prev).set(pieceId, {
-        x: -deltaX * (1 - eased),
-        y: -deltaY * (1 - eased),
+        x: deltaX * (1 - eased),
+        y: deltaY * (1 - eased),
         rotation: 0
       }));
 
@@ -312,18 +352,18 @@ export function Board() {
     animate();
   }, []);
 
-   /**
-   * Animates piece rotation on the board.
-   * 
-   * Handles smooth rotation animation of pieces using:
-   * - CSS transforms for rotation
-   * - Cubic easing for natural movement
-   * - Cleanup of animation frames
-   * - Support for both clockwise and counter-clockwise rotation
-   *
-   * @param pieceId - ID of the piece to animate
-   * @param direction - Direction to rotate ('cw' for clockwise, 'ccw' for counter-clockwise)
-   */     
+  /**
+  * Animates piece rotation on the board.
+  * 
+  * Handles smooth rotation animation of pieces using:
+  * - CSS transforms for rotation
+  * - Cubic easing for natural movement
+  * - Cleanup of animation frames
+  * - Support for both clockwise and counter-clockwise rotation
+  *
+  * @param pieceId - ID of the piece to animate
+  * @param direction - Direction to rotate ('cw' for clockwise, 'ccw' for counter-clockwise)
+  */
   const animateRotation = useCallback((pieceId: string, direction: 'cw' | 'ccw') => {
     const startTime = Date.now();
     const duration = 250;
@@ -371,27 +411,54 @@ export function Board() {
             return <Cell key={`${r}-${c}`} r={r} c={c} onCellClick={onCellClick} selectedPos={selectedPos} validMoves={validMoves} animatingPieces={animatingPieces} setSelectedPos={setSelectedPos} animateRotation={animateRotation} unstackMode={unstackMode} setUnstackMode={setUnstackMode} lockedStacks={lockedStacks} setLockedStacks={setLockedStacks} />;
           })}
         </div>
+        {laserBeams.map((beam, i) => beam.progress > 0 && (
+          <LaserBeam key={i} from={beam.from} to={beam.to} progress={beam.progress} />
+        ))}
         {/* Off-board laser indicators for Classic rules */}
         {state.config?.rules === 'CLASSIC' && (
           <>
-            {/* RED laser indicator (top-left, pointing south) */}
-            <div style={{ position: 'absolute', top: -30, left: '1.0em', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <img src="/laser-beam-warning.png" width="32" height="32" alt="laser warning" />
-              <svg width="20" height="20" viewBox="0 0 20 20" style={{ marginTop: -4 }}>
+            {/* RED laser indicator at (0,0) pointing south */}
+            <div style={{ position: 'absolute', left: 16, top: -22, display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none' }}>
+              <img src="/laser-beam-warning.png" width="24" height="24" alt="laser warning" />
+              <svg width="16" height="16" viewBox="0 0 20 20" style={{ marginTop: -2 }}>
                 <polygon points="10,18 6,10 14,10" fill="#cc4444" stroke="#000" strokeWidth="1" />
               </svg>
             </div>
-            {/* SILVER laser indicator (bottom-right, pointing north) */}
-            <div style={{ position: 'absolute', bottom: -30, right: '1.0em', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <svg width="20" height="20" viewBox="0 0 20 20">
+            {/* SILVER laser indicator at (7,9) pointing north */}
+            <div style={{ position: 'absolute', right: 18, bottom: -22, display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none' }}>
+              <svg width="16" height="16" viewBox="0 0 20 20" style={{ marginBottom: -2 }}>
                 <polygon points="10,2 6,10 14,10" fill="#4444cc" stroke="#000" strokeWidth="1" />
               </svg>
-              <img src="/laser-beam-warning.png" width="32" height="32" alt="laser warning" style={{ marginTop: -4 }} />
+              <img src="/laser-beam-warning.png" width="24" height="24" alt="laser warning" />
             </div>
           </>
         )}
       </div>
     </div>
+  );
+}
+
+function LaserBeam({ from, to, progress }: { from: Pos, to: Pos, progress: number }) {
+  const x1 = from.c * 50 + 25;
+  const y1 = from.r * 50 + 25;
+  const x2 = to.c * 50 + 25;
+  const y2 = to.r * 50 + 25;
+
+  const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+  const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+
+  return (
+    <div
+      className="laser-beam"
+      style={{ // Style for how the laser beam appears
+        left: x1 + 6,
+        top: y1 + 4,
+        width: length * progress,
+        height: 4,
+        transform: `rotate(${angle}deg)`,
+        transformOrigin: '0 50%',
+      }}
+    />
   );
 }
 
