@@ -13,6 +13,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const key = process.env.INDEXNOW_KEY;
 const siteUrl = process.env.VITE_SITE_URL;
 const adsContent = process.env.ADS_TXT_CONTENT;
+
+// Skip if environment variables not configured
+if (!key || !siteUrl) {
+  console.log('IndexNow skipped (missing env vars)');
+  process.exit(0);
+}
+
 const url = new URL(siteUrl);
 
 async function submitToIndexNow(urls) {
@@ -44,12 +51,6 @@ async function submitToIndexNow(urls) {
   } catch (err) {
     console.error("❌ Error submitting to IndexNow:", err);
   }
-}
-
-// Skip if environment variables not configured
-if (!key || !siteUrl) {
-  console.log('IndexNow skipped (missing env vars)');
-  process.exit(0);
 }
 
 // Create key file in dist directory for production deployment

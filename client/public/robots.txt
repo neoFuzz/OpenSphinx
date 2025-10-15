@@ -1,4 +1,8 @@
 User-agent: *
 Allow: /
+Allow: /stats
+Allow: /rules
+Allow: /about
+Allow: /terms
 
 Sitemap: https://opensphinx.online/sitemap.xml

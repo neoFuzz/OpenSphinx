@@ -16,6 +16,7 @@ import { Rules } from './components/Rules';
 import { TermsOfService } from './components/TermsOfService';
 import { About } from './components/About';
 import { AdSense } from './components/AdSense';
+import { AdMobWrapper } from './components/AdMob';
 
 /** Lazy-loaded 2D board component */
 const Board2D = React.lazy(() => import('./components/Board').then(m => ({ default: m.Board })));
@@ -115,7 +116,24 @@ export default function App() {
                     <About />
                 ) : (
                     <>
-                        {!state && <div className="my-3 text-center"><AdSense slot={import.meta.env.VITE_ADSENSE_SLOT_LOBBY || '1234567890'} /></div>}
+                        {!state && (
+                            <>
+                                <div className="row mb-4">
+                                    <div className="col-md-8">
+                                        <h4>Welcome to OpenSphinx</h4>
+                                        <p>Experience the strategic depth of laser chess in your browser (and soon mobile). OpenSphinx brings the classic Khet board game online with stunning 3D graphics and real-time multiplayer gameplay.</p>
+                                        <h5>How to Play</h5>
+                                        <p>Join an existing room or create your own to start playing. Each turn, move one piece orthogonally or rotate it 90°, then fire your laser. Hit your opponent's Pharaoh to win!</p>
+                                    </div>
+                                    <div className="col-md-4">
+                                        <AdMobWrapper 
+                                            adUnitId={import.meta.env.VITE_ADMOB_BANNER_LOBBY || 'ca-app-pub-3940256099942544/6300978111'}
+                                            adSenseSlot={import.meta.env.VITE_ADSENSE_SLOT_LOBBY || '1234567890'}
+                                        />
+                                    </div>
+                                </div>
+                            </>
+                        )}
 
                         <div className="d-flex gap-2 align-items-center mb-3 justify-content-start flex-wrap">
                             <input className="form-control" id="txtRoomId" placeholder="Room ID" value={roomId} onChange={e => setRoomId(e.target.value)} style={{ width: '150px' }} />
@@ -213,7 +231,10 @@ function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmen
 
     if (!state) return (
         <div>
-            <div className="alert alert-info">Join a room to start.</div>
+            <div className="alert alert-info">
+                <b>Getting Started</b>
+                <p>Choose a room from the list below or create your own game. You can customize rules, board setup, and game settings when creating a new room.</p>
+            </div>
             <RoomListDisplay />
         </div>
     );
@@ -229,7 +250,12 @@ function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmen
                             Exit to Home
                         </button>
                     </div>
-                    <div className="my-3"><AdSense slot={import.meta.env.VITE_ADSENSE_SLOT_POSTGAME || '9876543210'} /></div>
+                    <div className="my-3">
+                        <AdMobWrapper 
+                            adUnitId={import.meta.env.VITE_ADMOB_BANNER_POSTGAME || 'ca-app-pub-3940256099942544/6300978111'}
+                            adSenseSlot={import.meta.env.VITE_ADSENSE_SLOT_POSTGAME || '9876543210'}
+                        />
+                    </div>
                 </>
             )}
             {isTransitioning ? (

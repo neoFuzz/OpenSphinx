@@ -144,4 +144,5 @@ games.db
 server/games.db-wal
 server/games.db-shm
 
+client/android/
 docs/

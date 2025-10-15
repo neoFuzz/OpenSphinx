@@ -1,11 +1,19 @@
 # OpenSphinx (TypeScript, Node.js + Express + Socket.IO + React)
-An open-source version of Laser Chess (or Khet)
+[![Deploy JSDoc content to Pages](https://github.com/neoFuzz/OpenSphinx/actions/workflows/deploy-jsdoc.yml/badge.svg)](https://github.com/neoFuzz/OpenSphinx/actions/workflows/deploy-jsdoc.yml)
+[![Server (Render)](https://img.shields.io/badge/Server-Render-46E3B7?logo=render)](https://opensphinx.onrender.com)
+[![Client (Cloudflare)](https://img.shields.io/badge/Client-Cloudflare%20Pages-F38020?logo=cloudflare)](https://opensphinx.pages.dev)
+[![Render Status](https://img.shields.io/website?url=https%3A%2F%2Fopensphinx.onrender.com&label=Render&logo=render)](https://your-app.onrender.com)
+[![Cloudflare Status](https://img.shields.io/website?url=https%3A%2F%2Fopensphinx.pages.dev&label=Cloudflare&logo=cloudflare)](https://your-app.pages.dev)
+[![Server Status](https://opensphinx.onrender.com/api/badge/status)](https://opensphinx.onrender.com)
+[![Client Status](https://opensphinx.onrender.com/api/badge/client-status)](https://opensphinx.pages.dev)
 
-This is a monorepo containing:
+A modern, web-based implementation of Laser Chess (also known as Khet) - the strategic board game where players use mirrors and lasers to capture pieces and outmaneuver their opponent.
 
-- `server/` – Node.js + Express + Socket.IO authoritative server with SQLite database
-- `client/` – React (Vite) front-end with Three.js 3D graphics
-- `shared/` – Pure TypeScript game engine (rules + laser tracing) shared by both
+This monorepo contains:
+
+- `server/` – Authoritative game server built with Node.js, Express, Socket.IO and SQLite for game persistence
+- `client/` – Interactive game client with 3D board view (React, Vite, Three.js) and 2D board view (HTML/CSS) with animated laser effects
+- `shared/` – Core TypeScript game engine handling rules, laser mechanics, and game state, shared between client and server
 
 ## Prerequisites
 - Node.js 20+

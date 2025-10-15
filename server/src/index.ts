@@ -17,6 +17,7 @@ import { authenticateToken, optionalAuth, AuthenticatedRequest } from './middlew
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import { all } from 'axios';
+import { getBadges, generateBadgeSvg } from '../../shared/src/badges';
 
 /**
  * Validates if a hostname is allowed based on environment configuration
@@ -174,6 +175,44 @@ app.get('/api/replays/:id', async (req, res) => {
 app.use('/api', apiLimiter);
 app.use('/auth', authLimiter, authRoutes);
 app.get('/health', (_req, res) => res.json({ ok: true }));
+
+/**
+ * GET /api/badge/status - Generates server status badge SVG
+ * @route GET /api/badge/status
+ */
+app.get('/api/badge/status', (_req, res) => {
+  const statusBadge = {
+    label: 'Server',
+    message: 'Online',
+    color: '#4c1'
+  };
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.send(generateBadgeSvg(statusBadge));
+});
+
+/**
+ * GET /api/badge/client-status - Checks client status and generates badge
+ * @route GET /api/badge/client-status
+ */
+app.get('/api/badge/client-status', async (_req, res) => {
+  const badges = getBadges();
+  const clientBadge = badges.find(b => b.label === 'Client');
+  let statusBadge;
+  try {
+    const response = await fetch(clientBadge!.url, { method: 'HEAD' });
+    statusBadge = {
+      label: 'Client',
+      message: response.ok ? 'Online' : 'Offline',
+      color: response.ok ? '#4c1' : '#e05d44'
+    };
+  } catch {
+    statusBadge = { label: 'Client', message: 'Offline', color: '#e05d44' };
+  }
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.send(generateBadgeSvg(statusBadge));
+});
 
 /**
  * DELETE /api/games/:id - Deletes a saved game

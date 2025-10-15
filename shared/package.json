@@ -7,5 +7,8 @@
   "license": "AGPL 3.0",
   "devDependencies": {
     "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "badge-maker": "^5.0.2"
   }
 }
