@@ -30,9 +30,21 @@ jobs:
       - name: Build client
         run: npm run build --workspace client
         
+      - name: Add Android platform
+        working-directory: client
+        run: npx cap add android
+        
+      - name: Generate icons
+        working-directory: client
+        run: npx capacitor-assets generate --android
+        
       - name: Sync Capacitor
         working-directory: client
         run: npx cap sync android
+
+      - name: Make gradlew executable
+        working-directory: client/android
+        run: chmod +x gradlew
         
       - name: Decode Keystore
         run: |
@@ -42,7 +54,7 @@ jobs:
         working-directory: client/android
         run: ./gradlew assembleRelease
         env:
-          KEYSTORE_FILE: app/release.keystore
+          KEYSTORE_FILE: release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
