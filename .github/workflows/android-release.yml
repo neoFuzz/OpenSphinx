@@ -48,25 +48,29 @@ jobs:
         
       - name: Decode Keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > client/android/app/release.keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > client/android/release.keystore
         
       - name: Build Release APK
         working-directory: client/android
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease --stacktrace
         env:
           KEYSTORE_FILE: release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          
+      - name: List build outputs
+        if: always()
+        run: find client/android/app/build/outputs -type f
         
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: client/android/app/build/outputs/apk/release/app-release.apk
+          path: client/android/app/build/outputs/apk/**/*.apk
           
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: client/android/app/build/outputs/apk/release/app-release.apk
+          files: client/android/app/build/outputs/apk/**/*.apk
