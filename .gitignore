@@ -145,4 +145,7 @@ server/games.db-wal
 server/games.db-shm
 
 client/android/
+client/icons/
+client/public/manifest.webmanifest
 docs/
+release.keystore

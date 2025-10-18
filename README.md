@@ -1,9 +1,7 @@
 # OpenSphinx (TypeScript, Node.js + Express + Socket.IO + React)
-[![Deploy JSDoc content to Pages](https://github.com/neoFuzz/OpenSphinx/actions/workflows/deploy-jsdoc.yml/badge.svg)](https://github.com/neoFuzz/OpenSphinx/actions/workflows/deploy-jsdoc.yml)
-[![Server (Render)](https://img.shields.io/badge/Server-Render-46E3B7?logo=render)](https://opensphinx.onrender.com)
-[![Client (Cloudflare)](https://img.shields.io/badge/Client-Cloudflare%20Pages-F38020?logo=cloudflare)](https://opensphinx.pages.dev)
-[![Render Status](https://img.shields.io/website?url=https%3A%2F%2Fopensphinx.onrender.com&label=Render&logo=render)](https://your-app.onrender.com)
-[![Cloudflare Status](https://img.shields.io/website?url=https%3A%2F%2Fopensphinx.pages.dev&label=Cloudflare&logo=cloudflare)](https://your-app.pages.dev)
+[![Deploy JSDoc content to Pages](https://github.com/neoFuzz/OpenSphinx/actions/workflows/deploy-jsdoc.yml/badge.svg)](https://github.com/neoFuzz/OpenSphinx/actions/workflows/deploy-jsdoc.yml)  
+[![Render Status](https://img.shields.io/website?url=https%3A%2F%2Fopensphinx.onrender.com%2Fapi%2Frooms&label=Render&logo=render)](https://opensphinx.onrender.com)
+[![Cloudflare Status](https://img.shields.io/website?url=https%3A%2F%2Fopensphinx.pages.dev&label=Cloudflare&logo=cloudflare)](https://opensphinx.online)  
 [![Server Status](https://opensphinx.onrender.com/api/badge/status)](https://opensphinx.onrender.com)
 [![Client Status](https://opensphinx.onrender.com/api/badge/client-status)](https://opensphinx.pages.dev)
 

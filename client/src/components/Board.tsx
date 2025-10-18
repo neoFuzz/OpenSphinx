@@ -398,12 +398,12 @@ export function Board() {
   if (!state) return <div>Waiting for state…</div>;
 
   return (
-    <div className='d-flex flex-column align-items-center justify-content-center' style={{ minHeight: '10vh' }}>
-      <div style={{ marginBottom: 8 }}>
+    <div className='board-container'>
+      <div className='turn-info'>
         <b>Turn:</b> {state.turn} {myTurn ? '(your move)' : ''}
       </div>
-      <div style={{ position: 'relative' }} ref={boardRef}>
-        <div className="board" style={{ gridTemplateColumns: `repeat(${COLS}, 48px)` }}>
+      <div className='board-wrapper' ref={boardRef}>
+        <div className="board">
           {Array.from({ length: ROWS * COLS }, (_, i) => {
             const r = Math.floor(i / COLS);
             const c = i % COLS;
@@ -411,51 +411,71 @@ export function Board() {
             return <Cell key={`${r}-${c}`} r={r} c={c} onCellClick={onCellClick} selectedPos={selectedPos} validMoves={validMoves} animatingPieces={animatingPieces} setSelectedPos={setSelectedPos} animateRotation={animateRotation} unstackMode={unstackMode} setUnstackMode={setUnstackMode} lockedStacks={lockedStacks} setLockedStacks={setLockedStacks} />;
           })}
         </div>
-        {laserBeams.map((beam, i) => beam.progress > 0 && (
-          <LaserBeam key={i} from={beam.from} to={beam.to} progress={beam.progress} />
-        ))}
-        {/* Off-board laser indicators for Classic rules */}
-        {state.config?.rules === 'CLASSIC' && (
-          <>
-            {/* RED laser indicator at (0,0) pointing south */}
-            <div style={{ position: 'absolute', left: 16, top: -22, display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none' }}>
-              <img src="/laser-beam-warning.png" width="24" height="24" alt="laser warning" />
-              <svg width="16" height="16" viewBox="0 0 20 20" style={{ marginTop: -2 }}>
-                <polygon points="10,18 6,10 14,10" fill="#cc4444" stroke="#000" strokeWidth="1" />
-              </svg>
-            </div>
-            {/* SILVER laser indicator at (7,9) pointing north */}
-            <div style={{ position: 'absolute', right: 18, bottom: -22, display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none' }}>
-              <svg width="16" height="16" viewBox="0 0 20 20" style={{ marginBottom: -2 }}>
-                <polygon points="10,2 6,10 14,10" fill="#4444cc" stroke="#000" strokeWidth="1" />
-              </svg>
-              <img src="/laser-beam-warning.png" width="24" height="24" alt="laser warning" />
-            </div>
-          </>
-        )}
+        <div className="laser-overlay">
+          {Array.from({ length: ROWS * COLS }, (_, i) => {
+            const r = Math.floor(i / COLS);
+            const c = i % COLS;
+            const hasLaser = state.lastLaserPath?.some(p => p.r === r && p.c === c);
+            const isRedLaser = r === 0 && c === 0 && state.config?.rules === 'CLASSIC';
+            const isSilverLaser = r === 7 && c === 9 && state.config?.rules === 'CLASSIC';
+            
+            const beamsFromCell = laserBeams.filter(beam => beam.from.r === r && beam.from.c === c);
+            
+            return (
+              <div key={`laser-${r}-${c}`} className="laser-cell">
+                {hasLaser && <div className="laser" />}
+                {beamsFromCell.map((beam, idx) => (
+                  <LaserBeam key={idx} from={beam.from} to={beam.to} progress={beam.progress} />
+                ))}
+                {isRedLaser && (
+                  <div className='laser-indicator' style={{ transform: 'translate(-50%, -150%)' }}>
+                    <img src="/laser-beam-warning.png" className="laser-indicator-img" alt="laser warning" />
+                    <svg viewBox="0 0 20 20" className="laser-indicator-arrow">
+                      <polygon points="10,18 6,10 14,10" fill="#cc4444" stroke="#000" strokeWidth="1" />
+                    </svg>
+                  </div>
+                )}
+                {isSilverLaser && (
+                  <div className='laser-indicator' style={{ transform: 'translate(-50%, 50%)' }}>
+                    <svg viewBox="0 0 20 20" className="laser-indicator-arrow">
+                      <polygon points="10,2 6,10 14,10" fill="#4444cc" stroke="#000" strokeWidth="1" />
+                    </svg>
+                    <img src="/laser-beam-warning.png" className="laser-indicator-img" alt="laser warning" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
+/**
+ * Renders a laser beam animation between two cells.
+ *
+ * @param from - Starting position of the laser beam
+ * @param to - Ending position of the laser beam
+ * @param progress - Progress of the animation (0 to 1)
+ * @returns React component that renders the laser beam
+ */
 function LaserBeam({ from, to, progress }: { from: Pos, to: Pos, progress: number }) {
-  const x1 = from.c * 50 + 25;
-  const y1 = from.r * 50 + 25;
-  const x2 = to.c * 50 + 25;
-  const y2 = to.r * 50 + 25;
-
-  const length = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
-  const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
-
+  const dx = to.c - from.c;
+  const dy = to.r - from.r;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+  
   return (
     <div
       className="laser-beam"
-      style={{ // Style for how the laser beam appears
-        left: x1 + 6,
-        top: y1 + 4,
-        width: length * progress,
-        height: 4,
-        transform: `rotate(${angle}deg)`,
+      style={{
+        position: 'absolute',
+        left: '50%',
+        top: '50%',
+        width: `${distance * 100 * progress}%`,
+        height: '4px',
+        transform: `translateY(-50%) rotate(${angle}deg)`,
         transformOrigin: '0 50%',
       }}
     />
@@ -530,11 +550,8 @@ function Cell({ r, c, onCellClick, selectedPos, validMoves, animatingPieces, set
   };
 
   return (
-    <div className="cell" onClick={handleCellClick} style={{ cursor: 'pointer', background: bgColor }}>
+    <div className="cell" onClick={handleCellClick} style={{ background: bgColor }}>
       {piece && <PieceView r={r} c={c} isSelected={isSelected} animatingPieces={animatingPieces} setSelectedPos={setSelectedPos} animateRotation={animateRotation} unstackMode={unstackMode} setUnstackMode={setUnstackMode} lockedStacks={lockedStacks} setLockedStacks={setLockedStacks} />}
-      {state.lastLaserPath?.some(p => p.r === r && p.c === c) && (
-        <div className="laser" />
-      )}
     </div>
   );
 }
@@ -597,7 +614,7 @@ function PieceView({ r, c, isSelected, animatingPieces, setSelectedPos, animateR
   }
 
   return (
-    <div className="piece" style={{ position: 'relative', transform, zIndex }}>
+    <div className="piece" style={{ transform, zIndex }}>
       <PieceSVG piece={piece} cell={cell} />
       {isSelected && isMyTurn && (
         <div className="radial-menu">

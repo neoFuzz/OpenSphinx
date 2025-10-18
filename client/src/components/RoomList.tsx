@@ -59,7 +59,7 @@ export function RoomList({ onJoinRoom }: RoomListProps) {
       const roomData = await response.json();
       setRooms(roomData);
     } catch (error) {
-      console.error('Failed to fetch rooms:', error);
+      console.error('RoomList > Failed to fetch rooms:', error);
     }
   };
 

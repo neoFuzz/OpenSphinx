@@ -1,6 +1,6 @@
-.board { display: grid; gap: 2px; background: #333; padding: 8px; width: max-content; }
-.cell { width: 48px; height: 48px; background: #f5f5f5; position: relative; display: grid; place-items: center; }
-.piece { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.3)); }
+.board { display: grid; grid-template-columns: repeat(10, 1fr); gap: 1px; background: #333; padding: 4px; width: min(90vw, 90vh); aspect-ratio: 10 / 8; margin: 0 auto; box-sizing: border-box; }
+.cell { background: #f5f5f5; position: relative; display: grid; place-items: center; cursor: pointer; }
+.piece { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; filter: drop-shadow(2px 2px 4px rgba(0, 0, 0, 0.3)); z-index: 1; }
 .laser { position: absolute; inset: 0; pointer-events: none; animation: laserPulse 0.8s ease-out; box-shadow: 0 0 15px rgba(255,0,0,0.6), inset 0 0 10px rgba(255,255,0,0.4); }
 
 .radial-menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
@@ -66,3 +66,35 @@
 
 .radial-btn-bottom.locked {background: #ffcdd2; border-color: #f44336;}
 .radial-btn-bottom.unlocked {background: #c8e6c9; border-color: #4caf50;}
+
+.board-container { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 10vh; }
+.turn-info { margin-bottom: 8px; }
+.board-wrapper { position: relative; width: min(90vw, 90vh); aspect-ratio: 10 / 8; margin: 0 auto; }
+.laser-overlay { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(8, 1fr); pointer-events: none; z-index: 5; gap: 1px; padding: 4px }
+.laser-cell { position: relative; }
+
+.laser-indicator { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; pointer-events: none; z-index: 10; }
+.laser-indicator-img { width: 60%; max-width: 32px; height: auto; }
+.laser-indicator-arrow { width: 40%; max-width: 20px; height: auto; }
+
+@media screen and (min-width: 1920px) {
+  .board { width: min(70vw, 70vh); }
+  .board-wrapper { width: min(70vw, 70vh); }
+}
+
+@media screen and (max-width: 768px) {
+  .board { padding: 3px; width: 95vw; }
+  .board-wrapper { width: 95vw; }
+  .laser-overlay { padding: 3px; }
+}
+
+@media screen and (max-width: 480px) {
+  .board { padding: 2px; width: 98vw; }
+  .board-wrapper { width: 98vw; }
+  .laser-overlay { padding: 2px; }
+  .radial-btn { width: 1rem; height: 1rem; font-size: 10px; padding: 0.5rem; }
+  .radial-btn-left { left: -8px; }
+  .radial-btn-right { right: -8px; }
+  .radial-btn-top { top: -20px; width: 16px; height: 16px; font-size: 8px; }
+  .radial-btn-bottom { bottom: -20px; width: 16px; height: 16px; font-size: 8px; }
+}

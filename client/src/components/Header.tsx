@@ -77,6 +77,7 @@ export function Header({
   return (
     <>
 
+      {!inGame && (
       <div className="mb-3 bg-dark text-light py-3 mt-auto d-flex align-items-center justify-content-between">
         <div className="d-flex align-items-center">
           <img src="logo.svg" className={`me-3 ms-3 ${styles.logo}`} title="OpenSphinx logo" alt="Sphinx coloured yellow, blue and red"></img>
@@ -100,6 +101,24 @@ export function Header({
           </button>
         </div>
       </div>
+      )}
+
+      {inGame && (
+        <div className="position-fixed top-0 end-0 p-2 d-flex gap-2" style={{ zIndex: 1030 }}>
+          <button
+            className="btn btn-outline-dark btn-sm"
+            onClick={() => setAccountOpen(!accountOpen)}
+          >
+            &#128100;
+          </button>
+          <button
+            className="btn btn-outline-dark btn-sm"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            &#9776;
+          </button>
+        </div>
+      )}
 
       {/* Sidebar */}
       <div className={`position-fixed top-0 end-0 h-100 bg-dark text-light p-3 ${sidebarOpen ? 'd-block' : 'd-none'}`} style={{ width: '300px', zIndex: 1050 }}>
@@ -109,13 +128,13 @@ export function Header({
         </div>
 
         <div className="d-grid gap-2">
-          <button className="btn btn-outline-light" onClick={() => onNavigate?.('home')}>Home</button>
+          <button className="btn btn-outline-light" onClick={() => { if (inGame) onLeaveGame?.(); onNavigate?.('home'); setSidebarOpen(false); }}>Home</button>
           {inGame ? (
             <>
               <button className="btn btn-primary" onClick={onSaveGame}>Save Game</button>
               <button className="btn btn-secondary" onClick={onLoadGame}>Load Game</button>
               <button className="btn btn-warning" onClick={onNewGame}>New Game</button>
-              <button className="btn btn-danger" onClick={onLeaveGame}>Leave Game</button>
+              <button className="btn btn-danger" onClick={() => { onLeaveGame?.(); setSidebarOpen(false); }}>Leave Game</button>
             </>
           ) : (
             <>
@@ -190,7 +209,7 @@ export function Header({
         <div className="d-grid gap-2">
           <button
             className={`btn ${currentPage === 'home' ? 'btn-primary' : 'btn-outline-light'}`}
-            onClick={() => { onNavigate?.('home'); setAccountOpen(false); }}
+            onClick={() => { if (inGame) onLeaveGame?.(); onNavigate?.('home'); setAccountOpen(false); }}
           >
             Home
           </button>

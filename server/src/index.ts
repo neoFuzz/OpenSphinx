@@ -196,11 +196,10 @@ app.get('/api/badge/status', (_req, res) => {
  * @route GET /api/badge/client-status
  */
 app.get('/api/badge/client-status', async (_req, res) => {
-  const badges = getBadges();
-  const clientBadge = badges.find(b => b.label === 'Client');
+  const clientUrl = CLIENT_URLS[0] || 'https://opensphinx.pages.dev';
   let statusBadge;
   try {
-    const response = await fetch(clientBadge!.url, { method: 'HEAD' });
+    const response = await fetch(clientUrl, { method: 'HEAD' });
     statusBadge = {
       label: 'Client',
       message: response.ok ? 'Online' : 'Offline',

@@ -1,0 +1,60 @@
+name: Build Android Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          
+      - name: Install dependencies
+        run: npm install --workspaces
+        
+      - name: Build client
+        run: npm run build --workspace client
+        
+      - name: Sync Capacitor
+        working-directory: client
+        run: npx cap sync android
+        
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > client/android/app/release.keystore
+        
+      - name: Build Release APK
+        working-directory: client/android
+        run: ./gradlew assembleRelease
+        env:
+          KEYSTORE_FILE: app/release.keystore
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: client/android/app/build/outputs/apk/release/app-release.apk
+          
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: client/android/app/build/outputs/apk/release/app-release.apk
