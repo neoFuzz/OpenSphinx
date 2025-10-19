@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write 
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,6 +32,10 @@ jobs:
         
       - name: Build client
         run: npm run build --workspace client
+        env:
+          VITE_SERVER_URL: ${{ vars.PRODUCTION_SERVER_URL }}
+          VITE_ADMOB_BANNER_LOBBY: ${{ vars.VITE_ADMOB_BANNER_LOBBY }}
+          VITE_ADMOB_BANNER_POSTGAME: ${{ vars.VITE_ADMOB_BANNER_POSTGAME }}
         
       - name: Add Android platform
         working-directory: client
@@ -41,6 +48,21 @@ jobs:
       - name: Sync Capacitor
         working-directory: client
         run: npx cap sync android
+        
+      - name: Add signing config to build.gradle
+        working-directory: client/android/app
+        run: |
+          sed -i '/android {/a \
+              signingConfigs { \
+                  release { \
+                      storeFile file(System.getenv("KEYSTORE_FILE") ?: "release.keystore") \
+                      storePassword System.getenv("KEYSTORE_PASSWORD") \
+                      keyAlias System.getenv("KEY_ALIAS") \
+                      keyPassword System.getenv("KEY_PASSWORD") \
+                  } \
+              }' build.gradle
+
+          sed -i '/buildTypes {/!b;n;c\        release {\n            signingConfig signingConfigs.release' build.gradle
 
       - name: Make gradlew executable
         working-directory: client/android
@@ -52,21 +74,25 @@ jobs:
         
       - name: Build Release APK
         working-directory: client/android
-        run: ./gradlew assembleRelease
+        run: ./gradlew assembleRelease --stacktrace
         env:
           KEYSTORE_FILE: release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          
+      - name: List build outputs
+        if: always()
+        run: find client/android/app/build/outputs -type f
         
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: client/android/app/build/outputs/apk/release/app-release.apk
+          path: client/android/app/build/outputs/apk/**/*.apk
           
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: client/android/app/build/outputs/apk/release/app-release.apk
+          files: client/android/app/build/outputs/apk/**/*.apk
