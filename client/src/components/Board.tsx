@@ -397,10 +397,13 @@ export function Board() {
 
   if (!state) return <div>Waiting for state…</div>;
 
+  const roomId = useGame(s => s.roomId);
+
   return (
     <div className='board-container'>
-      <div className='turn-info'>
-        <b>Turn:</b> {state.turn} {myTurn ? '(your move)' : ''}
+      <div className='turn-info d-flex justify-content-around' style={{minWidth: '40vw'}}>
+        {roomId && <div className='p-1' style={{ marginRight: '1rem' }}><b>Game ID:</b> {roomId}</div>}
+        <div className='p-1'><b>Turn:</b> {state.turn} {myTurn ? `(your move)` : ''}</div>
       </div>
       <div className='board-wrapper' ref={boardRef}>
         <div className="board">

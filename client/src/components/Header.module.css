@@ -1,5 +1,12 @@
 .logo {width: 64px; height: 64px;}
 
+.buttonContainer {display: flex; gap: 0.5rem;}
+
+@media screen and (max-width: 475px) and (min-width: 400px) {
+  .logo {width: 48px; height: 48px;}
+  .buttonContainer {margin-top: 0.5rem;}
+}
+
 @media screen and (max-width: 480px) {
   .logo {width: 32px; height: 32px;}
 }

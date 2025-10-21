@@ -4,8 +4,8 @@ import DOMPurify from 'dompurify';
 import { SERVER_URL } from './config/server';
 import { useGame } from './state/game';
 import { useAuth } from './state/auth';
-import { SavedGames } from './components/SavedGames';
 import { RoomList } from './components/RoomList';
+import { Replays } from './components/Replays';
 import { CreateRoomForm } from './components/CreateRoomForm';
 import { JoinRoomForm } from './components/JoinRoomForm';
 import { Replay } from './components/Replay';
@@ -16,7 +16,7 @@ import { Rules } from './components/Rules';
 import { TermsOfService } from './components/TermsOfService';
 import { About } from './components/About';
 import { AdSense } from './components/AdSense';
-import { AdMobWrapper } from './components/AdMob';
+import { AdMobWrapper, showInterstitialAd } from './components/AdMob';
 
 /** Lazy-loaded 2D board component */
 const Board2D = React.lazy(() => import('./components/Board').then(m => ({ default: m.Board })));
@@ -38,7 +38,7 @@ const Board3D = React.lazy(() => import('./components/Board3D').then(m => ({ def
 export default function App() {
     const { checkAuth } = useAuth();
     const connectRoom = useGame(s => s.connectRoom);
-    const [currentPage, setCurrentPage] = useState<'home' | 'stats' | 'rules' | 'terms' | 'about'>('home');
+    const [currentPage, setCurrentPage] = useState<'home' | 'stats' | 'rules' | 'terms' | 'about' | 'replays'>('home');
 
     React.useEffect(() => {
         checkAuth().catch(console.error);
@@ -47,7 +47,9 @@ export default function App() {
     const saveGame = useGame(s => s.saveGame);
     const state = useGame(s => s.state);
     const [roomId, setRoomId] = useState(''); // maybe ROOM1
-    const [name, setName] = useState('Player');
+    const [name, setName] = useState(() => {
+        return localStorage.getItem('opensphinx-player-name') || 'Player';
+    });
     const [useThree, setUseThree] = useState(() => {
         const saved = localStorage.getItem('opensphinx-use3d');
         return saved ? JSON.parse(saved) : true;
@@ -62,27 +64,37 @@ export default function App() {
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [showJoinForm, setShowJoinForm] = useState(false);
     const [showLoadDialog, setShowLoadDialog] = useState(false);
-    const [showSaveDialog, setShowSaveDialog] = useState(false);
-    const [saveName, setSaveName] = useState('');
     const [replayId, setReplayId] = useState('');
 
     const { user } = useAuth();
-    const handleSaveGame = () => setShowSaveDialog(true);
 
     // Use Discord username when logged in
     const playerName = user?.username || name;
     const handleLoadGame = () => setShowLoadDialog(true);
     const handleNewGame = () => setShowCreateForm(true);
-    const handleLeaveGame = () => useGame.setState({ roomId: undefined, state: undefined });
+    const handleLeaveGame = async () => {
+        const adUnitId = import.meta.env.VITE_ADMOB_INTERSTITIAL;
+        if (adUnitId) await showInterstitialAd(adUnitId);
+        useGame.setState({ roomId: undefined, state: undefined });
+    };
+    const handleJoinRoom = () => setShowJoinForm(true);
+    const [showBrowseRooms, setShowBrowseRooms] = useState(false);
 
     return (
         <div className="d-flex flex-column min-vh-100">
             <Header
                 inGame={!!state}
-                onSaveGame={handleSaveGame}
                 onLoadGame={handleLoadGame}
                 onNewGame={handleNewGame}
                 onLeaveGame={handleLeaveGame}
+                onJoinRoom={handleJoinRoom}
+                onBrowseRooms={() => setShowBrowseRooms(true)}
+                playerName={name}
+                onPlayerNameChange={(newName) => {
+                    setName(newName);
+                    localStorage.setItem('opensphinx-player-name', newName);
+                }}
+                isLoggedIn={!!user}
                 useThree={useThree}
                 onToggleThree={(checked) => {
                     if (isTransitioning) return;
@@ -114,6 +126,8 @@ export default function App() {
                     <TermsOfService />
                 ) : currentPage === 'about' ? (
                     <About />
+                ) : currentPage === 'replays' ? (
+                    <Replays onReplaySelect={(id) => { setReplayId(id); setCurrentPage('home'); }} />
                 ) : (
                     <>
                         {!state && (
@@ -124,6 +138,8 @@ export default function App() {
                                         <p>Experience the strategic depth of laser chess in your browser (and soon mobile). OpenSphinx brings the classic Khet board game online with stunning 3D graphics and real-time multiplayer gameplay.</p>
                                         <h5>How to Play</h5>
                                         <p>Join an existing room or create your own to start playing. Each turn, move one piece orthogonally or rotate it 90°, then fire your laser. Hit your opponent's Pharaoh to win!</p>
+                                        <p>You can change your name by clicking on the Account (&#128100;) menu</p>
+                                        <p>For more information, visit the <a href="#" onClick={() => setCurrentPage('rules')}>Rules</a> page.</p>
                                     </div>
                                     <div className="col-md-4">
                                         <AdMobWrapper 
@@ -135,14 +151,14 @@ export default function App() {
                             </>
                         )}
 
-                        <div className="d-flex gap-2 align-items-center mb-3 justify-content-start flex-wrap">
-                            <input className="form-control" id="txtRoomId" placeholder="Room ID" value={roomId} onChange={e => setRoomId(e.target.value)} style={{ width: '150px' }} />
-                            {!user && <input className="form-control" id="txtPlayerName" placeholder="Your name" value={name} onChange={e => setName(e.target.value)} style={{ width: '150px' }} />}
-                            <button className="btn btn-primary" disabled={!roomId.trim() || !playerName.trim()} onClick={() => roomId ? connectRoom(roomId, playerName) : setShowJoinForm(true)}>Join</button>
-                            <button className="btn btn-success" onClick={() => setShowCreateForm(true)}>Create</button>
-                            <SavedGames onReplaySelect={setReplayId} />
-                            {state && !replayId && <RoomList onJoinRoom={(roomId) => { setRoomId(roomId); connectRoom(roomId, playerName); }} />}
-                        </div>
+                        {!state && (
+                            <div className="d-flex gap-2 align-items-center mb-3 justify-content-start flex-wrap">
+                                <button className="btn btn-success" onClick={() => setShowCreateForm(true)}>Create</button>
+                                <button className="btn btn-primary" onClick={() => setShowJoinForm(true)}>Join</button>
+                                <button className="btn btn-secondary" onClick={handleLoadGame}>Load Game</button>
+                                <button className="btn btn-outline-info" onClick={() => setCurrentPage('replays')}>View Replays</button>
+                            </div>
+                        )}
 
                         <React.Suspense fallback={<div className="text-center">Loading…</div>}>
                             <GameArea useThree={useThree} replayId={replayId} setReplayId={setReplayId} isTransitioning={isTransitioning} environmentPreset={environmentPreset} cubeMapQuality={cubeMapQuality} />
@@ -168,25 +184,25 @@ export default function App() {
                                     const finalName = user?.username || inputName;
                                     connectRoom(roomId, finalName, password);
                                     setRoomId(roomId);
-                                    if (!user) setName(inputName);
+                                    if (!user) {
+                                        setName(inputName);
+                                        localStorage.setItem('opensphinx-player-name', inputName);
+                                    }
                                     setShowJoinForm(false);
                                 }}
                                 onCancel={() => setShowJoinForm(false)}
                             />
                         )}
-                        <SaveGameDialog
-                            show={showSaveDialog}
-                            saveName={saveName}
-                            setSaveName={setSaveName}
-                            onSave={() => {
-                                if (saveName.trim()) {
-                                    saveGame(saveName.trim(), user?.id);
-                                    setSaveName('');
-                                    setShowSaveDialog(false);
-                                }
-                            }}
-                            onCancel={() => setShowSaveDialog(false)}
-                        />
+                        {showBrowseRooms && (
+                            <BrowseRoomsModal
+                                onJoinRoom={(roomId) => {
+                                    setRoomId(roomId);
+                                    connectRoom(roomId, playerName);
+                                    setShowBrowseRooms(false);
+                                }}
+                                onClose={() => setShowBrowseRooms(false)}
+                            />
+                        )}
                         <LoadGameDialog
                             show={showLoadDialog}
                             onCancel={() => setShowLoadDialog(false)}
@@ -241,22 +257,18 @@ function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmen
     return (
         <div>
             {state.winner && (
-                <>
-                    <div className="mb-3">
-                        <button
-                            className="btn btn-secondary"
-                            onClick={() => useGame.setState({ roomId: undefined, state: undefined })}
-                        >
-                            Exit to Home
-                        </button>
-                    </div>
-                    <div className="my-3">
-                        <AdMobWrapper 
-                            adUnitId={import.meta.env.VITE_ADMOB_BANNER_POSTGAME || 'ca-app-pub-3940256099942544/6300978111'}
-                            adSenseSlot={import.meta.env.VITE_ADSENSE_SLOT_POSTGAME || '9876543210'}
-                        />
-                    </div>
-                </>
+                <div className="mb-3">
+                    <button
+                        className="btn btn-secondary"
+                        onClick={async () => {
+                            const adUnitId = import.meta.env.VITE_ADMOB_INTERSTITIAL;
+                            if (adUnitId) await showInterstitialAd(adUnitId);
+                            useGame.setState({ roomId: undefined, state: undefined });
+                        }}
+                    >
+                        Exit to Home
+                    </button>
+                </div>
             )}
             {isTransitioning ? (
                 <div className="text-center p-5">
@@ -390,12 +402,22 @@ function GameModal() {
                     </div>
                     <div className="modal-body">
                         <p>{modal.message}</p>
+                        {modal.title === 'Game Over' && (
+                            <div className="mt-3">
+                                <AdMobWrapper 
+                                    adUnitId={import.meta.env.VITE_ADMOB_BANNER_POSTGAME || 'ca-app-pub-3940256099942544/6300978111'}
+                                    adSenseSlot={import.meta.env.VITE_ADSENSE_SLOT_POSTGAME || '9876543210'}
+                                />
+                            </div>
+                        )}
                     </div>
                     <div className="modal-footer">
                         <button type="button" className="btn btn-primary" onClick={hideModal}>OK</button>
                         {modal.title === 'Game Over' && (
-                            <button type="button" className="btn btn-secondary" onClick={() => {
+                            <button type="button" className="btn btn-secondary" onClick={async () => {
                                 hideModal();
+                                const adUnitId = import.meta.env.VITE_ADMOB_INTERSTITIAL;
+                                if (adUnitId) await showInterstitialAd(adUnitId);
                                 useGame.setState({ roomId: undefined, state: undefined });
                             }}>Exit to Home</button>
                         )}
@@ -407,49 +429,62 @@ function GameModal() {
 }
 
 /**
- * Modal dialog for saving the current game
- * 
- * Provides an input field for entering a custom game name
- * and handles save/cancel actions.
- * 
- * @param props - SaveGameDialog component props
- * @param props.show - Whether to display the dialog
- * @param props.saveName - Current save name input value
- * @param props.setSaveName - Function to update save name
- * @param props.onSave - Callback when save is confirmed
- * @param props.onCancel - Callback when dialog is cancelled
- * @returns JSX element representing the save dialog or null if hidden
+ * Modal dialog for browsing available rooms
  */
-function SaveGameDialog({ show, saveName, setSaveName, onSave, onCancel }: {
-    show: boolean;
-    saveName: string;
-    setSaveName: (name: string) => void;
-    onSave: () => void;
-    onCancel: () => void;
-}) {
-    if (!show) return null;
+function BrowseRoomsModal({ onJoinRoom, onClose }: { onJoinRoom: (roomId: string) => void; onClose: () => void }) {
+    const [rooms, setRooms] = useState<{ id: string; playerCount: number; spectatorCount: number; hasWinner: boolean; turn: 'RED' | 'SILVER'; config?: { rules: string; setup: string } }[]>([]);
+
+    const formatRules = (rules: string) => rules === 'KHET_2_0' ? 'Khet 2.0' : rules === 'CLASSIC' ? 'Classic' : rules;
+    const formatSetup = (setup: string) => {
+        const sanitized = DOMPurify.sanitize(setup, { ALLOWED_TAGS: [] });
+        return sanitized.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    };
+
+    const fetchRooms = async () => {
+        try {
+            const response = await fetch(`${SERVER_URL}/api/rooms`);
+            setRooms(await response.json());
+        } catch (error) {
+            console.error('Failed to fetch rooms:', error);
+        }
+    };
+
+    React.useEffect(() => {
+        fetchRooms();
+        const interval = setInterval(fetchRooms, 3000);
+        return () => clearInterval(interval);
+    }, []);
 
     return (
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
             <div className="modal-dialog modal-dialog-centered">
                 <div className="modal-content">
                     <div className="modal-header">
-                        <h5 className="modal-title">Save Game</h5>
-                        <button type="button" className="btn-close" onClick={onCancel}></button>
+                        <h5 className="modal-title">Browse Rooms</h5>
+                        <button type="button" className="btn-close" onClick={onClose}></button>
                     </div>
                     <div className="modal-body">
-                        <input
-                            type="text"
-                            className="form-control"
-                            placeholder="Enter game name"
-                            value={saveName}
-                            onChange={(e) => setSaveName(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && onSave()}
-                        />
+                        {rooms.length === 0 ? (
+                            <p>No active rooms found.</p>
+                        ) : (
+                            <div className="list-group">
+                                {rooms.map((room) => (
+                                    <div key={room.id} className="list-group-item d-flex justify-content-between align-items-center">
+                                        <div className="flex-grow-1">
+                                            <strong>Room {room.id}</strong>
+                                            <div><small className="text-muted">
+                                                {room.config && `${formatRules(room.config.rules)} - ${formatSetup(room.config.setup)}`}
+                                            </small></div>
+                                            <div><small className="text-muted">Players: {room.playerCount}/2 ({room.spectatorCount} watching) - {room.hasWinner ? 'Finished' : `Turn: ${room.turn}`}</small></div>
+                                        </div>
+                                        <button className="btn btn-primary btn-sm" onClick={() => onJoinRoom(room.id)}>Join</button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                     <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-                        <button type="button" className="btn btn-primary" onClick={onSave}>Save</button>
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>Close</button>
                     </div>
                 </div>
             </div>

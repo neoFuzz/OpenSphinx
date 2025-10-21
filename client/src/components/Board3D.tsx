@@ -884,6 +884,7 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
     const state = useGame(s => s.state);
     const color = useGame(s => s.color);
     const sendMove = useGame(s => s.sendMove);
+    const roomId = useGame(s => s.roomId);
 
     const [selected, setSelected] = useState<Pos | null>(null);
     const [debugMode, setDebugMode] = useState(false);
@@ -1233,7 +1234,8 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
             {/* HUD for rotate */}
             <div className="d-flex align-items-center p-2 bg-light border-bottom" style={{ position: 'relative', zIndex: 10 }}>
                 <div className="flex-grow-1">
-                    <strong>Turn:</strong> <span className="text-primary">{state.turn}</span> {isMyTurn && <span className="badge bg-success ms-1">Your move</span>}
+                    {roomId && <span style={{ marginRight: '1rem' }}><strong>Game ID:</strong> {roomId}</span>}
+                    <strong>Turn:</strong> <span className="text-primary">{state.turn}</span> {isMyTurn && <span className="badge bg-success ms-1">Your&nbsp;move</span>}
                     {selected && <span className="ms-3 text-muted">Selected: {selected.r},{selected.c}</span>}
                     {debugMode && <span className="ms-3 small text-secondary">Debug: selected={selected ? 'yes' : 'no'}, isMyTurn={isMyTurn ? 'yes' : 'no'}, FPS: {fps}</span>}
                 </div>

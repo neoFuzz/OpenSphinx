@@ -36,6 +36,8 @@ jobs:
           VITE_SERVER_URL: ${{ vars.PRODUCTION_SERVER_URL }}
           VITE_ADMOB_BANNER_LOBBY: ${{ vars.VITE_ADMOB_BANNER_LOBBY }}
           VITE_ADMOB_BANNER_POSTGAME: ${{ vars.VITE_ADMOB_BANNER_POSTGAME }}
+          VITE_ADMOB_INTERSTITIAL: ${{ vars.VITE_ADMOB_INTERSTITIAL }}
+          ADMOB_APP_ID: ${{ vars.ADMOB_APP_ID }}
         
       - name: Add Android platform
         working-directory: client
@@ -48,6 +50,13 @@ jobs:
       - name: Sync Capacitor
         working-directory: client
         run: npx cap sync android
+        env:
+          ADMOB_APP_ID: ${{ vars.ADMOB_APP_ID }}
+      
+      - name: Update AdMob App ID in AndroidManifest
+        working-directory: client/android/app/src/main
+        run: |
+          sed -i 's/android:value="ca-app-pub-[0-9~]*"/android:value="${{ vars.ADMOB_APP_ID }}"/' AndroidManifest.xml
         
       - name: Add signing config to build.gradle
         working-directory: client/android/app

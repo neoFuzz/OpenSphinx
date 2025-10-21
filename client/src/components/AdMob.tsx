@@ -53,3 +53,19 @@ export function AdMobWrapper({ adUnitId, adSenseSlot, type = 'banner' }: AdMobPr
   // On mobile, AdMob renders natively (no DOM element)
   return null;
 }
+
+/**
+ * Show interstitial ad - call this function at natural break points
+ */
+export async function showInterstitialAd(adUnitId: string) {
+  if ((window as any).Capacitor) {
+    try {
+      const { AdMob, InterstitialAdPluginEvents } = await import('@capacitor-community/admob');
+      
+      await AdMob.prepareInterstitial({ adId: adUnitId });
+      await AdMob.showInterstitial();
+    } catch (error) {
+      console.error('Failed to show interstitial ad:', error);
+    }
+  }
+}

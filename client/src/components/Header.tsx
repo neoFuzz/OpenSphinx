@@ -39,6 +39,16 @@ interface HeaderProps {
   currentPage?: PageType;
   /** Callback to navigate to a different page */
   onNavigate?: (page: PageType) => void;
+  /** Callback to show join room form */
+  onJoinRoom?: () => void;
+  /** Callback to show browse rooms */
+  onBrowseRooms?: () => void;
+  /** Current player name */
+  playerName?: string;
+  /** Callback when player name changes */
+  onPlayerNameChange?: (name: string) => void;
+  /** Whether user is logged in */
+  isLoggedIn?: boolean;
 }
 
 /**
@@ -69,16 +79,20 @@ export function Header({
   cubeMapQuality = 'low',
   onCubeMapQualityChange,
   currentPage = 'home',
-  onNavigate
+  onNavigate,
+  onJoinRoom,
+  onBrowseRooms,
+  playerName = 'Player',
+  onPlayerNameChange,
+  isLoggedIn = false
 }: HeaderProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'menu' | 'options'>('menu');
 
   return (
     <>
-
-      {!inGame && (
-      <div className="mb-3 bg-dark text-light py-3 mt-auto d-flex align-items-center justify-content-between">
+      <div className="mb-1 bg-dark text-light py-2 mt-auto d-flex align-items-center justify-content-between">
         <div className="d-flex align-items-center">
           <img src="logo.svg" className={`me-3 ms-3 ${styles.logo}`} title="OpenSphinx logo" alt="Sphinx coloured yellow, blue and red"></img>
           <div>
@@ -86,117 +100,116 @@ export function Header({
             {subtitle && <small className="text-secondary">{subtitle}</small>}
           </div>
         </div>
-        <div className="d-flex gap-2">
+        <div className={styles.buttonContainer}>
           <button
             className="btn btn-outline-light"
             onClick={() => setAccountOpen(!accountOpen)}
+            style={{ backgroundColor: '#333' }}
           >
             &#128100;
           </button>
           <button
             className="btn btn-outline-light me-3"
             onClick={() => setSidebarOpen(!sidebarOpen)}
+            style={{ backgroundColor: '#333' }}
           >
             &#9776;
           </button>
         </div>
       </div>
-      )}
-
-      {inGame && (
-        <div className="position-fixed top-0 end-0 p-2 d-flex gap-2" style={{ zIndex: 1030 }}>
-          <button
-            className="btn btn-outline-dark btn-sm"
-            onClick={() => setAccountOpen(!accountOpen)}
-          >
-            &#128100;
-          </button>
-          <button
-            className="btn btn-outline-dark btn-sm"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            &#9776;
-          </button>
-        </div>
-      )}
 
       {/* Sidebar */}
       <div className={`position-fixed top-0 end-0 h-100 bg-dark text-light p-3 ${sidebarOpen ? 'd-block' : 'd-none'}`} style={{ width: '300px', zIndex: 1050 }}>
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5>Options</h5>
+          <h5>Settings</h5>
           <button className="btn btn-outline-light btn-sm" onClick={() => setSidebarOpen(false)}>×</button>
         </div>
 
-        <div className="d-grid gap-2">
-          <button className="btn btn-outline-light" onClick={() => { if (inGame) onLeaveGame?.(); onNavigate?.('home'); setSidebarOpen(false); }}>Home</button>
-          {inGame ? (
-            <>
-              <button className="btn btn-primary" onClick={onSaveGame}>Save Game</button>
-              <button className="btn btn-secondary" onClick={onLoadGame}>Load Game</button>
-              <button className="btn btn-warning" onClick={onNewGame}>New Game</button>
-              <button className="btn btn-danger" onClick={() => { onLeaveGame?.(); setSidebarOpen(false); }}>Leave Game</button>
-            </>
-          ) : (
-            <>
-              <button className="btn btn-primary" onClick={onNewGame}>New Game</button>
-              <button className="btn btn-secondary" onClick={onLoadGame}>Load Game</button>
-            </>
-          )}
+        <ul className="nav nav-tabs mb-3">
+          <li className="nav-item">
+            <button className={`nav-link ${activeTab === 'menu' ? 'active' : ''}`} onClick={() => setActiveTab('menu')}>Menu</button>
+          </li>
+          <li className="nav-item">
+            <button className={`nav-link ${activeTab === 'options' ? 'active' : ''}`} onClick={() => setActiveTab('options')}>Options</button>
+          </li>
+        </ul>
 
-          <hr className="my-3" />
-
-          <div className="form-check">
-            <input
-              className="form-check-input"
-              type="checkbox"
-              checked={useThree}
-              onChange={e => onToggleThree?.(e.target.checked)}
-              id="use3d-sidebar"
-              disabled={isTransitioning}
-            />
-            <label className="form-check-label" htmlFor="use3d-sidebar">
-              Use 3D {isTransitioning && '(switching...)'}
-            </label>
+        {activeTab === 'menu' && (
+          <div className="d-grid gap-2">
+            <button className="btn btn-outline-light" onClick={() => { if (inGame) onLeaveGame?.(); onNavigate?.('home'); setSidebarOpen(false); }}>Home</button>
+            {inGame ? (
+              <>
+                <button className="btn btn-primary" onClick={() => { onJoinRoom?.(); setSidebarOpen(false); }}>Join Room</button>
+                <button className="btn btn-secondary" onClick={() => { onBrowseRooms?.(); setSidebarOpen(false); }}>Browse Rooms</button>
+                <button className="btn btn-warning" onClick={onLoadGame}>Load Game</button>
+                <button className="btn btn-info" onClick={() => { onNavigate?.('replays'); setSidebarOpen(false); }}>View Replays</button>
+                <button className="btn btn-danger" onClick={() => { onLeaveGame?.(); setSidebarOpen(false); }}>Leave Game</button>
+              </>
+            ) : (
+              <>
+                <button className="btn btn-primary" onClick={onNewGame}>New Game</button>
+                <button className="btn btn-secondary" onClick={onLoadGame}>Load Game</button>
+                <button className="btn btn-info" onClick={() => { onNavigate?.('replays'); setSidebarOpen(false); }}>View Replays</button>
+              </>
+            )}
           </div>
+        )}
 
-          <div className="mb-2">
-            <label htmlFor="environment-select" className="form-label small">Environment</label>
-            <select
-              className="form-select form-select-sm"
-              id="environment-select"
-              value={environmentPreset}
-              onChange={e => onEnvironmentChange?.(e.target.value)}
-            >
-              <option value="basic">Basic</option>
-              <option value="park">Park</option>
-              <option value="sunset">Sunset</option>
-              <option value="dawn">Dawn</option>
-              <option value="night">Night</option>
-              <option value="warehouse">Warehouse</option>
-              <option value="forest">Forest</option>
-              <option value="apartment">Apartment</option>
-              <option value="studio">Studio</option>
-              <option value="city">City</option>
-              <option value="lobby">Lobby</option>
-            </select>
-          </div>
+        {activeTab === 'options' && (
+          <div className="d-grid gap-2">
+            <div className="form-check">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                checked={useThree}
+                onChange={e => onToggleThree?.(e.target.checked)}
+                id="use3d-sidebar"
+                disabled={isTransitioning}
+              />
+              <label className="form-check-label" htmlFor="use3d-sidebar">
+                Use 3D {isTransitioning && '(switching...)'}
+              </label>
+            </div>
 
-          <div className="mb-2">
-            <label htmlFor="cubemap-quality-select" className="form-label small">Mirror Quality</label>
-            <select
-              className="form-select form-select-sm"
-              id="cubemap-quality-select"
-              value={cubeMapQuality}
-              onChange={e => onCubeMapQualityChange?.(e.target.value as 'off' | 'low' | 'medium' | 'high' | 'ultra')}
-            >
-              <option value="off">Off</option>
-              <option value="low">Low (256px)</option>
-              <option value="medium">Medium (512px)</option>
-              <option value="high">High (1024px)</option>
-              <option value="ultra">Ultra (2048px)</option>
-            </select>
+            <div className="mb-2">
+              <label htmlFor="environment-select" className="form-label small">Environment</label>
+              <select
+                className="form-select form-select-sm"
+                id="environment-select"
+                value={environmentPreset}
+                onChange={e => onEnvironmentChange?.(e.target.value)}
+              >
+                <option value="basic">Basic</option>
+                <option value="park">Park</option>
+                <option value="sunset">Sunset</option>
+                <option value="dawn">Dawn</option>
+                <option value="night">Night</option>
+                <option value="warehouse">Warehouse</option>
+                <option value="forest">Forest</option>
+                <option value="apartment">Apartment</option>
+                <option value="studio">Studio</option>
+                <option value="city">City</option>
+                <option value="lobby">Lobby</option>
+              </select>
+            </div>
+
+            <div className="mb-2">
+              <label htmlFor="cubemap-quality-select" className="form-label small">Mirror Quality</label>
+              <select
+                className="form-select form-select-sm"
+                id="cubemap-quality-select"
+                value={cubeMapQuality}
+                onChange={e => onCubeMapQualityChange?.(e.target.value as 'off' | 'low' | 'medium' | 'high' | 'ultra')}
+              >
+                <option value="off">Off</option>
+                <option value="low">Low (256px)</option>
+                <option value="medium">Medium (512px)</option>
+                <option value="high">High (1024px)</option>
+                <option value="ultra">Ultra (2048px)</option>
+              </select>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Account Menu */}
@@ -207,6 +220,19 @@ export function Header({
         </div>
 
         <div className="d-grid gap-2">
+          {!isLoggedIn && (
+            <div className="mb-2">
+              <label htmlFor="player-name-input" className="form-label small">Player Name</label>
+              <input
+                type="text"
+                className="form-control form-control-sm"
+                id="player-name-input"
+                value={playerName}
+                onChange={e => onPlayerNameChange?.(e.target.value)}
+                placeholder="Enter your name"
+              />
+            </div>
+          )}
           <button
             className={`btn ${currentPage === 'home' ? 'btn-primary' : 'btn-outline-light'}`}
             onClick={() => { if (inGame) onLeaveGame?.(); onNavigate?.('home'); setAccountOpen(false); }}

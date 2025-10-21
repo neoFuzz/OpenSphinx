@@ -6,6 +6,11 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   android: {
     allowMixedContent: true
+  },
+  plugins: {
+    AdMob: {
+      appId: process.env.ADMOB_APP_ID || 'ca-app-pub-3940256099942544~3347511713'
+    }
   }
 };
 
