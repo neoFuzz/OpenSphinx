@@ -56,7 +56,7 @@ jobs:
       - name: Update AdMob App ID in AndroidManifest
         working-directory: client/android/app/src/main
         run: |
-          sed -i 's/android:value="ca-app-pub-[0-9~]*"/android:value="${{ vars.ADMOB_APP_ID }}"/' AndroidManifest.xml
+          sed -i 's|android:value="ca-app-pub-[0-9~]*"|android:value="${{ vars.ADMOB_APP_ID }}"|' AndroidManifest.xml
         
       - name: Add signing config to build.gradle
         working-directory: client/android/app
