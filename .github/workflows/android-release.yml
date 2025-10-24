@@ -57,6 +57,16 @@ jobs:
         working-directory: client/android/app/src/main
         run: |
           sed -i 's|android:value="ca-app-pub-[0-9~]*"|android:value="${{ vars.ADMOB_APP_ID }}"|' AndroidManifest.xml
+      
+      - name: Add AD_ID permission to AndroidManifest
+        working-directory: client/android/app/src/main
+        run: |
+          if ! grep -q "com.google.android.gms.permission.AD_ID" AndroidManifest.xml; then
+            sed -i 's|</manifest>|    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />\n</manifest>|' AndroidManifest.xml
+            echo "AD_ID permission added"
+          else
+            echo "AD_ID permission already exists"
+          fi
         
       - name: Add signing config to build.gradle
         working-directory: client/android/app

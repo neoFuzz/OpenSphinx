@@ -14,6 +14,7 @@ interface FooterProps {
  * @returns JSX element representing the footer
  */
 export function Footer({ onNavigate }: FooterProps) {
+    const baseUrl = import.meta.env.VITE_SITE_URL || 'https://opensphinx.online';
     return (
         <footer className="bg-dark text-light py-3 mt-auto">
             <div className="container-fluid">
@@ -28,10 +29,10 @@ export function Footer({ onNavigate }: FooterProps) {
                         <a href="https://discord.gg/8eYTA7gkQV" className="text-light me-3" target="_blank" rel="noopener noreferrer">
                             Discord
                         </a>
-                        <a href="#" className="text-light me-3" onClick={(e) => { e.preventDefault(); onNavigate?.('rules'); }}>Rules</a>
-                        <a href="#" className="text-light me-3" onClick={(e) => { e.preventDefault(); onNavigate?.('terms'); }}>Terms of Service</a>
-                        <a href="#" className="text-light me-3">Privacy Policy</a>
-                        <a href="#" className="text-light" onClick={(e) => { e.preventDefault(); onNavigate?.('about'); }}>About</a>
+                        <a href={`${baseUrl}/rules`} className="text-light me-3" onClick={(e) => { e.preventDefault(); onNavigate?.('rules'); }}>Rules</a>
+                        <a href={`${baseUrl}/terms`} className="text-light me-3" onClick={(e) => { e.preventDefault(); onNavigate?.('terms'); }}>Terms of Service</a>
+                        <a href={`${baseUrl}/privacy`} className="text-light me-3">Privacy Policy</a>
+                        <a href={`${baseUrl}/about`} className="text-light" onClick={(e) => { e.preventDefault(); onNavigate?.('about'); }}>About</a>
                     </div>
                 </div>
             </div>

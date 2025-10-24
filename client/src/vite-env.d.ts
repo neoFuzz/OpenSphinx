@@ -13,6 +13,8 @@
 interface ImportMetaEnv {
   /** Server URL for API and Socket.IO connections */
   readonly VITE_SERVER_URL?: string;
+  /** Site URL for external links */
+  readonly VITE_SITE_URL?: string;
 }
 
 /**
