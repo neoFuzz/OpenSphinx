@@ -61,10 +61,15 @@ jobs:
         env:
           ADMOB_APP_ID: ${{ vars.ADMOB_APP_ID }}
       
-      - name: Update AdMob App ID in AndroidManifest
+      - name: Add AdMob App ID to AndroidManifest
         working-directory: client/android/app/src/main
         run: |
-          sed -i 's|android:value="ca-app-pub-[0-9~]*"|android:value="${{ vars.ADMOB_APP_ID }}"|' AndroidManifest.xml
+          if ! grep -q "com.google.android.gms.ads.APPLICATION_ID" AndroidManifest.xml; then
+            sed -i 's|</application>|        <meta-data\n            android:name="com.google.android.gms.ads.APPLICATION_ID"\n            android:value="${{ vars.ADMOB_APP_ID }}"/>\n    </application>|' AndroidManifest.xml
+            echo "AdMob App ID added"
+          fi
+          echo "Verifying AdMob App ID:"
+          grep -A 1 "com.google.android.gms.ads.APPLICATION_ID" AndroidManifest.xml
         
       - name: Add signing config to build.gradle
         working-directory: client/android/app
