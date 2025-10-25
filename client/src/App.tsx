@@ -14,9 +14,11 @@ import { Header } from './components/Header';
 import { Stats } from './components/Stats';
 import { Rules } from './components/Rules';
 import { TermsOfService } from './components/TermsOfService';
+import { Privacy } from './components/Privacy';
 import { About } from './components/About';
 import { AdSense } from './components/AdSense';
 import { AdMobWrapper, showInterstitialAd } from './components/AdMob';
+import { CanonicalTag } from './components/CanonicalTag';
 
 /** Lazy-loaded 2D board component */
 const Board2D = React.lazy(() => import('./components/Board').then(m => ({ default: m.Board })));
@@ -38,7 +40,7 @@ const Board3D = React.lazy(() => import('./components/Board3D').then(m => ({ def
 export default function App() {
     const { checkAuth } = useAuth();
     const connectRoom = useGame(s => s.connectRoom);
-    const [currentPage, setCurrentPage] = useState<'home' | 'stats' | 'rules' | 'terms' | 'about' | 'replays'>('home');
+    const [currentPage, setCurrentPage] = useState<'home' | 'stats' | 'rules' | 'terms' | 'privacy' | 'about' | 'replays'>('home');
 
     React.useEffect(() => {
         checkAuth().catch(console.error);
@@ -80,8 +82,21 @@ export default function App() {
     const handleJoinRoom = () => setShowJoinForm(true);
     const [showBrowseRooms, setShowBrowseRooms] = useState(false);
 
+    const getCanonicalPath = () => {
+        switch (currentPage) {
+            case 'stats': return '/stats';
+            case 'rules': return '/rules';
+            case 'terms': return '/terms';
+            case 'privacy': return '/privacy';
+            case 'about': return '/about';
+            case 'replays': return '/replays';
+            default: return '/';
+        }
+    };
+
     return (
         <div className="d-flex flex-column min-vh-100">
+            <CanonicalTag path={getCanonicalPath()} />
             <Header
                 inGame={!!state}
                 onLoadGame={handleLoadGame}
@@ -124,6 +139,8 @@ export default function App() {
                     <Rules />
                 ) : currentPage === 'terms' ? (
                     <TermsOfService />
+                ) : currentPage === 'privacy' ? (
+                    <Privacy />
                 ) : currentPage === 'about' ? (
                     <About />
                 ) : currentPage === 'replays' ? (
@@ -142,7 +159,7 @@ export default function App() {
                                         <p>For more information, visit the <a href="#" onClick={() => setCurrentPage('rules')}>Rules</a> page.</p>
                                     </div>
                                     <div className="col-md-4">
-                                        <AdMobWrapper 
+                                        <AdMobWrapper
                                             adUnitId={import.meta.env.VITE_ADMOB_BANNER_LOBBY || 'ca-app-pub-3940256099942544/6300978111'}
                                             adSenseSlot={import.meta.env.VITE_ADSENSE_SLOT_LOBBY || '1234567890'}
                                         />
@@ -404,7 +421,7 @@ function GameModal() {
                         <p>{modal.message}</p>
                         {modal.title === 'Game Over' && (
                             <div className="mt-3">
-                                <AdMobWrapper 
+                                <AdMobWrapper
                                     adUnitId={import.meta.env.VITE_ADMOB_BANNER_POSTGAME || 'ca-app-pub-3940256099942544/6300978111'}
                                     adSenseSlot={import.meta.env.VITE_ADSENSE_SLOT_POSTGAME || '9876543210'}
                                 />

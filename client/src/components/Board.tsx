@@ -401,7 +401,7 @@ export function Board() {
 
   return (
     <div className='board-container'>
-      <div className='turn-info d-flex justify-content-around' style={{minWidth: '40vw'}}>
+      <div className='turn-info d-flex justify-content-around' style={{ minWidth: '40vw' }}>
         {roomId && <div className='p-1' style={{ marginRight: '1rem' }}><b>Game ID:</b> {roomId}</div>}
         <div className='p-1'><b>Turn:</b> {state.turn} {myTurn ? `(your move)` : ''}</div>
       </div>
@@ -421,9 +421,9 @@ export function Board() {
             const hasLaser = state.lastLaserPath?.some(p => p.r === r && p.c === c);
             const isRedLaser = r === 0 && c === 0 && state.config?.rules === 'CLASSIC';
             const isSilverLaser = r === 7 && c === 9 && state.config?.rules === 'CLASSIC';
-            
+
             const beamsFromCell = laserBeams.filter(beam => beam.from.r === r && beam.from.c === c);
-            
+
             return (
               <div key={`laser-${r}-${c}`} className="laser-cell">
                 {hasLaser && <div className="laser" />}
@@ -468,7 +468,7 @@ function LaserBeam({ from, to, progress }: { from: Pos, to: Pos, progress: numbe
   const dy = to.r - from.r;
   const distance = Math.sqrt(dx * dx + dy * dy);
   const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-  
+
   return (
     <div
       className="laser-beam"

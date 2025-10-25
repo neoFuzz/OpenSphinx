@@ -20,7 +20,7 @@ export function AdMobWrapper({ adUnitId, adSenseSlot, type = 'banner' }: AdMobPr
       if ((window as any).Capacitor) {
         setIsMobile(true);
         const { AdMob } = await import('@capacitor-community/admob');
-        
+
         await AdMob.initialize({
           initializeForTesting: false,
         });
@@ -33,7 +33,7 @@ export function AdMobWrapper({ adUnitId, adSenseSlot, type = 'banner' }: AdMobPr
         }
       }
     };
-    
+
     checkPlatform().catch(console.error);
 
     return () => {
@@ -61,7 +61,7 @@ export async function showInterstitialAd(adUnitId: string) {
   if ((window as any).Capacitor) {
     try {
       const { AdMob, InterstitialAdPluginEvents } = await import('@capacitor-community/admob');
-      
+
       await AdMob.prepareInterstitial({ adId: adUnitId });
       await AdMob.showInterstitial();
     } catch (error) {

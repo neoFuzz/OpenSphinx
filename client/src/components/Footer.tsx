@@ -31,7 +31,7 @@ export function Footer({ onNavigate }: FooterProps) {
                         </a>
                         <a href={`${baseUrl}/rules`} className="text-light me-3" onClick={(e) => { e.preventDefault(); onNavigate?.('rules'); }}>Rules</a>
                         <a href={`${baseUrl}/terms`} className="text-light me-3" onClick={(e) => { e.preventDefault(); onNavigate?.('terms'); }}>Terms of Service</a>
-                        <a href={`${baseUrl}/privacy`} className="text-light me-3">Privacy Policy</a>
+                        <a href={`${baseUrl}/privacy`} className="text-light me-3" onClick={(e) => { e.preventDefault(); onNavigate?.('privacy'); }}>Privacy Policy</a>
                         <a href={`${baseUrl}/about`} className="text-light" onClick={(e) => { e.preventDefault(); onNavigate?.('about'); }}>About</a>
                     </div>
                 </div>
