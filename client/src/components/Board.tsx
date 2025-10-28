@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useGame } from '../state/game';
 import { COLS, ROWS } from '../../../shared/src/constants';
 import type { Pos } from '../../../shared/src/types';
@@ -35,6 +36,7 @@ import './board.css';
  * @returns React component that renders the game board
  */
 export function Board() {
+  const { t } = useTranslation();
   const state = useGame(s => s.state);
   const color = useGame(s => s.color);
   const sendMove = useGame(s => s.sendMove);
@@ -395,15 +397,15 @@ export function Board() {
     animate();
   }, []);
 
-  if (!state) return <div>Waiting for state…</div>;
+  if (!state) return <div>{t('waiting_for_state')}</div>;
 
   const roomId = useGame(s => s.roomId);
 
   return (
     <div className='board-container'>
       <div className='turn-info d-flex justify-content-around' style={{ minWidth: '40vw' }}>
-        {roomId && <div className='p-1' style={{ marginRight: '1rem' }}><b>Game ID:</b> {roomId}</div>}
-        <div className='p-1'><b>Turn:</b> {state.turn} {myTurn ? `(your move)` : ''}</div>
+        {roomId && <div className='p-1' style={{ marginRight: '1rem' }}><b>{t('game_id')}:</b> {roomId}</div>}
+        <div className='p-1'><b>{t('turn')}:</b> {state.turn} {myTurn ? `(${t('your_move')})` : ''}</div>
       </div>
       <div className='board-wrapper' ref={boardRef}>
         <div className="board">

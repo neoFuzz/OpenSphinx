@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Props for the JoinRoomForm component
@@ -24,6 +25,7 @@ interface JoinRoomFormProps {
  * @returns JSX element representing the join room modal
  */
 export function JoinRoomForm({ onSubmit, onCancel, initialName }: JoinRoomFormProps) {
+    const { t } = useTranslation();
     const [roomId, setRoomId] = useState('');
     const [name, setName] = useState(initialName || 'Player');
     const [password, setPassword] = useState('');
@@ -38,13 +40,13 @@ export function JoinRoomForm({ onSubmit, onCancel, initialName }: JoinRoomFormPr
             <div className="modal-dialog modal-dialog-centered">
                 <div className="modal-content">
                     <div className="modal-header">
-                        <h5 className="modal-title">Join Room</h5>
+                        <h5 className="modal-title">{t('join_room')}</h5>
                         <button type="button" className="btn-close" onClick={onCancel}></button>
                     </div>
                     <form onSubmit={handleSubmit}>
                         <div className="modal-body">
                             <div className="mb-3">
-                                <label htmlFor="roomId" className="form-label">Room ID</label>
+                                <label htmlFor="roomId" className="form-label">{t('room_id')}</label>
                                 <input
                                     type="text"
                                     className="form-control"
@@ -55,7 +57,7 @@ export function JoinRoomForm({ onSubmit, onCancel, initialName }: JoinRoomFormPr
                                 />
                             </div>
                             <div className="mb-3">
-                                <label htmlFor="playerName" className="form-label">Your Name</label>
+                                <label htmlFor="playerName" className="form-label">{t('your_name')}</label>
                                 <input
                                     type="text"
                                     className="form-control"
@@ -66,7 +68,7 @@ export function JoinRoomForm({ onSubmit, onCancel, initialName }: JoinRoomFormPr
                                 />
                             </div>
                             <div className="mb-3">
-                                <label htmlFor="roomPassword" className="form-label">Password (if required)</label>
+                                <label htmlFor="roomPassword" className="form-label">{t('password_optional')}</label>
                                 <input
                                     type="password"
                                     className="form-control"
@@ -77,8 +79,8 @@ export function JoinRoomForm({ onSubmit, onCancel, initialName }: JoinRoomFormPr
                             </div>
                         </div>
                         <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-                            <button type="submit" className="btn btn-primary">Join Room</button>
+                            <button type="button" className="btn btn-secondary" onClick={onCancel}>{t('cancel')}</button>
+                            <button type="submit" className="btn btn-primary">{t('join_room')}</button>
                         </div>
                     </form>
                 </div>

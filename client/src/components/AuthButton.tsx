@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../state/auth';
 
 /**
@@ -12,13 +13,14 @@ import { useAuth } from '../state/auth';
  * @returns {JSX.Element} Conditional UI based on auth state
  */
 export function AuthButton() {
+  const { t } = useTranslation();
   const { user, loading, login, logout } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false); // Currently unused but reserved for future dropdown functionality
 
   if (loading) {
     return (
       <div className="spinner-border spinner-border-sm" role="status">
-        <span className="visually-hidden">Loading...</span>
+        <span className="visually-hidden">{t('loading')}</span>
       </div>
     );
   }
@@ -40,7 +42,7 @@ export function AuthButton() {
         </div>
         <div className="d-flex justify-content-end">
           <button className="btn btn-outline-light btn-sm" onClick={logout}>
-            Logout
+            {t('logout')}
           </button>
         </div>
       </div>
@@ -49,7 +51,7 @@ export function AuthButton() {
 
   return (
     <button className="btn btn-outline-light" onClick={login}>
-      Login with Discord
+      {t('login')}
     </button>
   );
 }

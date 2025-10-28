@@ -141,13 +141,29 @@ app.get('/api/stats/:userId', async (req, res) => {
 });
 
 /**
- * GET /api/replays - Lists all game replays
+ * GET /api/replays - Lists all game replays with pagination and filtering
  * @route GET /api/replays
+ * @query {number} page - Page number (default: 1)
+ * @query {number} limit - Items per page (default: 10)
+ * @query {string} search - Search term for replay names
  */
-app.get('/api/replays', async (_req, res) => {
+app.get('/api/replays', async (req, res) => {
   try {
-    const replays = await database.listReplays();
-    res.json(replays);
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 10));
+    const search = (req.query.search as string) || '';
+    const offset = (page - 1) * limit;
+
+    const result = await database.listReplays({ limit, offset, search });
+    res.json({
+      replays: result.replays,
+      pagination: {
+        page,
+        limit,
+        total: result.total,
+        totalPages: Math.ceil(result.total / limit)
+      }
+    });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch replays' });
     logger.error('Failed to fetch replays', { error });

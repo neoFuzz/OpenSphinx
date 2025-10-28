@@ -231,14 +231,33 @@ class DatabaseManager {
    * Lists all game replays with metadata
    * @returns Promise resolving to array of replays without full game states
    */
-  listReplays(): Promise<Omit<GameReplay, 'gameStates'>[]> {
-    const rows = this.db.prepare('SELECT id, name, created_at, updated_at FROM game_replays ORDER BY updated_at DESC').all() as any[];
-    return Promise.resolve(rows.map(row => ({
-      id: row.id,
-      name: row.name,
-      createdAt: new Date(row.created_at),
-      updatedAt: new Date(row.updated_at)
-    })));
+  listReplays(options?: { limit?: number; offset?: number; search?: string }): Promise<{ replays: Omit<GameReplay, 'gameStates'>[]; total: number }> {
+    const { limit = 10, offset = 0, search = '' } = options || {};
+
+    let query = 'SELECT id, name, created_at, updated_at FROM game_replays';
+    let countQuery = 'SELECT COUNT(*) as count FROM game_replays';
+    const params: any[] = [];
+
+    if (search) {
+      query += ' WHERE name LIKE ?';
+      countQuery += ' WHERE name LIKE ?';
+      params.push(`%${search}%`);
+    }
+
+    query += ' ORDER BY updated_at DESC LIMIT ? OFFSET ?';
+
+    const rows = this.db.prepare(query).all(...params, limit, offset) as any[];
+    const countRow = this.db.prepare(countQuery).get(...params) as any;
+
+    return Promise.resolve({
+      replays: rows.map(row => ({
+        id: row.id,
+        name: row.name,
+        createdAt: new Date(row.created_at),
+        updatedAt: new Date(row.updated_at)
+      })),
+      total: countRow.count
+    });
   }
 
   /**

@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import DOMPurify from 'dompurify';
 import { SERVER_URL } from './config/server';
 import { useGame } from './state/game';
@@ -38,6 +39,7 @@ const Board3D = React.lazy(() => import('./components/Board3D').then(m => ({ def
  * @returns JSX element representing the complete application
  */
 export default function App() {
+    const { t } = useTranslation();
     const { checkAuth } = useAuth();
     const connectRoom = useGame(s => s.connectRoom);
     const [currentPage, setCurrentPage] = useState<'home' | 'stats' | 'rules' | 'terms' | 'privacy' | 'about' | 'replays'>('home');
@@ -151,12 +153,12 @@ export default function App() {
                             <>
                                 <div className="row mb-4">
                                     <div className="col-md-8">
-                                        <h4>Welcome to OpenSphinx</h4>
-                                        <p>Experience the strategic depth of laser chess in your browser (and soon mobile). OpenSphinx brings the classic Khet board game online with stunning 3D graphics and real-time multiplayer gameplay.</p>
-                                        <h5>How to Play</h5>
-                                        <p>Join an existing room or create your own to start playing. Each turn, move one piece orthogonally or rotate it 90°, then fire your laser. Hit your opponent's Pharaoh to win!</p>
-                                        <p>You can change your name by clicking on the Account (&#128100;) menu</p>
-                                        <p>For more information, visit the <a href="#" onClick={() => setCurrentPage('rules')}>Rules</a> page.</p>
+                                        <h4>{t('welcome_title')}</h4>
+                                        <p>{t('welcome_description')}</p>
+                                        <h5>{t('how_to_play')}</h5>
+                                        <p>{t('how_to_play_description')}</p>
+                                        <p>{t('change_name_hint')}</p>
+                                        <p>{t('more_info')} <a href="#" onClick={() => setCurrentPage('rules')}>{t('rules')}</a> {t('page')}.</p>
                                     </div>
                                     <div className="col-md-4">
                                         <AdMobWrapper
@@ -170,14 +172,14 @@ export default function App() {
 
                         {!state && (
                             <div className="d-flex gap-2 align-items-center mb-3 justify-content-start flex-wrap">
-                                <button className="btn btn-success" onClick={() => setShowCreateForm(true)}>Create</button>
-                                <button className="btn btn-primary" onClick={() => setShowJoinForm(true)}>Join</button>
-                                <button className="btn btn-secondary" onClick={handleLoadGame}>Load Game</button>
-                                <button className="btn btn-outline-info" onClick={() => setCurrentPage('replays')}>View Replays</button>
+                                <button className="btn btn-success" onClick={() => setShowCreateForm(true)}>{t('create')}</button>
+                                <button className="btn btn-primary" onClick={() => setShowJoinForm(true)}>{t('join')}</button>
+                                <button className="btn btn-secondary" onClick={handleLoadGame}>{t('load_game')}</button>
+                                <button className="btn btn-outline-info" onClick={() => setCurrentPage('replays')}>{t('view_replays')}</button>
                             </div>
                         )}
 
-                        <React.Suspense fallback={<div className="text-center">Loading…</div>}>
+                        <React.Suspense fallback={<div className="text-center">{t('loading')}</div>}>
                             <GameArea useThree={useThree} replayId={replayId} setReplayId={setReplayId} isTransitioning={isTransitioning} environmentPreset={environmentPreset} cubeMapQuality={cubeMapQuality} />
                         </React.Suspense>
 
@@ -248,6 +250,7 @@ export default function App() {
  * @returns JSX element representing the game area
  */
 function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmentPreset, cubeMapQuality }: { useThree: boolean; replayId: string; setReplayId: (id: string) => void; isTransitioning: boolean; environmentPreset: string; cubeMapQuality: 'off' | 'low' | 'medium' | 'high' | 'ultra' }) {
+    const { t } = useTranslation();
     const state = useGame(s => s.state);
     const [webglKey, setWebglKey] = React.useState(0);
 
@@ -265,8 +268,8 @@ function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmen
     if (!state) return (
         <div>
             <div className="alert alert-info">
-                <b>Getting Started</b>
-                <p>Choose a room from the list below or create your own game. You can customize rules, board setup, and game settings when creating a new room.</p>
+                <b>{t('getting_started')}</b>
+                <p>{t('getting_started_description')}</p>
             </div>
             <RoomListDisplay />
         </div>
@@ -283,16 +286,16 @@ function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmen
                             useGame.setState({ roomId: undefined, state: undefined });
                         }}
                     >
-                        Exit to Home
+                        {t('exit_to_home')}
                     </button>
                 </div>
             )}
             {isTransitioning ? (
                 <div className="text-center p-5">
                     <div className="spinner-border" role="status">
-                        <span className="visually-hidden">Switching...</span>
+                        <span className="visually-hidden">{t('switching')}</span>
                     </div>
-                    <p className="mt-2">Switching view mode...</p>
+                    <p className="mt-2">{t('switching_view_mode')}</p>
                 </div>
             ) : useThree ? (
                 <Board3D key={webglKey} environmentPreset={environmentPreset} cubeMapQuality={cubeMapQuality} />
@@ -315,6 +318,7 @@ function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmen
  * @returns JSX element representing the room list
  */
 function RoomListDisplay() {
+    const { t } = useTranslation();
     const [rooms, setRooms] = useState<{ id: string; playerCount: number; spectatorCount: number; hasWinner: boolean; turn: 'RED' | 'SILVER'; config?: { rules: string; setup: string } }[]>([]);
     const connectRoom = useGame(s => s.connectRoom);
     const { user } = useAuth();
@@ -352,9 +356,9 @@ function RoomListDisplay() {
 
     return (
         <div className="mt-3">
-            <h5>Available Rooms</h5>
+            <h5>{t('available_rooms')}</h5>
             {rooms.length === 0 ? (
-                <p className="text-muted">No active rooms found.</p>
+                <p className="text-muted">{t('no_rooms')}</p>
             ) : (
                 <div className="list-group">
                     {rooms.map((room) => (
@@ -362,7 +366,7 @@ function RoomListDisplay() {
                             <div className="flex-grow-1">
                                 <div className="row">
                                     <div className="col">
-                                        <h6 className="mb-1">Room {room.id}</h6>
+                                        <h6 className="mb-1">{t('room')} {room.id}</h6>
                                     </div>
                                 </div>
                                 <div className="row">
@@ -372,18 +376,18 @@ function RoomListDisplay() {
                                         </small>
                                     </div>
                                     <div className="col-4">
-                                        <small className="text-muted">Players: {room.playerCount}/2 ({room.spectatorCount}&nbsp;watching)</small>
+                                        <small className="text-muted">{t('players')}: {room.playerCount}/2 ({room.spectatorCount}&nbsp;{t('watching')})</small>
                                     </div>
                                     <div className="col-4">
                                         <small className="text-muted">
-                                            {room.hasWinner ? 'Game Finished' : ` Turn: ${room.turn}`}
+                                            {room.hasWinner ? t('game_finished') : ` ${t('turn')}: ${room.turn}`}
                                         </small>
                                     </div>
                                 </div>
                             </div>
                             <div>
                                 <button className="btn btn-primary" onClick={() => connectRoom(room.id, playerName)}>
-                                    Join
+                                    {t('join')}
                                 </button>
                             </div>
                         </div>
@@ -404,6 +408,7 @@ function RoomListDisplay() {
  * @returns JSX element representing the modal dialog or null if no modal
  */
 function GameModal() {
+    const { t } = useTranslation();
     const modal = useGame(s => s.modal);
     const hideModal = useGame(s => s.hideModal);
 
@@ -436,7 +441,7 @@ function GameModal() {
                                 const adUnitId = import.meta.env.VITE_ADMOB_INTERSTITIAL;
                                 if (adUnitId) await showInterstitialAd(adUnitId);
                                 useGame.setState({ roomId: undefined, state: undefined });
-                            }}>Exit to Home</button>
+                            }}>{t('exit_to_home')}</button>
                         )}
                     </div>
                 </div>
@@ -449,6 +454,7 @@ function GameModal() {
  * Modal dialog for browsing available rooms
  */
 function BrowseRoomsModal({ onJoinRoom, onClose }: { onJoinRoom: (roomId: string) => void; onClose: () => void }) {
+    const { t } = useTranslation();
     const [rooms, setRooms] = useState<{ id: string; playerCount: number; spectatorCount: number; hasWinner: boolean; turn: 'RED' | 'SILVER'; config?: { rules: string; setup: string } }[]>([]);
 
     const formatRules = (rules: string) => rules === 'KHET_2_0' ? 'Khet 2.0' : rules === 'CLASSIC' ? 'Classic' : rules;
@@ -477,31 +483,31 @@ function BrowseRoomsModal({ onJoinRoom, onClose }: { onJoinRoom: (roomId: string
             <div className="modal-dialog modal-dialog-centered">
                 <div className="modal-content">
                     <div className="modal-header">
-                        <h5 className="modal-title">Browse Rooms</h5>
+                        <h5 className="modal-title">{t('browse_rooms')}</h5>
                         <button type="button" className="btn-close" onClick={onClose}></button>
                     </div>
                     <div className="modal-body">
                         {rooms.length === 0 ? (
-                            <p>No active rooms found.</p>
+                            <p>{t('no_rooms')}</p>
                         ) : (
                             <div className="list-group">
                                 {rooms.map((room) => (
                                     <div key={room.id} className="list-group-item d-flex justify-content-between align-items-center">
                                         <div className="flex-grow-1">
-                                            <strong>Room {room.id}</strong>
+                                            <strong>{t('room')} {room.id}</strong>
                                             <div><small className="text-muted">
                                                 {room.config && `${formatRules(room.config.rules)} - ${formatSetup(room.config.setup)}`}
                                             </small></div>
-                                            <div><small className="text-muted">Players: {room.playerCount}/2 ({room.spectatorCount} watching) - {room.hasWinner ? 'Finished' : `Turn: ${room.turn}`}</small></div>
+                                            <div><small className="text-muted">{t('players')}: {room.playerCount}/2 ({room.spectatorCount} {t('watching')}) - {room.hasWinner ? t('finished') : `${t('turn')}: ${room.turn}`}</small></div>
                                         </div>
-                                        <button className="btn btn-primary btn-sm" onClick={() => onJoinRoom(room.id)}>Join</button>
+                                        <button className="btn btn-primary btn-sm" onClick={() => onJoinRoom(room.id)}>{t('join')}</button>
                                     </div>
                                 ))}
                             </div>
                         )}
                     </div>
                     <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={onClose}>Close</button>
+                        <button type="button" className="btn btn-secondary" onClick={onClose}>{t('close')}</button>
                     </div>
                 </div>
             </div>
@@ -524,6 +530,7 @@ function LoadGameDialog({ show, onCancel }: {
     show: boolean;
     onCancel: () => void;
 }) {
+    const { t } = useTranslation();
     const { savedGames, loadGame, deleteSavedGame } = useGame();
 
     if (!show) return null;
@@ -538,12 +545,12 @@ function LoadGameDialog({ show, onCancel }: {
             <div className="modal-dialog modal-dialog-centered">
                 <div className="modal-content">
                     <div className="modal-header">
-                        <h5 className="modal-title">Load Game</h5>
+                        <h5 className="modal-title">{t('load_game')}</h5>
                         <button type="button" className="btn-close" onClick={onCancel}></button>
                     </div>
                     <div className="modal-body">
                         {savedGames.filter(game => !game.winner).length === 0 ? (
-                            <p>No unfinished saved games found.</p>
+                            <p>{t('no_saved_games')}</p>
                         ) : (
                             <div className="list-group">
                                 {savedGames.filter(game => !game.winner).map((game) => (
@@ -551,7 +558,7 @@ function LoadGameDialog({ show, onCancel }: {
                                         <div>
                                             <h6 className="mb-1">{game.name}</h6>
                                             <small className="text-muted">
-                                                Updated: {new Date(game.updatedAt).toLocaleString()}
+                                                {t('updated')}: {new Date(game.updatedAt).toLocaleString()}
                                             </small>
                                         </div>
                                         <div>
@@ -559,13 +566,13 @@ function LoadGameDialog({ show, onCancel }: {
                                                 className="btn btn-primary btn-sm me-2"
                                                 onClick={() => handleLoad(game.id)}
                                             >
-                                                Load
+                                                {t('load')}
                                             </button>
                                             <button
                                                 className="btn btn-danger btn-sm"
                                                 onClick={() => deleteSavedGame(game.id)}
                                             >
-                                                Delete
+                                                {t('delete')}
                                             </button>
                                         </div>
                                     </div>
@@ -574,7 +581,7 @@ function LoadGameDialog({ show, onCancel }: {
                         )}
                     </div>
                     <div className="modal-footer">
-                        <button type="button" className="btn btn-secondary" onClick={onCancel}>Close</button>
+                        <button type="button" className="btn btn-secondary" onClick={onCancel}>{t('close')}</button>
                     </div>
                 </div>
             </div>

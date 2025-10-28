@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import DOMPurify from 'dompurify';
 import { SERVER_URL } from '../config/server';
 
@@ -41,6 +42,7 @@ interface RoomListProps {
  * @returns JSX element representing the room browser
  */
 export function RoomList({ onJoinRoom }: RoomListProps) {
+  const { t } = useTranslation();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [showRoomList, setShowRoomList] = useState(false);
 
@@ -77,7 +79,7 @@ export function RoomList({ onJoinRoom }: RoomListProps) {
         className="btn btn-outline-info btn-sm"
         onClick={() => setShowRoomList(true)}
       >
-        Browse Rooms
+        {t('browse_rooms')}
       </button>
 
       {showRoomList && (
@@ -85,12 +87,12 @@ export function RoomList({ onJoinRoom }: RoomListProps) {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header">
-                <h5 className="modal-title">Available Rooms</h5>
+                <h5 className="modal-title">{t('available_rooms')}</h5>
                 <button type="button" className="btn-close" onClick={() => setShowRoomList(false)}></button>
               </div>
               <div className="modal-body">
                 {rooms.length === 0 ? (
-                  <p>No active rooms found.</p>
+                  <p>{t('no_rooms')}</p>
                 ) : (
                   <div className="list-group">
                     {rooms.map((room) => (
@@ -98,10 +100,10 @@ export function RoomList({ onJoinRoom }: RoomListProps) {
                         <div className="flex-grow-1">
                           <div className="row">
                             <div className="col-6">
-                              <strong>Room {room.id}</strong>
+                              <strong>{t('room')} {room.id}</strong>
                             </div>
                             <div className="col-6">
-                              <small className="text-muted">Players: {room.playerCount}/2 ({room.spectatorCount} watching)</small>
+                              <small className="text-muted">{t('players')}: {room.playerCount}/2 ({room.spectatorCount} {t('watching')})</small>
                             </div>
                           </div>
                           <div className="row">
@@ -111,7 +113,7 @@ export function RoomList({ onJoinRoom }: RoomListProps) {
                               </small>
                             </div>
                             <div className="col-6">
-                              <small className="text-muted">{room.hasWinner ? 'Finished' : `Turn: ${room.turn}`}</small>
+                              <small className="text-muted">{room.hasWinner ? t('finished') : `${t('turn')}: ${room.turn}`}</small>
                             </div>
                           </div>
                         </div>
@@ -127,7 +129,7 @@ export function RoomList({ onJoinRoom }: RoomListProps) {
                             setShowRoomList(false);
                           }}
                         >
-                          Join
+                          {t('join')}
                         </button>
                       </div>
                     ))}
@@ -135,7 +137,7 @@ export function RoomList({ onJoinRoom }: RoomListProps) {
                 )}
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowRoomList(false)}>Close</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowRoomList(false)}>{t('close')}</button>
               </div>
             </div>
           </div>

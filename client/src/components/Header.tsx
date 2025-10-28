@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AuthButton } from './AuthButton';
+import LanguageSwitcher from './LanguageSwitcher';
 import styles from './Header.module.css';
 import { PageType } from '../types/navigation';
 
@@ -64,8 +66,8 @@ interface HeaderProps {
  * @returns JSX element representing the header
  */
 export function Header({
-  title = "OpenSphinx",
-  subtitle = "Open Source Laser Chess",
+  title,
+  subtitle,
   inGame = false,
   onSaveGame,
   onLoadGame,
@@ -86,9 +88,13 @@ export function Header({
   onPlayerNameChange,
   isLoggedIn = false
 }: HeaderProps) {
+  const { t } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'menu' | 'options'>('menu');
+
+  const displayTitle = title || t('app_title_short');
+  const displaySubtitle = subtitle || t('app_subtitle');
 
   return (
     <>
@@ -96,11 +102,12 @@ export function Header({
         <div className="d-flex align-items-center">
           <img src="logo.svg" className={`me-3 ms-3 ${styles.logo}`} title="OpenSphinx logo" alt="Sphinx coloured yellow, blue and red"></img>
           <div>
-            <h1 className="mb-0">{title}</h1>
-            {subtitle && <small className="text-secondary">{subtitle}</small>}
+            <h1 className="mb-0">{displayTitle}</h1>
+            <small className="text-secondary">{displaySubtitle}</small>
           </div>
         </div>
         <div className={styles.buttonContainer}>
+          <LanguageSwitcher />
           <button
             className="btn btn-outline-light"
             onClick={() => setAccountOpen(!accountOpen)}
@@ -121,35 +128,35 @@ export function Header({
       {/* Sidebar */}
       <div className={`position-fixed top-0 end-0 h-100 bg-dark text-light p-3 ${sidebarOpen ? 'd-block' : 'd-none'}`} style={{ width: '300px', zIndex: 1050 }}>
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5>Settings</h5>
+          <h5>{t('settings')}</h5>
           <button className="btn btn-outline-light btn-sm" onClick={() => setSidebarOpen(false)}>×</button>
         </div>
 
         <ul className="nav nav-tabs mb-3">
           <li className="nav-item">
-            <button className={`nav-link ${activeTab === 'menu' ? 'active' : ''}`} onClick={() => setActiveTab('menu')}>Menu</button>
+            <button className={`nav-link ${activeTab === 'menu' ? 'active' : ''}`} onClick={() => setActiveTab('menu')}>{t('menu')}</button>
           </li>
           <li className="nav-item">
-            <button className={`nav-link ${activeTab === 'options' ? 'active' : ''}`} onClick={() => setActiveTab('options')}>Options</button>
+            <button className={`nav-link ${activeTab === 'options' ? 'active' : ''}`} onClick={() => setActiveTab('options')}>{t('options')}</button>
           </li>
         </ul>
 
         {activeTab === 'menu' && (
           <div className="d-grid gap-2">
-            <button className="btn btn-outline-light" onClick={() => { if (inGame) onLeaveGame?.(); onNavigate?.('home'); setSidebarOpen(false); }}>Home</button>
+            <button className="btn btn-outline-light" onClick={() => { if (inGame) onLeaveGame?.(); onNavigate?.('home'); setSidebarOpen(false); }}>{t('home')}</button>
             {inGame ? (
               <>
-                <button className="btn btn-primary" onClick={() => { onJoinRoom?.(); setSidebarOpen(false); }}>Join Room</button>
-                <button className="btn btn-secondary" onClick={() => { onBrowseRooms?.(); setSidebarOpen(false); }}>Browse Rooms</button>
-                <button className="btn btn-warning" onClick={onLoadGame}>Load Game</button>
-                <button className="btn btn-info" onClick={() => { onNavigate?.('replays'); setSidebarOpen(false); }}>View Replays</button>
-                <button className="btn btn-danger" onClick={() => { onLeaveGame?.(); setSidebarOpen(false); }}>Leave Game</button>
+                <button className="btn btn-primary" onClick={() => { onJoinRoom?.(); setSidebarOpen(false); }}>{t('join_room')}</button>
+                <button className="btn btn-secondary" onClick={() => { onBrowseRooms?.(); setSidebarOpen(false); }}>{t('browse_rooms')}</button>
+                <button className="btn btn-warning" onClick={onLoadGame}>{t('load_game')}</button>
+                <button className="btn btn-info" onClick={() => { onNavigate?.('replays'); setSidebarOpen(false); }}>{t('view_replays')}</button>
+                <button className="btn btn-danger" onClick={() => { onLeaveGame?.(); setSidebarOpen(false); }}>{t('leave_game')}</button>
               </>
             ) : (
               <>
-                <button className="btn btn-primary" onClick={onNewGame}>New Game</button>
-                <button className="btn btn-secondary" onClick={onLoadGame}>Load Game</button>
-                <button className="btn btn-info" onClick={() => { onNavigate?.('replays'); setSidebarOpen(false); }}>View Replays</button>
+                <button className="btn btn-primary" onClick={onNewGame}>{t('new_game')}</button>
+                <button className="btn btn-secondary" onClick={onLoadGame}>{t('load_game')}</button>
+                <button className="btn btn-info" onClick={() => { onNavigate?.('replays'); setSidebarOpen(false); }}>{t('view_replays')}</button>
               </>
             )}
           </div>
@@ -167,12 +174,12 @@ export function Header({
                 disabled={isTransitioning}
               />
               <label className="form-check-label" htmlFor="use3d-sidebar">
-                Use 3D {isTransitioning && '(switching...)'}
+                {t('use_3d')} {isTransitioning && `(${t('switching')})`}
               </label>
             </div>
 
             <div className="mb-2">
-              <label htmlFor="environment-select" className="form-label small">Environment</label>
+              <label htmlFor="environment-select" className="form-label small">{t('environment')}</label>
               <select
                 className="form-select form-select-sm"
                 id="environment-select"
@@ -194,7 +201,7 @@ export function Header({
             </div>
 
             <div className="mb-2">
-              <label htmlFor="cubemap-quality-select" className="form-label small">Mirror Quality</label>
+              <label htmlFor="cubemap-quality-select" className="form-label small">{t('mirror_quality')}</label>
               <select
                 className="form-select form-select-sm"
                 id="cubemap-quality-select"
@@ -215,21 +222,21 @@ export function Header({
       {/* Account Menu */}
       <div className={`position-fixed top-0 end-0 bg-dark text-light p-3 ${accountOpen ? 'd-block' : 'd-none'}`} style={{ width: '250px', zIndex: 1050, marginTop: '80px' }}>
         <div className="d-flex justify-content-between align-items-center mb-3">
-          <h5>Account</h5>
+          <h5>{t('account')}</h5>
           <button className="btn btn-outline-light btn-sm" onClick={() => setAccountOpen(false)}>×</button>
         </div>
 
         <div className="d-grid gap-2">
           {!isLoggedIn && (
             <div className="mb-2">
-              <label htmlFor="player-name-input" className="form-label small">Player Name</label>
+              <label htmlFor="player-name-input" className="form-label small">{t('player_name')}</label>
               <input
                 type="text"
                 className="form-control form-control-sm"
                 id="player-name-input"
                 value={playerName}
                 onChange={e => onPlayerNameChange?.(e.target.value)}
-                placeholder="Enter your name"
+                placeholder={t('player_name')}
               />
             </div>
           )}
@@ -237,13 +244,13 @@ export function Header({
             className={`btn ${currentPage === 'home' ? 'btn-primary' : 'btn-outline-light'}`}
             onClick={() => { if (inGame) onLeaveGame?.(); onNavigate?.('home'); setAccountOpen(false); }}
           >
-            Home
+            {t('home')}
           </button>
           <button
             className={`btn ${currentPage === 'stats' ? 'btn-primary' : 'btn-outline-light'}`}
             onClick={() => { onNavigate?.('stats'); setAccountOpen(false); }}
           >
-            Stats
+            {t('stats')}
           </button>
           <hr className="my-2" />
           <AuthButton />

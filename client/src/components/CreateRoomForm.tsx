@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Represents the available rule variants for the game.
@@ -48,6 +49,7 @@ interface CreateRoomFormProps {
  * />
  */
 export function CreateRoomForm({ onSubmit, onCancel }: CreateRoomFormProps) {
+    const { t } = useTranslation();
     const [isPrivate, setIsPrivate] = useState(false);
     const [password, setPassword] = useState('');
     const [rules, setRules] = useState<RuleVariant>('CLASSIC');
@@ -67,13 +69,13 @@ export function CreateRoomForm({ onSubmit, onCancel }: CreateRoomFormProps) {
             <div className="modal-dialog modal-dialog-centered">
                 <div className="modal-content">
                     <div className="modal-header">
-                        <h5 className="modal-title">Create Room</h5>
+                        <h5 className="modal-title">{t('create_room')}</h5>
                         <button type="button" className="btn-close" onClick={onCancel}></button>
                     </div>
                     <form onSubmit={handleSubmit}>
                         <div className="modal-body">
                             <div className="mb-3">
-                                <label htmlFor="rules" className="form-label">Rules</label>
+                                <label htmlFor="rules" className="form-label">{t('rules')}</label>
                                 <select
                                     className="form-select"
                                     id="rules"
@@ -85,7 +87,7 @@ export function CreateRoomForm({ onSubmit, onCancel }: CreateRoomFormProps) {
                                 </select>
                             </div>
                             <div className="mb-3">
-                                <label htmlFor="setup" className="form-label">Setup</label>
+                                <label htmlFor="setup" className="form-label">{t('setup')}</label>
                                 <select
                                     className="form-select"
                                     id="setup"
@@ -106,12 +108,12 @@ export function CreateRoomForm({ onSubmit, onCancel }: CreateRoomFormProps) {
                                     onChange={e => setIsPrivate(e.target.checked)}
                                 />
                                 <label className="form-check-label" htmlFor="isPrivate">
-                                    Private Room
+                                    {t('private_room')}
                                 </label>
                             </div>
                             {isPrivate && (
                                 <div className="mb-3">
-                                    <label htmlFor="password" className="form-label">Password</label>
+                                    <label htmlFor="password" className="form-label">{t('password')}</label>
                                     <input
                                         type="password"
                                         className="form-control"
@@ -124,8 +126,8 @@ export function CreateRoomForm({ onSubmit, onCancel }: CreateRoomFormProps) {
                             )}
                         </div>
                         <div className="modal-footer">
-                            <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-                            <button type="submit" className="btn btn-success">Create Room</button>
+                            <button type="button" className="btn btn-secondary" onClick={onCancel}>{t('cancel')}</button>
+                            <button type="submit" className="btn btn-success">{t('create_room')}</button>
                         </div>
                     </form>
                 </div>
