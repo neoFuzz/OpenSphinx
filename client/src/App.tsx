@@ -65,6 +65,14 @@ export default function App() {
     const [cubeMapQuality, setCubeMapQuality] = useState<'off' | 'low' | 'medium' | 'high' | 'ultra'>(() => {
         return (localStorage.getItem('opensphinx-cubemap-quality') as 'off' | 'low' | 'medium' | 'high' | 'ultra') || 'low';
     });
+    const [showParticles, setShowParticles] = useState(() => {
+        const saved = localStorage.getItem('opensphinx-show-particles');
+        return saved ? JSON.parse(saved) : false;
+    });
+    const [trueReflections, setTrueReflections] = useState(() => {
+        const saved = localStorage.getItem('opensphinx-true-reflections');
+        return saved ? JSON.parse(saved) : false;
+    });
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [showJoinForm, setShowJoinForm] = useState(false);
     const [showLoadDialog, setShowLoadDialog] = useState(false);
@@ -83,6 +91,15 @@ export default function App() {
     };
     const handleJoinRoom = () => setShowJoinForm(true);
     const [showBrowseRooms, setShowBrowseRooms] = useState(false);
+    const [headerMinimized, setHeaderMinimized] = useState(false);
+
+    React.useEffect(() => {
+        if (state && !useThree) {
+            setHeaderMinimized(true);
+        } else {
+            setHeaderMinimized(false);
+        }
+    }, [state, useThree]);
 
     const getCanonicalPath = () => {
         switch (currentPage) {
@@ -131,8 +148,20 @@ export default function App() {
                     setCubeMapQuality(quality);
                     localStorage.setItem('opensphinx-cubemap-quality', quality);
                 }}
+                showParticles={showParticles}
+                onToggleParticles={(checked) => {
+                    setShowParticles(checked);
+                    localStorage.setItem('opensphinx-show-particles', JSON.stringify(checked));
+                }}
+                trueReflections={trueReflections}
+                onToggleTrueReflections={(checked) => {
+                    setTrueReflections(checked);
+                    localStorage.setItem('opensphinx-true-reflections', JSON.stringify(checked));
+                }}
                 currentPage={currentPage}
                 onNavigate={setCurrentPage}
+                minimized={headerMinimized}
+                onToggleMinimized={() => setHeaderMinimized(!headerMinimized)}
             />
             <div className="container-fluid p-3 flex-grow-1">
                 {currentPage === 'stats' ? (
@@ -180,7 +209,7 @@ export default function App() {
                         )}
 
                         <React.Suspense fallback={<div className="text-center">{t('loading')}</div>}>
-                            <GameArea useThree={useThree} replayId={replayId} setReplayId={setReplayId} isTransitioning={isTransitioning} environmentPreset={environmentPreset} cubeMapQuality={cubeMapQuality} />
+                            <GameArea useThree={useThree} replayId={replayId} setReplayId={setReplayId} isTransitioning={isTransitioning} environmentPreset={environmentPreset} cubeMapQuality={cubeMapQuality} showParticles={showParticles} trueReflections={trueReflections} />
                         </React.Suspense>
 
                         <GameModal />
@@ -249,7 +278,7 @@ export default function App() {
  * @param props.cubeMapQuality - Quality setting for cube map reflections
  * @returns JSX element representing the game area
  */
-function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmentPreset, cubeMapQuality }: { useThree: boolean; replayId: string; setReplayId: (id: string) => void; isTransitioning: boolean; environmentPreset: string; cubeMapQuality: 'off' | 'low' | 'medium' | 'high' | 'ultra' }) {
+function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmentPreset, cubeMapQuality, showParticles, trueReflections }: { useThree: boolean; replayId: string; setReplayId: (id: string) => void; isTransitioning: boolean; environmentPreset: string; cubeMapQuality: 'off' | 'low' | 'medium' | 'high' | 'ultra'; showParticles: boolean; trueReflections: boolean }) {
     const { t } = useTranslation();
     const state = useGame(s => s.state);
     const [webglKey, setWebglKey] = React.useState(0);
@@ -298,7 +327,7 @@ function GameArea({ useThree, replayId, setReplayId, isTransitioning, environmen
                     <p className="mt-2">{t('switching_view_mode')}</p>
                 </div>
             ) : useThree ? (
-                <Board3D key={webglKey} environmentPreset={environmentPreset} cubeMapQuality={cubeMapQuality} />
+                <Board3D key={webglKey} environmentPreset={environmentPreset} cubeMapQuality={cubeMapQuality} showParticles={showParticles} trueReflections={trueReflections} />
             ) : (
                 <Board2D />
             )}
@@ -434,7 +463,13 @@ function GameModal() {
                         )}
                     </div>
                     <div className="modal-footer">
-                        <button type="button" className="btn btn-primary" onClick={hideModal}>OK</button>
+                        <button type="button" className="btn btn-primary" onClick={async () => {
+                            hideModal();
+                            if (modal.title === 'Game Over') {
+                                const adUnitId = import.meta.env.VITE_ADMOB_INTERSTITIAL;
+                                if (adUnitId) await showInterstitialAd(adUnitId);
+                            }
+                        }}>OK</button>
                         {modal.title === 'Game Over' && (
                             <button type="button" className="btn btn-secondary" onClick={async () => {
                                 hideModal();

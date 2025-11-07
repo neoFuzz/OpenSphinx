@@ -110,7 +110,7 @@ export function Replay({ replayId, onClose }: ReplayProps) {
           <div style={{ marginBottom: 8 }}>
             <b>Turn:</b> {currentState.turn}
           </div>
-          <div className="board" style={{ gridTemplateColumns: `repeat(${COLS}, 48px)` }}>
+          <div className="board">
             {Array.from({ length: ROWS * COLS }, (_, i) => {
               const r = Math.floor(i / COLS);
               const c = i % COLS;

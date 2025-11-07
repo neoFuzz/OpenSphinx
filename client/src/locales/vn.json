@@ -98,5 +98,7 @@
   "game_id": "Mã trò chơi",
   "your_move": "đến lượt bạn",
   "no_replays_message": "Không tìm thấy replay. Các trận đấu đã hoàn thành sẽ hiện ra ở đây để bạn xem.",
-  "no_replays": "Không tìm thấy replay."
+  "no_replays": "Không tìm thấy replay.",
+  "show_particles": "Hiển thị hiệu ứng hạt 3D" ,
+  "true_reflections": "Phản xạ tích cực (Nhu cầu GPU cao)"
 }

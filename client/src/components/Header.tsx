@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AuthButton } from './AuthButton';
 import LanguageSwitcher from './LanguageSwitcher';
+import { useGame } from '../state/game';
 import styles from './Header.module.css';
 import { PageType } from '../types/navigation';
 
@@ -37,6 +38,14 @@ interface HeaderProps {
   cubeMapQuality?: 'off' | 'low' | 'medium' | 'high' | 'ultra';
   /** Callback when cube map quality is changed */
   onCubeMapQualityChange?: (quality: 'off' | 'low' | 'medium' | 'high' | 'ultra') => void;
+  /** Whether to show explosion particles */
+  showParticles?: boolean;
+  /** Callback when particle toggle is changed */
+  onToggleParticles?: (checked: boolean) => void;
+  /** Whether to enable true reflections (update every frame) */
+  trueReflections?: boolean;
+  /** Callback when true reflections toggle is changed */
+  onToggleTrueReflections?: (checked: boolean) => void;
   /** Current active page */
   currentPage?: PageType;
   /** Callback to navigate to a different page */
@@ -51,6 +60,12 @@ interface HeaderProps {
   onPlayerNameChange?: (name: string) => void;
   /** Whether user is logged in */
   isLoggedIn?: boolean;
+  /** Whether header is minimized */
+  minimized?: boolean;
+  /** Callback to toggle minimized state */
+  onToggleMinimized?: () => void;
+  /** Current game state */
+  gameState?: any;
 }
 
 /**
@@ -80,15 +95,25 @@ export function Header({
   onEnvironmentChange,
   cubeMapQuality = 'low',
   onCubeMapQualityChange,
+  showParticles = false,
+  onToggleParticles,
+  trueReflections = false,
+  onToggleTrueReflections,
   currentPage = 'home',
   onNavigate,
   onJoinRoom,
   onBrowseRooms,
   playerName = 'Player',
   onPlayerNameChange,
-  isLoggedIn = false
+  isLoggedIn = false,
+  minimized = false,
+  onToggleMinimized,
+  gameState
 }: HeaderProps) {
   const { t } = useTranslation();
+  const roomId = (useGame as any)(s => s.roomId);
+  const color = (useGame as any)(s => s.color);
+  const myTurn = gameState && color && gameState.turn === color && !gameState.winner;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'menu' | 'options'>('menu');
@@ -98,30 +123,60 @@ export function Header({
 
   return (
     <>
-      <div className="mb-1 bg-dark text-light py-2 mt-auto d-flex align-items-center justify-content-between">
+      <div className={`bg-dark text-light d-flex align-items-center ${minimized ? styles.headerMinimized : 'mb-1 py-2 mt-auto'}`}>
         <div className="d-flex align-items-center">
-          <img src="logo.svg" className={`me-3 ms-3 ${styles.logo}`} title="OpenSphinx logo" alt="Sphinx coloured yellow, blue and red"></img>
-          <div>
-            <h1 className="mb-0">{displayTitle}</h1>
-            <small className="text-secondary">{displaySubtitle}</small>
-          </div>
+          <img src="logo.svg" className={`${styles.logo} ${minimized ? styles.logoSmall : ''} ${!minimized ? 'me-3 ms-3' : 'ms-2 me-3'}`} title="OpenSphinx logo" alt="Sphinx coloured yellow, blue and red"></img>
+          {!minimized && (
+            <div>
+              <h1 className="mb-0">{displayTitle}</h1>
+              <small className="text-secondary">{displaySubtitle}</small>
+            </div>
+          )}
+          {minimized && gameState && (
+            <div className="d-flex gap-2 align-items-center" style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+              {roomId && <span><b>{t('game_id')}:</b> {roomId}</span>}
+              <span><b>{t('turn')}:</b> {gameState.turn} {myTurn ? `(${t('your_move')})` : ''}</span>
+            </div>
+          )}
         </div>
-        <div className={styles.buttonContainer}>
-          <LanguageSwitcher />
+        <div className={styles.buttonContainer} style={{ marginLeft: 'auto' }}>
+          {!minimized && <LanguageSwitcher />}
+          {!minimized && (
+            <button
+              className="btn btn-outline-light"
+              onClick={() => setAccountOpen(!accountOpen)}
+              style={{ backgroundColor: '#333' }}
+            >
+              &#128100;
+            </button>
+          )}
+          {minimized && <LanguageSwitcher />}
+          {minimized && (
+            <button
+              className="btn btn-outline-light"
+              onClick={() => setAccountOpen(!accountOpen)}
+              style={{ backgroundColor: '#333' }}
+            >
+              &#128100;
+            </button>
+          )}
           <button
             className="btn btn-outline-light"
-            onClick={() => setAccountOpen(!accountOpen)}
-            style={{ backgroundColor: '#333' }}
-          >
-            &#128100;
-          </button>
-          <button
-            className="btn btn-outline-light me-3"
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            style={{ backgroundColor: '#333' }}
+            style={{ backgroundColor: '#333', marginRight: minimized ? '0.0rem' : '0.1rem' }}
           >
             &#9776;
           </button>
+          {inGame && onToggleMinimized && (
+            <button
+              className="btn btn-outline-light"
+              onClick={onToggleMinimized}
+              style={{ backgroundColor: '#333', marginRight: minimized ? '0.0rem' : '0.5rem' }}
+              title={minimized ? "Expand header" : "Minimize header"}
+            >
+              {minimized ? '▷' : '◁'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -214,6 +269,32 @@ export function Header({
                 <option value="high">High (1024px)</option>
                 <option value="ultra">Ultra (2048px)</option>
               </select>
+            </div>
+
+            <div className="form-check">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                checked={showParticles}
+                onChange={e => onToggleParticles?.(e.target.checked)}
+                id="show-particles-sidebar"
+              />
+              <label className="form-check-label" htmlFor="show-particles-sidebar">
+                {t('show_particles')}
+              </label>
+            </div>
+
+            <div className="form-check">
+              <input
+                className="form-check-input"
+                type="checkbox"
+                checked={trueReflections}
+                onChange={e => onToggleTrueReflections?.(e.target.checked)}
+                id="true-reflections-sidebar"
+              />
+              <label className="form-check-label" htmlFor="true-reflections-sidebar">
+                {t('true_reflections')}
+              </label>
             </div>
           </div>
         )}

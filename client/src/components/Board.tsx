@@ -121,8 +121,11 @@ export function Board() {
 
             // Only show explosion if piece was actually destroyed (not moved)
             if (!pieceMovedElsewhere && boardRef.current) {
-              const x = c * 50 + 25;
-              const y = r * 50 + 25;
+              const boardRect = boardRef.current.getBoundingClientRect();
+              const cellWidth = (boardRect.width - 8 - 18) / COLS; // subtract padding and gaps
+              const cellHeight = (boardRect.height - 8 - 14) / ROWS;
+              const x = 4 + c * (cellWidth + 2) + cellWidth / 2; // padding + column offset + half cell
+              const y = 4 + r * (cellHeight + 2) + cellHeight / 2; // padding + row offset + half cell
               showExplosionEffect(x, y, boardRef.current);
               playExplosionSound();
             }
@@ -403,7 +406,7 @@ export function Board() {
 
   return (
     <div className='board-container'>
-      <div className='turn-info d-flex justify-content-around' style={{ minWidth: '40vw' }}>
+      <div className='turn-info d-flex justify-content-around' style={{ minWidth: '60vw' }}>
         {roomId && <div className='p-1' style={{ marginRight: '1rem' }}><b>{t('game_id')}:</b> {roomId}</div>}
         <div className='p-1'><b>{t('turn')}:</b> {state.turn} {myTurn ? `(${t('your_move')})` : ''}</div>
       </div>

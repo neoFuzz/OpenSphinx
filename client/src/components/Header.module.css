@@ -1,6 +1,32 @@
-.logo {width: 64px; height: 64px;}
+.logo {width: 64px; height: 64px; transition: width 0.3s ease, height 0.3s ease;}
+.logoSmall {width: 32px; height: 32px;}
+.logoHidden {width: 0; height: 32px; margin: 0 !important; opacity: 0;}
 
 .buttonContainer {display: flex; gap: 0.5rem;}
+
+.headerMinimized {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  background: rgba(33, 37, 41, 0.95) !important;
+  padding: 0.25rem 0.5rem !important;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+  margin: 0 !important;
+  transition: all 0.3s ease;
+  width: auto;
+  max-width: 100%;
+  border-radius: 0 0 8px 0;
+}
+
+@media screen and (max-width: 768px) {
+  .headerMinimized {
+    left: 0;
+    right: 0;
+    width: 100%;
+    border-radius: 0;
+  }
+}
 
 @media screen and (max-width: 475px) and (min-width: 400px) {
   .logo {width: 48px; height: 48px;}

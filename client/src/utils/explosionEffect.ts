@@ -61,14 +61,15 @@ export async function playExplosionSound() {
 /**
  * Display visual explosion effect at specified coordinates
  * 
- * Creates a temporary image element with explosion graphic that fades out.
- * The effect is positioned absolutely within the provided container.
+ * Creates CSS particle explosion with multiple particles that fly outward
+ * plus a central explosion image that fades out.
  * 
  * @param x - X coordinate in pixels relative to container
  * @param y - Y coordinate in pixels relative to container  
  * @param container - HTML element to append the explosion effect to
  */
 export function showExplosionEffect(x: number, y: number, container: HTMLElement) {
+    // Create explosion image
     const img = document.createElement('img');
     img.src = '/explosion.webp';
     img.style.position = 'absolute';
@@ -78,9 +79,9 @@ export function showExplosionEffect(x: number, y: number, container: HTMLElement
     img.style.height = '50px';
     img.style.transform = 'translate(-50%, -50%)';
     img.style.pointerEvents = 'none';
-    img.style.zIndex = '1000';
+    img.style.zIndex = '999';
     img.style.opacity = '1';
-    img.style.transition = 'opacity 0.5s ease-out';
+    img.style.transition = 'opacity 1s ease-out';
 
     container.appendChild(img);
 
@@ -90,7 +91,56 @@ export function showExplosionEffect(x: number, y: number, container: HTMLElement
 
     setTimeout(() => {
         container.removeChild(img);
-    }, 500);
+    }, 1000);
+
+    // Create particles
+    const particleCount = 12;
+
+    for (let i = 0; i < particleCount; i++) {
+        const particle = document.createElement('div');
+        const angle = (i / particleCount) * Math.PI * 2;
+        const velocity = 30 + Math.random() * 20;
+        const size = 4 + Math.random() * 4;
+
+        particle.style.position = 'absolute';
+        particle.style.left = `${x}px`;
+        particle.style.top = `${y}px`;
+        particle.style.width = `${size}px`;
+        particle.style.height = `${size}px`;
+        particle.style.borderRadius = '50%';
+        particle.style.background = `hsl(${Math.random() * 60 + 10}, 100%, ${50 + Math.random() * 20}%)`;
+        particle.style.pointerEvents = 'none';
+        particle.style.zIndex = '1000';
+        particle.style.boxShadow = '0 0 4px rgba(255,100,0,0.8)';
+
+        container.appendChild(particle);
+
+        const startTime = Date.now();
+        const duration = 600;
+
+        const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = elapsed / duration;
+
+            if (progress >= 1) {
+                container.removeChild(particle);
+                return;
+            }
+
+            const distance = velocity * progress;
+            const px = Math.cos(angle) * distance;
+            const py = Math.sin(angle) * distance + progress * progress * 20;
+            const opacity = 1 - progress;
+            const scale = 1 - progress * 0.5;
+
+            particle.style.transform = `translate(calc(-50% + ${px}px), calc(-50% + ${py}px)) scale(${scale})`;
+            particle.style.opacity = `${opacity}`;
+
+            requestAnimationFrame(animate);
+        };
+
+        requestAnimationFrame(animate);
+    }
 }
 
 /**

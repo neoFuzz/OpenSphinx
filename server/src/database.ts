@@ -319,6 +319,12 @@ class DatabaseManager {
    * @param won - Whether the player won the game
    */
   updatePlayerStats(userId: string, won: boolean): Promise<void> {
+    // Check if user exists first to avoid foreign key constraint error
+    const userExists = this.db.prepare('SELECT 1 FROM users WHERE id = ?').get(userId);
+    if (!userExists) {
+      return Promise.resolve();
+    }
+
     const stmt = this.db.prepare(`
       INSERT INTO player_stats (user_id, games_played, wins, losses)
       VALUES (?, 1, ?, ?)

@@ -85,8 +85,9 @@
 @media screen and (max-width: 768px) {
   .board { width: min(95vw, 95vh * 1.25); }
   .board-wrapper { width: min(95vw, 95vh * 1.25); }
+  .turn-info { margin-top: clamp(25.6px, calc(1.16vw + 28px), 30.72px); }
   h1 { font-size: calc(1rem + 2vw); }
-  small { font-size: calc(0.5rem + 0.5vw);}
+  small { font-size: calc(0.5rem + 0.5vw); }
 }
 
 @media screen and (max-width: 480px) {

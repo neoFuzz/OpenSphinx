@@ -98,5 +98,7 @@
   "game_id": "ゲームID",
   "your_move": "あなたの動き",
   "no_replays_message": "リプレイは見つかりませんでした。完成したゲームはここに表示され、見ることができます。",
-  "no_replays": "リプレイは見つかりませんでした。"
+  "no_replays": "リプレイは見つかりませんでした。",
+  "show_particles": "3D パーティクル効果を表示" ,
+  "true_reflections": "アクティブ リフレクション (高い GPU 需要)"
 }

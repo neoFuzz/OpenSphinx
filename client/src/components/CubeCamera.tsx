@@ -19,6 +19,7 @@ interface CubeCameraProps {
   position?: [number, number, number];
   onUpdate?: (envMap: THREE.CubeTexture) => void;
   quality?: 'off' | 'low' | 'medium' | 'high' | 'ultra';
+  paused?: boolean;
 }
 
 /**
@@ -36,7 +37,7 @@ interface CubeCameraProps {
  * 
  * @returns {JSX.Element | null} Returns the cube camera primitive or null if quality is 'off'
  */
-export function CubeCamera({ position = [0, 2, 0], onUpdate, quality = 'low' }: CubeCameraProps) {
+export function CubeCamera({ position = [0, 2, 0], onUpdate, quality = 'low', paused = false }: CubeCameraProps) {
   const { scene, gl } = useThree();
   const cubeCameraRef = useRef<THREE.CubeCamera>(null);
 
@@ -63,9 +64,11 @@ export function CubeCamera({ position = [0, 2, 0], onUpdate, quality = 'low' }: 
   }, [cubeRenderTarget]);
 
   useFrame(() => {
-    if (quality !== 'off' && cubeCamera && scene && gl) {
+    if (quality !== 'off' && !paused && cubeCamera && scene && gl) {
       cubeCamera.update(gl, scene);
-      onUpdate?.(cubeRenderTarget.texture);
+      if (onUpdate) {
+        onUpdate(cubeRenderTarget.texture);
+      }
     }
   });
 

@@ -189,7 +189,9 @@ export const useGame = create<GameStore>((set, get) => ({
             socket.on('connect', () => console.log('socket connected', socket.id));
             socket.on('room:state', (payload) => set({ state: payload.state }));
             socket.on('game:state', (payload) => set({ state: payload.state }));
-            socket.on('game:end', (payload) => get().showModal('Game Over', `Winner: ${payload.winner}`));
+            socket.on('game:end', (payload) => {
+                get().showModal('Game Over', `Winner: ${payload.winner}`);
+            });
             socket.on('game:saved', (payload) => {
                 if (payload.success) {
                     get().showModal('Success', 'Game saved successfully!');

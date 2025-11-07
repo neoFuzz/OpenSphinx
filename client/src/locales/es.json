@@ -98,5 +98,7 @@
   "game_id": "ID del Juego",
   "your_move": "tu turno",
   "no_replays_message": "No se encontraron repeticiones. Los juegos terminados aparecerán aquí para que los veas.",
-  "no_replays": "No se encontraron repeticiones."
+  "no_replays": "No se encontraron repeticiones.",
+  "show_particles": "Mostrar efectos de partículas 3D" ,
+  "true_reflections": "Reflejos activos (alta demanda de GPU)"
 }

@@ -612,7 +612,7 @@ function SphinxRotateGizmo({ position, onRotate, nextDirection }: { position: [n
  * @param explosions - Map of explosion animations
  * @param setExplosions - Function to update the explosions map
  */
-function Explosion3D({ explosions, setExplosions }: { explosions: Map<string, ExplosionAnimation>; setExplosions: React.Dispatch<React.SetStateAction<Map<string, ExplosionAnimation>>> }) {
+function Explosion3D({ explosions, setExplosions, showParticles }: { explosions: Map<string, ExplosionAnimation>; setExplosions: React.Dispatch<React.SetStateAction<Map<string, ExplosionAnimation>>>; showParticles: boolean }) {
     const explosionTexture = useMemo(() => new THREE.TextureLoader().load('/explosion.webp'), []);
 
     useFrame(() => {
@@ -620,7 +620,7 @@ function Explosion3D({ explosions, setExplosions }: { explosions: Map<string, Ex
         const toRemove: string[] = [];
 
         explosions.forEach((explosion, id) => {
-            if (now - explosion.startTime > 800) {
+            if (now - explosion.startTime > 1200) {
                 toRemove.push(id);
             }
         });
@@ -639,32 +639,33 @@ function Explosion3D({ explosions, setExplosions }: { explosions: Map<string, Ex
             {Array.from(explosions.entries()).map(([id, explosion]) => {
                 const pos = gridToWorld(explosion.pos.r, explosion.pos.c);
                 const elapsed = performance.now() - explosion.startTime;
-                const progress = Math.min(elapsed / 800, 1);
-                const eased = 1 - Math.pow(1 - progress, 3);
-                const scale = 0.5 + eased * 2;
-                const opacity = Math.max(0, (1 - progress) * (1 - progress));
+                const progress = Math.min(elapsed / 1200, 1);
+                const spriteScale = 1 + progress * 3;
+                const spriteOpacity = Math.max(0, 1 - progress);
+                const particleEased = 1 - Math.pow(1 - progress, 2);
 
                 return (
                     <group key={id} position={[pos.x, 0.6, pos.z]}>
                         {/* Main explosion sprite */}
-                        <sprite scale={[scale, scale, 1]}>
-                            <spriteMaterial map={explosionTexture} transparent opacity={opacity} />
+                        <sprite scale={[spriteScale, spriteScale, 1]}>
+                            <spriteMaterial map={explosionTexture} transparent opacity={spriteOpacity} depthWrite={false} />
                         </sprite>
 
-                        {/* Particle effects */}
-                        {Array.from({ length: 6 }, (_, i) => {
-                            const angle = (i / 6) * Math.PI * 2;
-                            const distance = eased * 1.2;
-                            const x = Math.cos(angle) * distance;
-                            const z = Math.sin(angle) * distance;
-                            const y = Math.sin(eased * Math.PI) * 0.5;
-                            const particleScale = 0.03 + eased * 0.02;
-                            const particleOpacity = Math.max(0, (1 - eased) * 0.8);
+                        {/* Particle effects - dome pattern */}
+                        {showParticles && Array.from({ length: 20 }, (_, i) => {
+                            const phi = Math.acos(1 - (i / 20));
+                            const theta = (i * 2.4) % (Math.PI * 2);
+                            const distance = particleEased * 1.5;
+                            const x = Math.sin(phi) * Math.cos(theta) * distance;
+                            const z = Math.sin(phi) * Math.sin(theta) * distance;
+                            const y = Math.cos(phi) * distance;
+                            const particleScale = 0.15 + particleEased * 0.1;
+                            const particleOpacity = Math.max(0, 1 - particleEased);
 
                             return (
                                 <mesh key={i} position={[x, y, z]} scale={[particleScale, particleScale, particleScale]}>
-                                    <sphereGeometry args={[1, 6, 6]} />
-                                    <meshBasicMaterial color="#ffaa00" transparent opacity={particleOpacity} />
+                                    <sphereGeometry args={[1, 8, 8]} />
+                                    <meshBasicMaterial color="#ff6600" transparent opacity={particleOpacity} depthWrite={false} />
                                 </mesh>
                             );
                         })}
@@ -676,7 +677,7 @@ function Explosion3D({ explosions, setExplosions }: { explosions: Map<string, Ex
 }
 
 /**
- * Renders a 3D laser beam path visualization.
+ * Renders a 3D laser beam path visualization with animated drawing effect.
  * 
  * @param path - Array of board positions that the laser travels through
  * @param state - Current game state to determine laser origin position
@@ -688,9 +689,36 @@ function Explosion3D({ explosions, setExplosions }: { explosions: Map<string, Ex
  * 
  * The line follows each point in the path array, showing reflections and the 
  * final impact point. The path is rendered slightly elevated above the board
- * for better visibility.
+ * for better visibility and animates progressively along its path.
  */
-function LaserPath3D({ path, state }: { path: Pos[] | undefined; state: GameState }) {
+function LaserPath3D({ path, state, onAnimationComplete }: { path: Pos[] | undefined; state: GameState; onAnimationComplete?: () => void }) {
+    const [progress, setProgress] = useState(0);
+    const pathIdRef = useRef<string>('');
+    const TIME = 0.03; // Time laser takes to draw it's path. 0.05 is 1 second
+
+    // Reset animation when path changes
+    useEffect(() => {
+        if (!path || path.length === 0) return;
+        const pathId = path.map(p => `${p.r},${p.c}`).join('-');
+        if (pathId !== pathIdRef.current) {
+            pathIdRef.current = pathId;
+            setProgress(0);
+        }
+    }, [path]);
+
+    // Animate progress
+    useFrame(() => {
+        if (progress < 2.5) {
+            setProgress(prev => {
+                const next = Math.min(prev + TIME, 2.5);
+                if (prev < 2.2 && next >= 2.2 && onAnimationComplete) {
+                    onAnimationComplete();
+                }
+                return next;
+            });
+        }
+    });
+
     if (!path || path.length === 0) return null;
 
     // Find laser emitter position to start the path from
@@ -726,19 +754,58 @@ function LaserPath3D({ path, state }: { path: Pos[] | undefined; state: GameStat
     }
 
     const allPoints = [emitterPos, ...path];
-    const points = allPoints.map(p => {
+    const fullPoints = allPoints.map(p => {
         const v = gridToWorld(p.r, p.c);
-        return [v.x, 0.5, v.z];
+        return new THREE.Vector3(v.x, 0.5, v.z);
     });
 
+    // Calculate visible points based on progress
+    const totalDistance = fullPoints.reduce((sum, point, i) => {
+        if (i === 0) return 0;
+        return sum + point.distanceTo(fullPoints[i - 1]);
+    }, 0);
+
+    const targetDistance = totalDistance * Math.min(progress, 1);
+    let accumulatedDistance = 0;
+    const visiblePoints: THREE.Vector3[] = [fullPoints[0]];
+
+    for (let i = 1; i < fullPoints.length; i++) {
+        const segmentDistance = fullPoints[i].distanceTo(fullPoints[i - 1]);
+        if (accumulatedDistance + segmentDistance <= targetDistance) {
+            visiblePoints.push(fullPoints[i]);
+            accumulatedDistance += segmentDistance;
+        } else {
+            const remaining = targetDistance - accumulatedDistance;
+            const ratio = remaining / segmentDistance;
+            const interpolated = new THREE.Vector3().lerpVectors(fullPoints[i - 1], fullPoints[i], ratio);
+            visiblePoints.push(interpolated);
+            break;
+        }
+    }
+
+    if (visiblePoints.length < 2) return null;
+
+    const frontPoint = visiblePoints[visiblePoints.length - 1];
+
     return (
-        <Line
-            points={points as unknown as [number, number, number][]}
-            color="#ff3333"
-            linewidth={3}
-            transparent
-            opacity={0.9}
-        />
+        <>
+            <Line
+                points={visiblePoints.map(v => [v.x, v.y, v.z]) as unknown as [number, number, number][]}
+                color="#ff3333"
+                linewidth={3}
+                transparent
+                opacity={0.9}
+            />
+            {progress < 0.9 && (
+                <>
+                    <mesh position={[frontPoint.x, frontPoint.y, frontPoint.z]}>
+                        <sphereGeometry args={[0.15, 16, 16]} />
+                        <meshBasicMaterial color="#ff0000" />
+                    </mesh>
+                    <pointLight position={[frontPoint.x, frontPoint.y, frontPoint.z]} color="#ff0000" intensity={2} distance={3} />
+                </>
+            )}
+        </>
     );
 }
 
@@ -880,7 +947,7 @@ const GroundMesh = React.memo(() => {
  * <Board3D environmentPreset="studio" cubeMapQuality="high" />
  * ```
  */
-export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: { environmentPreset?: string; cubeMapQuality?: 'off' | 'low' | 'medium' | 'high' | 'ultra' }) {
+export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low', showParticles = false, trueReflections = false }: { environmentPreset?: string; cubeMapQuality?: 'off' | 'low' | 'medium' | 'high' | 'ultra'; showParticles?: boolean; trueReflections?: boolean }) {
     const state = useGame(s => s.state);
     const color = useGame(s => s.color);
     const sendMove = useGame(s => s.sendMove);
@@ -891,9 +958,11 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
     const [moveStackMode, setMoveStackMode] = useState(true); // true = move entire stack, false = move top only
     const [envMap, setEnvMap] = useState<THREE.CubeTexture | null>(null);
     const [fps, setFps] = useState(0);
+    const [displayState, setDisplayState] = useState(state);
     const prevStateRef = useRef(state);
     const fpsRef = useRef({ frames: 0, lastTime: performance.now() });
     const controlsRef = useRef<any>(null);
+    const laserAnimatingRef = useRef(false);
 
     // Use animation hooks
     const { rotatingPieces, setRotatingPieces, animateRotation } = useRotationAnimation();
@@ -943,42 +1012,17 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
     useEffect(() => {
         if (!state || !prevStateRef.current) {
             prevStateRef.current = state;
+            setDisplayState(state);
             return;
         }
 
         const prevState = prevStateRef.current;
 
-        // Find destroyed pieces (only check if laser was fired)
-        if (state.lastLaserPath && state.lastLaserPath.length > 0) {
-            for (let r = 0; r < ROWS; r++) {
-                for (let c = 0; c < COLS; c++) {
-                    const prevCell = prevState.board[r][c];
-                    const currentCell = state.board[r][c];
+        // Check if laser was fired
+        const laserFired = state.lastLaserPath && state.lastLaserPath.length > 0 &&
+            (!prevState.lastLaserPath || JSON.stringify(state.lastLaserPath) !== JSON.stringify(prevState.lastLaserPath));
 
-                    if (prevCell && prevCell.length > 0 && (!currentCell || currentCell.length === 0)) {
-                        const prevPiece = prevCell[prevCell.length - 1];
-                        let pieceMovedElsewhere = false;
-
-                        // Check if this piece moved to another location
-                        for (let nr = 0; nr < ROWS && !pieceMovedElsewhere; nr++) {
-                            for (let nc = 0; nc < COLS && !pieceMovedElsewhere; nc++) {
-                                const newCell = state.board[nr][nc];
-                                if (newCell && newCell.some(p => p.id === prevPiece.id)) {
-                                    pieceMovedElsewhere = true;
-                                }
-                            }
-                        }
-
-                        // Only show explosion if piece was actually destroyed (not moved)
-                        if (!pieceMovedElsewhere) {
-                            triggerExplosion({ r, c });
-                        }
-                    }
-                }
-            }
-        }
-
-        // Find pieces that moved or rotated
+        // Process rotation and movement animations first
         const processedPieces = new Set<string>();
 
         for (let r = 0; r < ROWS; r++) {
@@ -1032,7 +1076,6 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
                             }
 
                             if (hasRotated) {
-                                // Calculate target rotation from current piece state
                                 const targetRotY = ((kind) => {
                                     switch (kind) {
                                         case 'PYRAMID': {
@@ -1040,19 +1083,12 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
                                             return dirToY(currentPiece.orientation) + angle;
                                         }
                                         case 'DJED': return currentPiece.mirror === '/' ? 0 : Math.PI / 2;
-                                        case 'ANUBIS': return -dirToY(currentPiece.orientation); // Invert rotation for model
-                                        case 'SPHINX': return -dirToY(currentPiece.facing); // Invert rotation for model
+                                        case 'ANUBIS': return -dirToY(currentPiece.orientation);
+                                        case 'SPHINX': return -dirToY(currentPiece.facing);
                                         case 'LASER': return dirToY(currentPiece.facing);
                                         default: return dirToY(currentPiece.orientation);
                                     }
                                 })(currentPiece.kind);
-                                if (process.env.NODE_ENV === 'development') {
-                                    const sanitizedValues = {
-                                        from: String(prevValue || '').replace(/[\r\n\t]/g, '').slice(0, 10),
-                                        to: String(currentValue || '').replace(/[\r\n\t]/g, '').slice(0, 10)
-                                    };
-                                    console.debug('Rotation detected for piece:', sanitizedValues);
-                                }
                                 animateRotation(currentPiece.id, 90, prevBaseRotY, targetRotY);
                             }
                             break;
@@ -1067,18 +1103,16 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
                     const prevPieceAtTarget = prevCellAtTarget && prevCellAtTarget.length > 0 ? prevCellAtTarget[prevCellAtTarget.length - 1] : null;
                     const isDjedSwap = currentPiece.kind === 'DJED' && !!prevPieceAtTarget;
 
-                    // Check for obelisk stacking/unstacking (hop animation)
                     const prevStackSize = prevState.board[foundPrevPos.r][foundPrevPos.c]?.length || 0;
                     const currentStackSize = currentCell.length;
                     const isObeliskHop = currentPiece.kind === 'OBELISK' && (
-                        (prevPieceAtTarget && prevPieceAtTarget.kind === 'OBELISK') || // stacking onto obelisk
-                        (prevStackSize > 1 && currentStackSize === 1) // unstacking from stack to empty space
+                        (prevPieceAtTarget && prevPieceAtTarget.kind === 'OBELISK') ||
+                        (prevStackSize > 1 && currentStackSize === 1)
                     );
 
                     animateMovement(currentPiece.id, foundPrevPos, { r, c }, isDjedSwap || isObeliskHop);
                     processedPieces.add(currentPiece.id);
 
-                    // Handle the swapped piece
                     if (isDjedSwap && prevPieceAtTarget) {
                         animateMovement(prevPieceAtTarget.id, { r, c }, foundPrevPos, false);
                         processedPieces.add(prevPieceAtTarget.id);
@@ -1087,8 +1121,54 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
             }
         }
 
+        if (laserFired) {
+            laserAnimatingRef.current = true;
+            // Update display state to show the move, but keep destroyed pieces visible and hide winner
+            const stateWithDestroyedPieces = JSON.parse(JSON.stringify(state));
+            stateWithDestroyedPieces.winner = null; // Hide winner until animation completes
+
+            // Find and restore destroyed pieces
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const prevCell = prevState.board[r][c];
+                    const currentCell = state.board[r][c];
+
+                    if (prevCell && prevCell.length > 0 && (!currentCell || currentCell.length === 0)) {
+                        const prevPiece = prevCell[prevCell.length - 1];
+                        let pieceMovedElsewhere = false;
+
+                        for (let nr = 0; nr < ROWS && !pieceMovedElsewhere; nr++) {
+                            for (let nc = 0; nc < COLS && !pieceMovedElsewhere; nc++) {
+                                const newCell = state.board[nr][nc];
+                                if (newCell && newCell.some(p => p.id === prevPiece.id)) {
+                                    pieceMovedElsewhere = true;
+                                }
+                            }
+                        }
+
+                        if (!pieceMovedElsewhere) {
+                            stateWithDestroyedPieces.board[r][c] = prevCell;
+                        }
+                    }
+                }
+            }
+
+            setDisplayState(stateWithDestroyedPieces);
+            prevStateRef.current = state;
+            return;
+        }
+
+        // Only process animations if laser is not animating
+        if (laserAnimatingRef.current) {
+            return;
+        }
+
+        setDisplayState(state);
+
+        // Explosion is now triggered in LaserPath3D onAnimationComplete
+
         prevStateRef.current = state;
-    }, [state]);
+    }, [state, triggerExplosion, animateRotation, animateMovement]);
 
     const isMyTurn = state && color && state.turn === color && !state.winner;
 
@@ -1321,7 +1401,7 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
                 )}
 
                 {/* Cube camera for reflections */}
-                <CubeCamera position={[0, 2, 0]} onUpdate={setEnvMap} quality={cubeMapQuality} />
+                <CubeCamera position={[0, 2, 0]} onUpdate={setEnvMap} quality={cubeMapQuality} paused={!trueReflections && (rotatingPieces.size > 0 || movingPieces.size > 0 || laserAnimatingRef.current)} />
 
                 {/* Large ground disc with dirt texture */}
                 <GroundMesh />
@@ -1355,7 +1435,7 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
 
                 {/* Pieces */}
                 <group>
-                    {state.board.map((row, r) =>
+                    {displayState.board.map((row, r) =>
                         row.map((cell, c) =>
                             cell && cell.length > 0 ? (
                                 <Piece3D
@@ -1381,10 +1461,45 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low' }: 
                 </group>
 
                 {/* Laser path visualisation */}
-                <LaserPath3D path={state.lastLaserPath} state={state} />
+                <LaserPath3D
+                    path={state.lastLaserPath}
+                    state={state}
+                    onAnimationComplete={() => {
+                        laserAnimatingRef.current = false;
+                        setDisplayState(state);
+
+                        // Trigger explosion after laser completes
+                        if (state.lastLaserPath && state.lastLaserPath.length > 0) {
+                            for (let r = 0; r < ROWS; r++) {
+                                for (let c = 0; c < COLS; c++) {
+                                    const prevCell = displayState.board[r][c];
+                                    const currentCell = state.board[r][c];
+
+                                    if (prevCell && prevCell.length > 0 && (!currentCell || currentCell.length === 0)) {
+                                        const prevPiece = prevCell[prevCell.length - 1];
+                                        let pieceMovedElsewhere = false;
+
+                                        for (let nr = 0; nr < ROWS && !pieceMovedElsewhere; nr++) {
+                                            for (let nc = 0; nc < COLS && !pieceMovedElsewhere; nc++) {
+                                                const newCell = state.board[nr][nc];
+                                                if (newCell && newCell.some(p => p.id === prevPiece.id)) {
+                                                    pieceMovedElsewhere = true;
+                                                }
+                                            }
+                                        }
+
+                                        if (!pieceMovedElsewhere) {
+                                            triggerExplosion({ r, c });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }}
+                />
 
                 {/* Explosion effects */}
-                <Explosion3D explosions={explosions} setExplosions={setExplosions} />
+                <Explosion3D explosions={explosions} setExplosions={setExplosions} showParticles={showParticles} />
 
                 {/* Off-board laser cylinders for Classic rules */}
                 {state.config?.rules === 'CLASSIC' && (
