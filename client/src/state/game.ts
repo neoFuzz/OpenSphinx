@@ -74,6 +74,10 @@ interface GameStore {
     replays: ReplayItem[];
     /** Pagination info for replays */
     replaysPagination?: Pagination;
+    /** Renderer mode for 3D view */
+    renderMode: 'webgl' | 'webgpu';
+    /** Set renderer mode */
+    setRenderMode: (mode: 'webgl' | 'webgpu') => void;
     /**
      * Create a new game room
      * @param options - Room configuration options
@@ -163,6 +167,8 @@ let listenersBound = false;
 export const useGame = create<GameStore>((set, get) => ({
     savedGames: [],
     replays: [],
+    renderMode: 'webgl',
+    setRenderMode: (mode) => set({ renderMode: mode }),
 
     /**
      * Creates a new game room on the server.

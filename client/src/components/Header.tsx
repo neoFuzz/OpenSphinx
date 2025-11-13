@@ -46,6 +46,12 @@ interface HeaderProps {
   trueReflections?: boolean;
   /** Callback when true reflections toggle is changed */
   onToggleTrueReflections?: (checked: boolean) => void;
+  /** Current renderer mode */
+  renderMode?: 'webgl' | 'webgpu';
+  /** Callback when renderer mode is changed */
+  onRenderModeChange?: (mode: 'webgl' | 'webgpu') => void;
+  /** Whether WebGPU is supported */
+  webgpuSupported?: boolean;
   /** Current active page */
   currentPage?: PageType;
   /** Callback to navigate to a different page */
@@ -99,6 +105,9 @@ export function Header({
   onToggleParticles,
   trueReflections = false,
   onToggleTrueReflections,
+  renderMode = 'webgl',
+  onRenderModeChange,
+  webgpuSupported = false,
   currentPage = 'home',
   onNavigate,
   onJoinRoom,
@@ -295,6 +304,41 @@ export function Header({
               <label className="form-check-label" htmlFor="true-reflections-sidebar">
                 {t('true_reflections')}
               </label>
+            </div>
+
+            <hr className="my-2" />
+            <div className="mb-2">
+              <label className="form-label small">{t('renderer')} <span className="badge bg-warning">Experimental</span></label>
+              <div className="form-check">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  name="renderer"
+                  id="renderer-webgl"
+                  checked={renderMode === 'webgl'}
+                  onChange={() => onRenderModeChange?.('webgl')}
+                />
+                <label className="form-check-label" htmlFor="renderer-webgl">
+                  WebGL (Default)
+                </label>
+              </div>
+              <div className="form-check">
+                <input
+                  className="form-check-input"
+                  type="radio"
+                  name="renderer"
+                  id="renderer-webgpu"
+                  checked={renderMode === 'webgpu'}
+                  onChange={() => onRenderModeChange?.('webgpu')}
+                  disabled={!webgpuSupported}
+                />
+                <label className="form-check-label" htmlFor="renderer-webgpu">
+                  WebGPU {!webgpuSupported && '(Not Supported)'}
+                </label>
+              </div>
+              {renderMode === 'webgpu' && webgpuSupported && (
+                <small className="text-info d-block mt-1">Chrome 113+, Safari 18+</small>
+              )}
             </div>
           </div>
         )}

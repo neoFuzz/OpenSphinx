@@ -100,5 +100,6 @@
   "no_replays_message": "No replays found. Finished games will appear here for you to watch.",
   "no_replays": "No replays found.",
   "show_particles": "Show 3D Particle effects" ,
-  "true_reflections": "Active Reflections (High GPU demand)"
+  "true_reflections": "Active Reflections (High GPU demand)",
+  "renderer": "Renderer"
 }

@@ -73,12 +73,34 @@ export default function App() {
         const saved = localStorage.getItem('opensphinx-true-reflections');
         return saved ? JSON.parse(saved) : false;
     });
+    const renderMode = useGame(s => s.renderMode);
+    const setRenderMode = useGame(s => s.setRenderMode);
+    const [webgpuSupported, setWebgpuSupported] = useState(false);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [showJoinForm, setShowJoinForm] = useState(false);
     const [showLoadDialog, setShowLoadDialog] = useState(false);
     const [replayId, setReplayId] = useState('');
 
     const { user } = useAuth();
+
+    // Check WebGPU support
+    React.useEffect(() => {
+        if ('gpu' in navigator) {
+            (navigator as any).gpu.requestAdapter().then((adapter: any) => {
+                setWebgpuSupported(!!adapter);
+            }).catch(() => setWebgpuSupported(false));
+        } else {
+            setWebgpuSupported(false);
+        }
+    }, []);
+
+    // Load saved render mode
+    React.useEffect(() => {
+        const saved = localStorage.getItem('opensphinx-render-mode');
+        if (saved === 'webgpu' || saved === 'webgl') {
+            setRenderMode(saved);
+        }
+    }, [setRenderMode]);
 
     // Use Discord username when logged in
     const playerName = user?.username || name;
@@ -158,6 +180,12 @@ export default function App() {
                     setTrueReflections(checked);
                     localStorage.setItem('opensphinx-true-reflections', JSON.stringify(checked));
                 }}
+                renderMode={renderMode}
+                onRenderModeChange={(mode) => {
+                    setRenderMode(mode);
+                    localStorage.setItem('opensphinx-render-mode', mode);
+                }}
+                webgpuSupported={webgpuSupported}
                 currentPage={currentPage}
                 onNavigate={setCurrentPage}
                 minimized={headerMinimized}

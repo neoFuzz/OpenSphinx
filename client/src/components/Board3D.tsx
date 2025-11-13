@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef, Component, ErrorInfo, ReactNode } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Line, Environment } from '@react-three/drei';
 import { useGame } from '../state/game';
 import { COLS, ROWS } from '../../../shared/src/constants';
@@ -8,6 +8,7 @@ import { getNextValidSphinxDirection, getSphinxRotationDelta } from '../../../sh
 import { useMovementAnimation, useRotationAnimation, useExplosionAnimation, usePieceAnimation, type RotationAnimation, type MovementAnimation, type ExplosionAnimation } from '../utils/animationUtils';
 import { PharaohGLTF, PyramidGLTF, DjedGLTF, LaserGLTF, ObeliskGLTF, AnubisGLTF, preloadModels } from './models/GameModels';
 import * as THREE from 'three';
+import * as WEBGPU from 'three/webgpu';
 import { CubeCamera } from './CubeCamera';
 
 // --- layout constants ---
@@ -894,6 +895,8 @@ const GroundMesh = React.memo(() => {
     );
 });
 
+
+
 /**
  * Main 3D game board component that renders the Khet board and pieces using Three.js and React Three Fiber.
  *
@@ -952,6 +955,8 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low', sh
     const color = useGame(s => s.color);
     const sendMove = useGame(s => s.sendMove);
     const roomId = useGame(s => s.roomId);
+    const renderMode = useGame(s => s.renderMode);
+    const [webgpuSupported, setWebgpuSupported] = useState<boolean | null>(null);
 
     const [selected, setSelected] = useState<Pos | null>(null);
     const [debugMode, setDebugMode] = useState(false);
@@ -968,6 +973,17 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low', sh
     const { rotatingPieces, setRotatingPieces, animateRotation } = useRotationAnimation();
     const { movingPieces, setMovingPieces, animateMovement } = useMovementAnimation();
     const { explosions, setExplosions, triggerExplosion } = useExplosionAnimation();
+
+    // Check WebGPU support
+    useEffect(() => {
+        if ('gpu' in navigator) {
+            navigator.gpu.requestAdapter().then(adapter => {
+                setWebgpuSupported(!!adapter);
+            }).catch(() => setWebgpuSupported(false));
+        } else {
+            setWebgpuSupported(false);
+        }
+    }, []);
 
     // Cleanup WebGL context on unmount
     useEffect(() => {
@@ -1311,6 +1327,16 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low', sh
 
     return (
         <div className="border rounded" style={{ height: 600, overflow: 'hidden', position: 'relative' }}>
+            {renderMode === 'webgpu' && webgpuSupported === false && (
+                <div className="alert alert-warning m-2" style={{ position: 'absolute', top: 50, left: 0, right: 0, zIndex: 20 }}>
+                    WebGPU not supported in this browser. Using WebGL.
+                </div>
+            )}
+            {renderMode === 'webgpu' && webgpuSupported === true && (
+                <div className="badge bg-success" style={{ position: 'absolute', top: 55, right: 10, zIndex: 20 }}>
+                    WebGPU Active
+                </div>
+            )}
             {/* HUD for rotate */}
             <div className="d-flex align-items-center p-2 bg-light border-bottom" style={{ position: 'relative', zIndex: 10 }}>
                 <div className="flex-grow-1">
@@ -1388,9 +1414,18 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low', sh
             </div>
 
             <Canvas
+                key={renderMode}
                 shadows
                 camera={{ position: color === 'RED' ? [0, 8, -10] : [0, 8, 10], fov: 45, near: 0.1, far: 100 }}
                 style={{ background: '#000000', height: 'calc(100% - 50px)' }}
+                gl={(renderMode === 'webgpu' && webgpuSupported) ? 
+                    async (props) => {
+                        const renderer = new WEBGPU.WebGPURenderer(props);
+                        await renderer.init();
+                        return renderer;
+                    }
+                    : { antialias: true }
+                }
             >
                 {environmentPreset === 'basic' ? (
                     <SceneLights isClassic={state.config?.rules === 'CLASSIC'} />
@@ -1401,7 +1436,12 @@ export function Board3D({ environmentPreset = 'park', cubeMapQuality = 'low', sh
                 )}
 
                 {/* Cube camera for reflections */}
-                <CubeCamera position={[0, 2, 0]} onUpdate={setEnvMap} quality={cubeMapQuality} paused={!trueReflections && (rotatingPieces.size > 0 || movingPieces.size > 0 || laserAnimatingRef.current)} />
+                <CubeCamera 
+                    position={[0, 2, 0]} 
+                    onUpdate={setEnvMap} 
+                    quality={renderMode === 'webgpu' && cubeMapQuality === 'low' ? 'medium' : cubeMapQuality} 
+                    paused={!trueReflections && renderMode !== 'webgpu' && (rotatingPieces.size > 0 || movingPieces.size > 0 || laserAnimatingRef.current)} 
+                />
 
                 {/* Large ground disc with dirt texture */}
                 <GroundMesh />
