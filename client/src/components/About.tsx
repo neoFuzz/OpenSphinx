@@ -49,6 +49,27 @@ export function About() {
 
               <h5>License</h5>
               <p>This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0), ensuring it remains free and open source.</p>
+
+              <h5>Why OpenSphinx?</h5>
+              <p>We created OpenSphinx to make laser chess accessible to everyone. Traditional physical versions of the game can be expensive and hard to find. Our web-based implementation allows players worldwide to enjoy this strategic game for free, with the added benefits of online multiplayer and 3D visualization.</p>
+
+              <h5>Development</h5>
+              <p>OpenSphinx is built using modern web technologies including React 19 for the user interface, Three.js for 3D graphics rendering, and Socket.IO for real-time multiplayer communication. The game engine is shared between client and server to ensure fair play and consistent game logic.</p>
+
+              <h5>Community</h5>
+              <p>Join our community on <a href="https://discord.gg/8eYTA7gkQV" target="_blank" rel="noopener noreferrer">Discord</a> to discuss strategies, report bugs, suggest features, or contribute to development. We welcome players of all skill levels!</p>
+
+              <h5>Future Plans</h5>
+              <ul>
+                <li>Tournament system with rankings and leaderboards</li>
+                <li>AI opponents for single-player practice</li>
+                <li>Custom board setups and game variants</li>
+                <li>Mobile app improvements and optimization</li>
+                <li>Replay analysis tools and move suggestions</li>
+              </ul>
+
+              <h5>Credits</h5>
+              <p>OpenSphinx is developed and maintained by the open source community. Special thanks to all contributors who have helped improve the game through code, bug reports, and feedback.</p>
             </div>
           </div>
         </div>

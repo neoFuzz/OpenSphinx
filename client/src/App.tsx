@@ -1,6 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate, useLocation } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { SERVER_URL } from './config/server';
 import { useGame } from './state/game';
@@ -42,7 +43,60 @@ export default function App() {
     const { t } = useTranslation();
     const { checkAuth } = useAuth();
     const connectRoom = useGame(s => s.connectRoom);
-    const [currentPage, setCurrentPage] = useState<'home' | 'stats' | 'rules' | 'terms' | 'privacy' | 'about' | 'replays'>('home');
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    const getPageFromPath = (path: string): 'home' | 'stats' | 'rules' | 'terms' | 'privacy' | 'about' | 'replays' => {
+        if (path === '/stats') return 'stats';
+        if (path === '/rules') return 'rules';
+        if (path === '/terms') return 'terms';
+        if (path === '/privacy') return 'privacy';
+        if (path === '/about') return 'about';
+        if (path === '/replays') return 'replays';
+        return 'home';
+    };
+
+    const [currentPage, setCurrentPage] = useState<'home' | 'stats' | 'rules' | 'terms' | 'privacy' | 'about' | 'replays'>(() => getPageFromPath(location.pathname));
+
+    useEffect(() => {
+        const page = getPageFromPath(location.pathname);
+        setCurrentPage(page);
+        updateMetaTags(page);
+    }, [location.pathname]);
+
+    const updateMetaTags = (page: 'home' | 'stats' | 'rules' | 'terms' | 'privacy' | 'about' | 'replays') => {
+        const titles: Record<typeof page, string> = {
+            home: 'OpenSphinx - Free Online Laser Chess Game | Multiplayer Strategy',
+            stats: 'Game Statistics - OpenSphinx Laser Chess',
+            rules: 'How to Play Laser Chess - Game Rules | OpenSphinx',
+            terms: 'Terms of Service - OpenSphinx',
+            privacy: 'Privacy Policy - OpenSphinx',
+            about: 'About OpenSphinx - Open Source Laser Chess Game',
+            replays: 'Game Replays - OpenSphinx Laser Chess'
+        };
+        const descriptions: Record<typeof page, string> = {
+            home: 'Play laser chess online for free! OpenSphinx is an open-source multiplayer strategy game with 3D graphics. Challenge friends in real-time laser chess battles.',
+            stats: 'View game statistics, player rankings, and match history for OpenSphinx laser chess.',
+            rules: 'Learn how to play laser chess (Khet). Complete game rules including piece movements, laser mechanics, and winning strategies.',
+            terms: 'Terms of Service for OpenSphinx laser chess game. Read our user agreement and service terms.',
+            privacy: 'Privacy Policy for OpenSphinx. Learn how we collect, use, and protect your personal information.',
+            about: 'OpenSphinx is an open-source laser chess game built with React, Three.js, and Node.js. Free multiplayer strategy gaming.',
+            replays: 'Watch and analyze previous laser chess games. Learn strategies from recorded matches.'
+        };
+        document.title = titles[page];
+        const metaDesc = document.querySelector('meta[name="description"]');
+        if (metaDesc) metaDesc.setAttribute('content', descriptions[page]);
+        const ogTitle = document.querySelector('meta[property="og:title"]');
+        if (ogTitle) ogTitle.setAttribute('content', titles[page]);
+        const ogDesc = document.querySelector('meta[property="og:description"]');
+        if (ogDesc) ogDesc.setAttribute('content', descriptions[page]);
+    };
+
+    const handleNavigate = (page: 'home' | 'stats' | 'rules' | 'terms' | 'privacy' | 'about' | 'replays') => {
+        setCurrentPage(page);
+        const paths = { home: '/', stats: '/stats', rules: '/rules', terms: '/terms', privacy: '/privacy', about: '/about', replays: '/replays' };
+        navigate(paths[page]);
+    };
 
     React.useEffect(() => {
         checkAuth().catch(console.error);
@@ -187,7 +241,7 @@ export default function App() {
                 }}
                 webgpuSupported={webgpuSupported}
                 currentPage={currentPage}
-                onNavigate={setCurrentPage}
+                onNavigate={handleNavigate}
                 minimized={headerMinimized}
                 onToggleMinimized={() => setHeaderMinimized(!headerMinimized)}
             />
@@ -203,7 +257,7 @@ export default function App() {
                 ) : currentPage === 'about' ? (
                     <About />
                 ) : currentPage === 'replays' ? (
-                    <Replays onReplaySelect={(id) => { setReplayId(id); setCurrentPage('home'); }} />
+                    <Replays onReplaySelect={(id) => { setReplayId(id); handleNavigate('home'); }} />
                 ) : (
                     <>
                         {!state && (
@@ -215,7 +269,7 @@ export default function App() {
                                         <h5>{t('how_to_play')}</h5>
                                         <p>{t('how_to_play_description')}</p>
                                         <p>{t('change_name_hint')}</p>
-                                        <p>{t('more_info')} <a href="#" onClick={() => setCurrentPage('rules')}>{t('rules')}</a> {t('page')}.</p>
+                                        <p>{t('more_info')} <a href="#" onClick={() => handleNavigate('rules')}>{t('rules')}</a> {t('page')}.</p>
                                     </div>
                                     <div className="col-md-4">
                                         <AdMobWrapper
@@ -232,7 +286,7 @@ export default function App() {
                                 <button className="btn btn-success" onClick={() => setShowCreateForm(true)}>{t('create')}</button>
                                 <button className="btn btn-primary" onClick={() => setShowJoinForm(true)}>{t('join')}</button>
                                 <button className="btn btn-secondary" onClick={handleLoadGame}>{t('load_game')}</button>
-                                <button className="btn btn-outline-info" onClick={() => setCurrentPage('replays')}>{t('view_replays')}</button>
+                                <button className="btn btn-outline-info" onClick={() => handleNavigate('replays')}>{t('view_replays')}</button>
                             </div>
                         )}
 
@@ -286,7 +340,7 @@ export default function App() {
                     </>
                 )}
             </div>
-            <Footer onNavigate={setCurrentPage} />
+            <Footer onNavigate={handleNavigate} />
         </div>
     );
 }

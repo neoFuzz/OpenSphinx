@@ -4,5 +4,7 @@ Allow: /stats
 Allow: /rules
 Allow: /about
 Allow: /terms
+Allow: /privacy
+Allow: /replays
 
 Sitemap: https://opensphinx.online/sitemap.xml

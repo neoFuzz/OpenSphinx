@@ -54,6 +54,25 @@ export function Rules() {
 
               <h5>Winning</h5>
               <p>The game ends when a laser beam hits and destroys the opponent's Pharaoh.</p>
+
+              <h5>Strategy Tips</h5>
+              <ul>
+                <li><strong>Protect Your Pharaoh:</strong> Always keep your Pharaoh shielded from potential laser paths</li>
+                <li><strong>Control the Center:</strong> Positioning pieces in the center gives you more tactical options</li>
+                <li><strong>Plan Ahead:</strong> Think about where the laser will travel after your move</li>
+                <li><strong>Use Pyramids Wisely:</strong> Pyramids can create complex laser paths to surprise your opponent</li>
+                <li><strong>Defensive Play:</strong> Sometimes the best move is strengthening your defense rather than attacking</li>
+              </ul>
+
+              <h5>Game Variants</h5>
+              <p><strong>Classic Rules:</strong> Features Obelisk pieces that can stack and move together. Obelisks block lasers but are destroyed when hit.</p>
+              <p><strong>Khet 2.0 Rules:</strong> Introduces Anubis pieces that have a protected front face. The Anubis blocks lasers from the front without being destroyed, but is vulnerable from other angles.</p>
+
+              <h5>History of Laser Chess</h5>
+              <p>Laser chess, commercially known as Khet, was invented by Luke Hooper and Michael Larson. The game combines elements of chess with laser beam mechanics, creating a unique strategic experience. OpenSphinx brings this engaging board game to the web with modern 3D graphics and online multiplayer capabilities.</p>
+
+              <h5>Getting Started</h5>
+              <p>Ready to play? Create a new game room or join an existing one from the home page. You can play against friends by sharing your room code, or browse available games to join. Save your games at any point and resume them later!</p>
             </div>
           </div>
         </div>
