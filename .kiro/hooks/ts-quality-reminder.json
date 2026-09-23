@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "TypeScript Quality Reminder",
+      "trigger": "PostFileSave",
+      "matcher": "\\.(ts|tsx)$",
+      "action": {
+        "type": "agent",
+        "prompt": "A TypeScript/TSX file was just saved. Quietly verify the following against the OpenSphinx coding guidelines — only flag issues if you spot a real violation, otherwise say nothing:\n\n1. **No `any` types** — every value should have an explicit type or use `unknown` with narrowing.\n2. **Explicit return types** — public functions should declare their return type.\n3. **JSDoc coverage** — exported functions, components, and non-obvious logic should have JSDoc with `@param` / `@returns` tags.\n4. **Naming conventions** — camelCase for variables/functions, PascalCase for types/components/interfaces, UPPER_SNAKE_CASE for constants, `_` prefix for private methods.\n5. **Shared types** — cross-package types belong in `shared/src/types.ts`, not re-declared locally.\n6. **Pure engine functions** — if the saved file is inside `shared/src/engine/`, confirm no side effects were introduced.\n\nIf issues are found, list them concisely with the line number and the guideline violated. Do not rewrite the file unprompted."
+      }
+    }
+  ]
+}
