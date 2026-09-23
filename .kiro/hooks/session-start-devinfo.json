@@ -1,0 +1,13 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Dev Commands Reminder",
+      "trigger": "SessionStart",
+      "action": {
+        "type": "command",
+        "command": "node -e \"\nconst lines = [\n  '',\n  '=== OpenSphinx Dev Commands ===',\n  '',\n  '  Install all workspaces:',\n  '    npm install --workspaces',\n  '',\n  '  Start dev servers (two terminals):',\n  '    npm run dev --workspace client   ->  http://localhost:5173',\n  '    npm run dev --workspace server   ->  http://localhost:3001',\n  '',\n  '  Production build:',\n  '    npm run build --workspace client',\n  '    npm run build --workspace server',\n  '',\n  '  Generate API docs:',\n  '    npm run generate-docs',\n  '',\n  '  Sync Capacitor (from client/):',\n  '    npx cap sync android',\n  '',\n  '  Env files:  server/.env   client/.env',\n  '================================',\n  ''\n];\nprocess.stdout.write(lines.join('\\n'));\n\"\n"
+      }
+    }
+  ]
+}
