@@ -1,0 +1,334 @@
+
+import { Server, Socket } from 'socket.io';
+import { GameState, Move, GameConfig } from '../../shared/src/types';
+import { applyMove, createInitialState } from '../../shared/src/engine';
+import { database } from './database';
+import { logger } from '../../shared/src/logger';
+
+/** Represents a game room with players, state, and configuration */
+interface Room {
+  id: string;
+  players: { socketId: string; name: string; color: 'RED' | 'SILVER'; userId?: string }[];
+  state: GameState;
+  spectators: Set<string>;
+  savedName?: string;
+  gameStates: GameState[];
+  isPrivate?: boolean;
+  password?: string;
+  config: GameConfig;
+  finishedAt?: number;
+}
+
+/** Generates a unique room ID with current year and random string */
+const makeId = () => `${new Date().getFullYear()}${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+
+/**
+ * Creates and returns a rooms manager for handling game rooms
+ * @param io - Socket.IO server instance
+ * @returns Object with room management functions
+ */
+export function createRoomsManager(io: Server) {
+  /** Map of room IDs to Room objects */
+  const rooms = new Map<string, Room>();
+  /** Map of socket IDs to their joined room IDs */
+  const socketToRooms = new Map<string, Set<string>>();
+  /** Map of user IDs to their active socket IDs */
+  const userSessions = new Map<string, Set<string>>();
+
+  // Cleanup finished games every 30 seconds
+  setInterval(() => {
+    const now = Date.now();
+    for (const [roomId, room] of rooms.entries()) {
+      if (room.finishedAt && now - room.finishedAt > 30000) {
+        rooms.delete(roomId);
+        logger.info('Auto-cleaned finished room', { gameId: roomId });
+      }
+    }
+  }, 30000);
+
+  /**
+   * Creates a new game room
+   * @param options - Room configuration options
+   * @returns Object containing the new room ID
+   */
+  function createRoom(options?: { isPrivate?: boolean; password?: string; config?: GameConfig }): { roomId: string } {
+    const roomId = makeId();
+    const config: GameConfig = options?.config || { rules: 'CLASSIC', setup: 'CLASSIC' };
+    const initialState = createInitialState(config);
+    rooms.set(roomId, {
+      id: roomId,
+      players: [],
+      spectators: new Set(),
+      state: initialState,
+      gameStates: [initialState],
+      isPrivate: options?.isPrivate,
+      password: options?.password,
+      config,
+    });
+    logger.info('Room created', {
+      gameId: roomId,
+      isPrivate: !!options?.isPrivate,
+      passwordProtected: !!(options?.isPrivate && options?.password),
+      rules: config.rules,
+      setup: config.setup
+    });
+    return { roomId };
+  }
+
+  /**
+   * Handles a player joining a room
+   * @param socket - Socket.IO socket instance
+   * @param roomId - ID of room to join
+   * @param name - Player display name
+   * @param password - Optional room password
+   * @param userId - Optional authenticated user ID
+   * @param ack - Optional acknowledgment callback
+   */
+  function joinRoom(socket: Socket, roomId: string, name: string, password?: string, userId?: string, ack?: Function) {
+    const room = rooms.get(roomId);
+    if (!room) {
+      logger.warn('Join room failed - room not found', { gameId: roomId, playerName: name });
+      return ack?.({ error: 'Room not found' });
+    }
+
+    if (room.isPrivate) {
+      if (!room.password || room.password !== password) {
+        logger.warn('Join room failed - incorrect password', { gameId: roomId, playerName: name, providedPassword: !!password });
+        return ack?.({ error: 'Incorrect password' });
+      }
+    }
+
+    // Prevent self-play for authenticated users
+    if (userId) {
+      const existingPlayer = room.players.find(p => p.userId === userId);
+      if (existingPlayer && existingPlayer.socketId !== socket.id) {
+        logger.warn('Join room failed - user already in room', { gameId: roomId, userId, playerName: name });
+        return ack?.({ error: 'You are already playing in this room' });
+      }
+    }
+
+    const current = room.players.map(p => p.socketId);
+    if (current.includes(socket.id))
+      return ack?.({ ok: true, color: room.players.find(p => p.socketId === socket.id)?.color });
+
+    if (room.players.length < 2) {
+      const color: 'RED' | 'SILVER' = room.players.length === 0 ? 'RED' : 'SILVER';
+      room.players.push({ socketId: socket.id, name, color, userId });
+      socket.join(roomId);
+      addSocketRoom(socket.id, roomId);
+
+      // Track user session
+      if (userId) {
+        const sessions = userSessions.get(userId) || new Set();
+        sessions.add(socket.id);
+        userSessions.set(userId, sessions);
+      }
+
+      io.to(roomId).emit('room:state', publicState(room));
+      logger.info('Player joined room', { gameId: roomId, playerName: name, color, userId });
+      ack?.({ ok: true, color });
+    } else {
+      // spectator
+      room.spectators.add(socket.id);
+      socket.join(roomId);
+      addSocketRoom(socket.id, roomId);
+      socket.emit('room:state', publicState(room));
+      logger.info('Spectator joined room', { gameId: roomId, playerName: name });
+      ack?.({ ok: true, spectator: true });
+    }
+  }
+
+  /**
+   * Returns public room state for clients
+   * @param room - Room object
+   * @returns Public room state without sensitive data
+   */
+  function publicState(room: Room) {
+    return {
+      roomId: room.id,
+      players: room.players.map(p => ({ name: p.name, color: p.color })),
+      state: room.state,
+      config: room.config,
+    };
+  }
+
+  /**
+   * Handles a player move in a game
+   * @param socket - Socket.IO socket instance
+   * @param payload - Move payload with room ID and move data
+   */
+  function handleMove(socket: Socket, payload: { roomId: string; move: Move }) {
+    const room = rooms.get(payload.roomId);
+    if (!room) return;
+
+    const player = room.players.find(p => p.socketId === socket.id);
+    if (!player) return; // spectators can't move
+
+    if (room.state.turn !== player.color) return;
+
+    const next = applyMove(room.state, payload.move, room.id);
+    room.state = next;
+    room.gameStates.push(next);
+
+    logger.info('Move applied', { gameId: room.id, player: player.color, moveType: payload.move.type });
+
+    io.to(room.id).emit('game:state', { state: next, ack: payload.move.clientMoveId });
+
+    if (next.winner) {
+      logger.info('Game ended', { gameId: room.id, winner: next.winner });
+      room.finishedAt = Date.now();
+      io.to(room.id).emit('game:end', { winner: next.winner });
+
+      // Update player stats
+      room.players.forEach(p => {
+        if (p.userId) {
+          const won = p.color === next.winner;
+          database.updatePlayerStats(p.userId, won).catch(error =>
+            logger.error('Failed to update player stats', { gameId: room.id, userId: p.userId, error })
+          );
+        }
+      });
+
+      // Auto-save completed game and replay
+      const gameName = `Game ${room.id} - ${next.winner} wins`;
+      database.saveGame(room.id, gameName, next).catch(error =>
+        logger.error('Auto-save failed', { gameId: room.id, error })
+      );
+      database.saveReplay(room.id, gameName, room.gameStates).catch(error =>
+        logger.error('Auto-save replay failed', { gameId: room.id, error })
+      );
+    }
+  }
+
+  /**
+   * Removes a socket from all rooms and cleans up
+   * @param socket - Socket.IO socket instance to remove
+   */
+  function leaveAll(socket: Socket) {
+    const set = socketToRooms.get(socket.id);
+    if (!set) return;
+
+    // Clean up user sessions
+    for (const [userId, sessions] of userSessions.entries()) {
+      if (sessions.has(socket.id)) {
+        sessions.delete(socket.id);
+        if (sessions.size === 0) {
+          userSessions.delete(userId);
+        }
+      }
+    }
+
+    for (const roomId of set) {
+      const room = rooms.get(roomId);
+      if (!room) continue;
+      room.players = room.players.filter(p => p.socketId !== socket.id);
+      room.spectators.delete(socket.id);
+      if (room.players.length === 0 && room.spectators.size === 0) {
+        rooms.delete(roomId);
+      } else {
+        io.to(roomId).emit('room:state', publicState(room));
+      }
+    }
+    socketToRooms.delete(socket.id);
+  }
+
+  /**
+   * Associates a socket with a room
+   * @param socketId - Socket ID to associate
+   * @param roomId - Room ID to associate with
+   */
+  function addSocketRoom(socketId: string, roomId: string) {
+    const set = socketToRooms.get(socketId) ?? new Set<string>();
+    set.add(roomId);
+    socketToRooms.set(socketId, set);
+  }
+
+  /**
+   * Saves the current game state to database
+   * @param socket - Socket.IO socket instance
+   * @param payload - Save payload with room ID, name, and optional user ID
+   */
+  async function saveGame(socket: Socket, payload: { roomId: string; name: string; userId?: string }) {
+    const room = rooms.get(payload.roomId);
+    if (!room) return;
+
+    const player = room.players.find(p => p.socketId === socket.id);
+    if (!player) return;
+
+    try {
+      await database.saveGame(payload.roomId, payload.name, room.state, payload.userId);
+      logger.info('Game saved', { gameId: room.id, saveName: payload.name, userId: payload.userId });
+      socket.emit('game:saved', { success: true });
+    } catch (error) {
+      logger.error('Game save failed', { gameId: room.id, saveName: payload.name, error });
+      socket.emit('game:saved', { success: false, error: 'Failed to save game' });
+    }
+  }
+
+  /**
+   * Loads a saved game and creates a new room
+   * @param socket - Socket.IO socket instance
+   * @param payload - Load payload with game ID
+   * @param ack - Optional acknowledgment callback
+   */
+  async function loadGame(socket: Socket, payload: { gameId: string }, ack?: Function) {
+    try {
+      const savedGame = await database.loadGame(payload.gameId);
+      if (!savedGame) {
+        logger.warn('Game load failed - not found', { gameId: payload.gameId });
+        return ack?.({ error: 'Game not found' });
+      }
+
+      const roomId = makeId();
+      rooms.set(roomId, {
+        id: roomId,
+        players: [],
+        spectators: new Set(),
+        state: savedGame.gameState,
+        gameStates: [savedGame.gameState],
+        config: savedGame.gameState.config || { rules: 'CLASSIC', setup: 'CLASSIC' },
+      });
+
+      logger.info('Game loaded', { gameId: roomId, originalGameId: payload.gameId, saveName: savedGame.name });
+      ack?.({ roomId, name: savedGame.name });
+    } catch (error) {
+      logger.error('Game load failed', { gameId: payload.gameId, error });
+      ack?.({ error: 'Failed to load game' });
+    }
+  }
+
+  /**
+   * Returns list of public rooms
+   * @returns Array of public room information
+   */
+  function listRooms() {
+    return Array.from(rooms.values())
+      .filter(room => !room.isPrivate) // Only show public rooms in the list
+      .map(room => ({
+        id: room.id,
+        playerCount: room.players.length,
+        spectatorCount: room.spectators.size,
+        hasWinner: !!room.state.winner,
+        turn: room.state.turn,
+        config: room.config
+      }));
+  }
+
+  /**
+   * Returns list of active games for a user
+   * @param userId - User ID to filter games
+   * @returns Array of active game information
+   */
+  function getUserActiveGames(userId: string) {
+    return Array.from(rooms.values())
+      .filter(room => room.players.some(p => p.userId === userId && !room.state.winner))
+      .map(room => ({
+        roomId: room.id,
+        playerColor: room.players.find(p => p.userId === userId)?.color,
+        turn: room.state.turn,
+        config: room.config
+      }));
+  }
+
+  return { createRoom, joinRoom, handleMove, leaveAll, saveGame, loadGame, listRooms, getUserActiveGames };
+}

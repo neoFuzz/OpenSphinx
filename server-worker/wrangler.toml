@@ -1,0 +1,75 @@
+﻿# wrangler.toml - OpenSphinx Cloudflare Worker configuration
+
+name = "opensphinx-server"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# Set WORKERS_RUNTIME=true so esbuild dead-code eliminates the Winston branch
+# in shared/src/logger.ts at build time.
+[define]
+"WORKERS_RUNTIME" = "true"
+
+[[durable_objects.bindings]]
+name = "GAME_ROOM"
+class_name = "GameRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GameRoom"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "opensphinx"
+database_id = "dea2ad50-7797-4921-885e-a5cd4d1569b4"
+
+[vars]
+ALLOWED_DOMAIN = "opensphinx.online"
+
+[env.staging]
+name = "opensphinx-server-staging"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[env.staging.define]
+"WORKERS_RUNTIME" = "true"
+
+[[env.staging.durable_objects.bindings]]
+name = "GAME_ROOM"
+class_name = "GameRoom"
+
+[[env.staging.migrations]]
+tag = "v1"
+new_sqlite_classes = ["GameRoom"]
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "opensphinx-staging"
+database_id = "<to-be-filled>"
+
+[env.staging.vars]
+ALLOWED_DOMAIN = "opensphinx-server-staging.workers.dev"
+
+[env.production]
+name = "opensphinx-server"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[env.production.define]
+"WORKERS_RUNTIME" = "true"
+
+[[env.production.durable_objects.bindings]]
+name = "GAME_ROOM"
+class_name = "GameRoom"
+
+[[env.production.migrations]]
+tag = "v1"
+new_sqlite_classes = ["GameRoom"]
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "opensphinx"
+database_id = "dea2ad50-7797-4921-885e-a5cd4d1569b4"
+
+[env.production.vars]
+ALLOWED_DOMAIN = "opensphinx.online"

@@ -1,0 +1,70 @@
+﻿# Deploy the Cloudflare Worker backend on every push to main.
+# Also supports manual dispatch and tag pushes for versioned releases.
+#
+# Required secrets (set in repo Settings → Secrets and variables → Actions):
+#   CLOUDFLARE_API_TOKEN  — CF API token with Workers:Edit + D1:Edit permissions
+#   CLOUDFLARE_ACCOUNT_ID — numeric Cloudflare account ID
+#
+# The Worker-level secrets (JWT_SECRET, DISCORD_CLIENT_ID, etc.) are managed
+# separately via `wrangler secret put` and do not need to be in GitHub secrets.
+
+name: Deploy Worker
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "server-worker/**"
+      - "shared/**"
+      - ".github/workflows/deploy-worker.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: deploy-worker
+  cancel-in-progress: false   # never cancel an in-flight deploy mid-flight
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare Workers
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm install --workspaces
+
+      - name: Type-check Worker
+        working-directory: server-worker
+        run: npx tsc --noEmit
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: server-worker
+          # Deploys the top-level (production) environment defined in wrangler.toml.
+          # Remove this comment and add --env staging to target the staging env instead.
+          command: deploy
+
+      - name: Apply D1 schema migrations
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: server-worker
+          # --remote targets the production D1 database.
+          # schema.sql uses CREATE TABLE IF NOT EXISTS so re-running is safe.
+          command: d1 execute opensphinx --file=schema.sql --remote
