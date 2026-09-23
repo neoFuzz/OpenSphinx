@@ -1,24 +1,22 @@
-# OpenSphinx (TypeScript, Node.js + Express + Socket.IO + React)
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0) [![Deploy JSDoc content to Pages](https://github.com/neoFuzz/OpenSphinx/actions/workflows/deploy-jsdoc.yml/badge.svg)](https://github.com/neoFuzz/OpenSphinx/actions/workflows/deploy-jsdoc.yml)  
-[![Render Status](https://img.shields.io/website?url=https%3A%2F%2Fopensphinx.onrender.com%2Fapi%2Frooms&label=Render&logo=render)](https://opensphinx.onrender.com)
-[![Cloudflare Status](https://img.shields.io/website?url=https%3A%2F%2Fopensphinx.pages.dev&label=Cloudflare&logo=cloudflare)](https://opensphinx.online)  
-[![Server Status](https://opensphinx.onrender.com/api/badge/status)](https://opensphinx.onrender.com)
-[![Client Status](https://opensphinx.onrender.com/api/badge/client-status)](https://opensphinx.pages.dev)
+# OpenSphinx (TypeScript, Cloudflare Workers + React)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL%203.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0) [![Deploy JSDoc content to Pages](https://github.com/neoFuzz/OpenSphinx/actions/workflows/deploy-jsdoc.yml/badge.svg)](https://github.com/neoFuzz/OpenSphinx/actions/workflows/deploy-jsdoc.yml)
+[![Cloudflare Status](https://img.shields.io/website?url=https%3A%2F%2Fopensphinx.pages.dev&label=Cloudflare&logo=cloudflare)](https://opensphinx.online)
 
-A modern, web-based implementation of Laser Chess (also known as Khet) - the strategic board game where players use mirrors and lasers to capture pieces and outmaneuver their opponent.
+A modern, web-based implementation of Laser Chess (also known as Khet) — the strategic board game where players use mirrors and lasers to capture pieces and outmaneuver their opponent.
 
 **[Live Game](https://opensphinx.online)** | **[API Documentation](https://neofuzz.github.io/OpenSphinx/)**
 
 This monorepo contains:
 
-- `server/` – Authoritative game server built with Node.js, Express, Socket.IO and SQLite for game persistence
+- `server-worker/` – Authoritative game server built on Cloudflare Workers, Durable Objects (room state + SSE fan-out), and D1 (persistence)
 - `client/` – Interactive game client with 3D board view (React, Vite, Three.js) and 2D board view (HTML/CSS) with animated laser effects
 - `shared/` – Core TypeScript game engine handling rules, laser mechanics, and game state, shared between client and server
 
 ## Prerequisites
 - Node.js 20+
 - npm 8+ (supports workspaces)
-- Modern browser with WebSocket support (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+)
+- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/) (`npm install -g wrangler`) for Worker development
+- Modern browser with EventSource/SSE support (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+)
 
 ## Install
 ```bash
@@ -27,111 +25,141 @@ npm install --workspaces
 
 ## Run (two terminals)
 ```bash
-# Terminal 1 – Server
-npm run dev --workspace server
+# Terminal 1 – Worker (Cloudflare Workers dev server)
+cd server-worker
+npx wrangler dev
 
 # Terminal 2 – Client
 npm run dev --workspace client
 ```
-Open the client at the URL Vite prints (typically http://localhost:5173). The client expects the server at `http://localhost:3001`.
+Open the client at the URL Vite prints (typically http://localhost:5173). The client expects the Worker at `http://localhost:8787`.
+
+Set `VITE_SERVER_URL=http://localhost:8787` in `client/.env` for local development.
 
 ## Build for Production
 ```bash
-# Build all workspaces
-npm run build --workspaces
+# Build client (output to client/dist/)
+npm run build --workspace client
 
-# Start production server
-NODE_ENV=production npm run start --workspace server
+# Deploy Worker to Cloudflare
+cd server-worker
+npx wrangler deploy
 ```
 
-Production builds are optimized and minified. The client build outputs to `client/dist/` and can be served statically or deployed to CDN/hosting platforms like Cloudflare Pages or Vercel.
+## Deploy
+
+### Cloudflare Workers (backend)
+1. [Create a Cloudflare account](https://dash.cloudflare.com/sign-up) and install Wrangler
+2. Authenticate: `wrangler login`
+3. Create the D1 database: `wrangler d1 create opensphinx` — update `database_id` in `server-worker/wrangler.toml`
+4. Apply the schema: `wrangler d1 execute opensphinx --file=server-worker/schema.sql`
+5. Set secrets:
+   ```bash
+   cd server-worker
+   wrangler secret put JWT_SECRET
+   wrangler secret put CSRF_SECRET
+   wrangler secret put DISCORD_CLIENT_ID
+   wrangler secret put DISCORD_CLIENT_SECRET
+   wrangler secret put DISCORD_REDIRECT_URI
+   wrangler secret put CLIENT_URLS
+   ```
+6. Deploy: `wrangler deploy`
+
+### Cloudflare Pages (frontend)
+The client is deployed as a static site to Cloudflare Pages. Set the `VITE_SERVER_URL` environment variable in the Pages project settings to point at the deployed Worker URL.
 
 ## Configuration
 
-### Environment Variables
-- **Server** (`server/.env`):
-  ```bash
-  PORT=3001 # Server port
-  HOST=0.0.0.0 # Server host (0.0.0.0 for external access)
-  CLIENT_URLS=http://localhost:5173,http://127.0.0.1:5173 # Allowed client origins
-  NODE_ENV=development # Environment mode
-  
-  # Discord OAuth (optional)
-  DISCORD_CLIENT_ID=your_discord_client_id
-  DISCORD_CLIENT_SECRET=your_discord_client_secret
-  DISCORD_REDIRECT_URI=http://localhost:3001/auth/discord/callback
-  
-  # Security
-  JWT_SECRET=your_secure_random_string
-  CSRF_SECRET=your_csrf_secret_key
-  ```
-- **Client** (`client/.env`):
-  ```bash
-  VITE_SERVER_URL=http://localhost:3001 # Server URL
-  ```
+### Worker Secrets
+Secrets are managed via `wrangler secret put` (never committed to source control):
+```
+JWT_SECRET              – used to sign/verify JWT auth tokens
+CSRF_SECRET             – used for HMAC CSRF token signatures
+DISCORD_CLIENT_ID       – Discord OAuth app client ID
+DISCORD_CLIENT_SECRET   – Discord OAuth app client secret
+DISCORD_REDIRECT_URI    – e.g. https://opensphinx-server.workers.dev/auth/discord/callback
+CLIENT_URLS             – comma-separated allowed CORS origins
+```
+
+Non-secret config lives in `server-worker/wrangler.toml` under `[vars]`:
+```toml
+[vars]
+ALLOWED_DOMAIN = "opensphinx.online"
+```
+
+### Client Environment
+**`client/.env`**:
+```bash
+VITE_SERVER_URL=https://opensphinx-server.workers.dev  # production Worker URL
+# For local dev: VITE_SERVER_URL=http://localhost:8787
+```
 
 ### Network Access
-For network access, update `CLIENT_URLS` in `server/.env` and create `client/.env.local`:
-```bash
-# server/.env
-CLIENT_URLS=http://localhost:5173,http://192.168.x.x:5173
-
-# client/.env.local
-VITE_SERVER_URL=http://192.168.x.x:3001
-```
+For local network testing, set `VITE_SERVER_URL` in `client/.env.local` to the Wrangler dev URL exposed on your network interface.
 
 ## Folder structure
 ```
 OpenSphinx/
-├─ server/
+├─ server-worker/
 ├─ client/
 └─ shared/
 ```
 
 ## Technology Stack
-- **Frontend**: React 18, Vite, Three.js, TypeScript
-- **Backend**: Node.js, Express, Socket.IO, TypeScript
-- **Database**: SQLite with better-sqlite3
-- **Authentication**: Discord OAuth 2.0, JWT
-- **Security**: Helmet, CSRF tokens, rate limiting
-- **Logging**: Winston
+- **Frontend**: React 19, Vite, Three.js, TypeScript
+- **Backend**: Cloudflare Workers, Durable Objects, D1 (SQLite-compatible)
+- **Real-time**: Server-Sent Events (SSE) via native `EventSource`
+- **Authentication**: Discord OAuth 2.0, JWT (jose)
+- **Security**: SubtleCrypto CSRF, CORS headers, rate limiting
+- **Logging**: Cloudflare Workers console / dashboard
 - **Testing**: Jest, React Testing Library
 
 ## Features
 - **3D Graphics**: Three.js-powered 3D game board with models, textures, and animations
 - **2D View**: Alternative HTML/CSS board view with animated laser effects (toggle with view switcher)
-- **Game Persistence**: Save and load games using SQLite database
+- **Game Persistence**: Save and load games using Cloudflare D1
 - **Authentication**: Discord OAuth integration with JWT tokens
-- **Security**: CSRF protection, rate limiting, and helmet security headers
-- **Networking**: Room-based multiplayer system supporting 2 players per game with spectator mode for additional viewers
+- **Security**: CSRF protection, rate limiting, and security headers
+- **Networking**: Room-based multiplayer system supporting 2 players per game with spectator mode for additional viewers; real-time events delivered via SSE
 - **Room Management**: Create or join game rooms with unique room codes
 - **Rules**: Basic laser chess variant — move one orthogonal step or rotate 90°, then fire the active player's laser. Pharaoh hit ends the game
 - **Save/Load**: Games can be saved with custom names and resumed later
 - **Game Management**: View, load, and delete saved games through the UI
 - **Audio**: Sound effects and audio feedback
-- **Logging**: Winston-based logging system
+- **Logging**: Structured logging via Cloudflare Workers dashboard
 
 ## Game Save/Load
 - Click "Save Game" during an active game to save the current state
 - Click "Load Game" to view and load previously saved games
 - Saved games include the complete board state and can be resumed from any point
-- Games are stored in SQLite database (`games.db`) on the server
+- Games are stored in Cloudflare D1 on the server
 
 ## API Endpoints
-- `GET /api/games` - List all saved games
-- `DELETE /api/games/:id` - Delete a saved game
-- `GET /auth/discord` - Discord OAuth login
-- `GET /auth/discord/callback` - Discord OAuth callback
-- `POST /auth/logout` - User logout
+- `GET /api/rooms` — List public rooms
+- `POST /api/rooms` — Create a room
+- `POST /api/rooms/:roomId/join` — Join a room
+- `POST /api/rooms/:roomId/move` — Submit a move
+- `POST /api/rooms/:roomId/save` — Save game
+- `POST /api/rooms/load` — Load a saved game
+- `GET /api/rooms/:roomId/events` — SSE stream (real-time game events)
+- `GET /api/games` — List saved games
+- `DELETE /api/games/:id` — Delete a saved game
+- `GET /api/csrf-token` — Issue a CSRF token
+- `GET /auth/discord` — Discord OAuth login
+- `GET /auth/discord/callback` — Discord OAuth callback
+- `POST /auth/logout` — User logout
+- `GET /auth/me` — Current user info
+- `GET /health` — Health check
 
-## Socket Events
-- `game:save` - Save current game state
-- `game:load` - Load a saved game
-- `game:saved` - Confirmation of save operation
-- `room:create` - Create a new game room
-- `room:join` - Join an existing room
-- `game:move` - Submit a player move
-- `game:state` - Receive game state updates
+## SSE Events
+The `GET /api/rooms/:roomId/events` endpoint is an SSE stream. The client subscribes with the native `EventSource` API and receives the following named events:
+
+| Event | Payload | When |
+|-------|---------|------|
+| `room:state` | `{ roomId, players, state, config }` | On join; on player connect/disconnect |
+| `game:state` | `{ state: GameState, ack? }` | After every valid move |
+| `game:end` | `{ winner: Player }` | When Pharaoh is hit |
+| `game:saved` | `{ success, error? }` | After save completes |
 
 ## API Documentation
 Full API documentation is available at [https://neofuzz.github.io/OpenSphinx/](https://neofuzz.github.io/OpenSphinx/)
@@ -139,23 +167,22 @@ Full API documentation is available at [https://neofuzz.github.io/OpenSphinx/](h
 ## Troubleshooting
 
 ### Connection Issues
-- **CORS errors**: Ensure `CLIENT_URLS` in `server/.env` includes your client URL
-- **WebSocket connection failed**: Check firewall/proxy settings allow WebSocket connections
-- **Server not responding**: Verify server is running on correct port with `netstat -an | findstr :3001` (Windows) or `lsof -i :3001` (Unix)
+- **CORS errors**: Ensure `CLIENT_URLS` secret includes your client's origin
+- **SSE connection failed**: Check that `VITE_SERVER_URL` in `client/.env` points at the correct Worker URL
+- **Worker not responding**: Check the Cloudflare Workers dashboard logs, or run `wrangler tail` for live log streaming
 
 ### Port Conflicts
-- If port 3001 or 5173 is in use, update `PORT` in `server/.env` and `VITE_SERVER_URL` in `client/.env`
-- Kill existing processes: `npx kill-port 3001 5173`
+- Wrangler dev defaults to port 8787. Change it with `wrangler dev --port <PORT>`
+- Client Vite dev defaults to 5173. If in use, Vite will choose the next available port automatically
 
 ### Database Issues
-- SQLite database is auto-created at `server/games.db` on first run
-- Delete `games.db` to reset all saved games
-- Check file permissions if database creation fails
+- D1 schema is applied once via `wrangler d1 execute opensphinx --file=server-worker/schema.sql`
+- To reset local D1 data: delete the local `.wrangler/` directory and re-apply the schema
 
 ### Build Errors
 - Clear node_modules: `rm -rf node_modules package-lock.json && npm install --workspaces`
 - Ensure Node.js version is 20 or higher: `node --version`
-- TypeScript errors: Run `npm run type-check --workspaces` to identify issues
+- TypeScript errors in the worker: `cd server-worker && npx tsc --noEmit`
 
 ## Contributing
 Contributions are welcome! Please follow these guidelines:
@@ -164,7 +191,7 @@ Contributions are welcome! Please follow these guidelines:
 2. Create a feature branch: `git checkout -b feature/your-feature`
 3. Make your changes following the existing code style
 4. Ensure TypeScript compiles without errors: `npm run build --workspaces`
-5. Test your changes locally
+5. Test your changes locally with `wrangler dev` + `npm run dev --workspace client`
 6. Commit with clear messages: `git commit -m "Add: feature description"`
 7. Push to your fork: `git push origin feature/your-feature`
 8. Open a Pull Request with a description of your changes
@@ -183,3 +210,4 @@ This project is free software: you can redistribute it and/or modify it under th
 ## Notes
 - Extend easily to match strict Khet 2.0 rules (pyramid one-sidedness, Djed swap, official setups) in `shared/src/engine`
 - `.env.local` files are gitignored for local overrides
+- The `server/` directory (legacy Node.js/Express server) is preserved as a reference implementation but is no longer the active backend

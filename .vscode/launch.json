@@ -1,7 +1,4 @@
-{
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+﻿{
     "version": "0.2.0",
     "configurations": [
         {
@@ -32,25 +29,25 @@
             "name": "Debug Server",
             "type": "node",
             "request": "launch",
-            "preLaunchTask": "Run Server", // Ensure server task is run first
+            "preLaunchTask": "Run Server",
             "runtimeExecutable": "npm",
             "runtimeArgs": [
                 "run",
                 "dev",
                 "--workspace",
-                "server"
+                "server-worker"
             ],
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "port": 9229, // Debugger listens on port 9229
+            "port": 9229
         },
         {
             "name": "Debug Client",
             "type": "chrome",
             "request": "launch",
-            "url": "http://localhost:3000", // Adjust this URL to match your client server
-            "webRoot": "${workspaceFolder}/client", // Adjust to the correct client folder
+            "url": "http://localhost:5173",
+            "webRoot": "${workspaceFolder}/client",
             "preLaunchTask": "Run Client",
             "breakOnLoad": true
         }

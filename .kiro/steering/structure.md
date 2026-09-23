@@ -1,7 +1,7 @@
 # OpenSphinx — Project Structure
 
 ## Monorepo Layout
-npm workspaces monorepo with three packages. A single `package-lock.json` lives at the root.
+npm workspaces monorepo with four packages. A single `package-lock.json` lives at the root.
 
 ```
 OpenSphinx/
@@ -10,7 +10,7 @@ OpenSphinx/
 ├── tsconfig.docs.json
 ├── typedoc.json
 ├── client/               ← React frontend
-├── server/               ← Node.js backend
+├── server-worker/        ← Cloudflare Workers backend
 ├── shared/               ← shared TypeScript game engine
 ├── docs/                 ← TypeDoc output (gitignored)
 └── .github/workflows/    ← CI pipelines
@@ -30,7 +30,7 @@ client/
 ├── src/
 │   ├── main.tsx          ← React entry point
 │   ├── App.tsx           ← root component / router
-│   ├── socket.ts         ← Socket.IO client singleton
+│   ├── sse.ts            ← EventSource singleton + postToRoom fetch helper
 │   ├── i18n.ts           ← i18next initialisation
 │   ├── components/       ← all React components
 │   │   ├── Board.tsx         ← 2D board view (HTML/CSS)
@@ -41,7 +41,7 @@ client/
 │   │   ├── SavedGames.tsx, Replay.tsx, Stats.tsx
 │   │   └── AdMob.tsx, AdSense.tsx
 │   ├── state/
-│   │   ├── game.ts       ← Zustand game state store
+│   │   ├── game.ts       ← Zustand game state store (EventSource subscriptions)
 │   │   └── auth.ts       ← Zustand auth state store
 │   ├── utils/            ← animation helpers and misc utilities
 │   ├── config/           ← app-level constants
@@ -58,27 +58,28 @@ client/
 
 ---
 
-## `server/` — Backend Package
-Authoritative Express + Socket.IO game server.
+## `server-worker/` — Cloudflare Workers Package
+Authoritative game server running on Cloudflare Workers + Durable Objects + D1.
 
 ```
-server/
+server-worker/
 ├── package.json
 ├── tsconfig.json
-├── .env / .env.example
-├── games.db              ← SQLite database (gitignored)
+├── wrangler.toml         ← Wrangler config: DO binding, D1, secrets, compatibility
+├── schema.sql            ← D1 schema (users, saved_games, game_replays, player_stats)
 └── src/
-    ├── index.ts          ← entry point: Express + Socket.IO setup
-    ├── rooms.ts          ← room management and game state
-    ├── database.ts       ← SQLite operations via better-sqlite3
-    ├── auth.ts           ← Discord OAuth + JWT token handling
-    └── middleware.ts     ← CORS, Helmet, CSRF, rate limiting
+    ├── index.ts          ← Workers fetch handler + URL router; exports GameRoom DO class
+    ├── room.ts           ← GameRoom Durable Object (SSE fan-out, game state, DO SQLite)
+    ├── database.ts       ← D1 operations (mirrors server/src/database.ts API)
+    ├── auth.ts           ← Discord OAuth + JWT (jose) + CSRF (SubtleCrypto)
+    ├── middleware.ts     ← CORS, security headers, rate limiting, auth helpers
+    └── types.ts          ← Env interface and Worker-specific types
 ```
 
 ---
 
 ## `shared/` — Game Engine Package (name: `@laser/shared`)
-Pure TypeScript game engine; imported by both client and server.
+Pure TypeScript game engine; imported by both client and server-worker.
 
 ```
 shared/
@@ -103,11 +104,12 @@ shared/
 
 | From | To | How |
 |------|----|-----|
-| `client` ↔ `server` | WebSocket events | Socket.IO (real-time game actions) |
+| `client` ↔ `server-worker` | SSE + HTTP | EventSource (server push) + fetch (actions) |
 | `client` → `shared` | TypeScript import | Vite resolves via `fs.allow: ['..']` |
-| `server` → `shared` | TypeScript import | ts-node / tsc resolves directly |
-| `server` → `games.db` | better-sqlite3 | synchronous SQLite API |
-| `client` → `public/` | static assets | GLB models, textures, sounds loaded at runtime |
+| `server-worker` → `shared` | TypeScript import | Wrangler bundles at build time via TS path alias |
+| `server-worker` ↔ `GameRoom DO` | Internal HTTP | DO stub forwarding per room ID |
+| `server-worker` → `Cloudflare D1` | D1 binding | users, saved_games, game_replays, player_stats |
+| `GameRoom DO` → `DO SQLite` | `this.ctx.storage.sql` | room meta, current game state, move history |
 | `android/` → `client` | Capacitor | web build copied into Android assets via `npx cap sync` |
 
 ---
@@ -123,7 +125,7 @@ shared/
 ---
 
 ## Architectural Invariants
-1. **Authoritative server**: All moves validated server-side. Clients send intent; server broadcasts the validated result.
-2. **Shared engine is pure**: `shared/src/engine/` has zero side effects. Both client (optimistic UI) and server (validation) run the same code.
+1. **Authoritative Worker**: All moves validated by the `GameRoom` Durable Object. Clients send intent via HTTP POST; the DO broadcasts the validated result over SSE to all connected clients.
+2. **Shared engine is pure**: `shared/src/engine/` has zero side effects. Both client (optimistic UI) and `GameRoom` DO (validation) run the same code.
 3. **Single type source**: Cross-package types belong in `shared/src/types.ts` — not duplicated.
 4. **One lock file**: Never add a `package-lock.json` inside a workspace package; the root lock file covers all.
