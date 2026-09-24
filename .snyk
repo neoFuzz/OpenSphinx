@@ -1,9 +1,9 @@
 ﻿# Snyk policy file — https://docs.snyk.io/snyk-cli/commands/ignore
-# Excludes paths that should not be scanned by `snyk monitor --all-projects`.
 version: v1.25.0
 
 exclude:
   global:
+    # Never scan installed dependencies — only scan source code.
+    - node_modules/**
     # Legacy Node.js server archived after Cloudflare Workers migration.
-    # It is no longer installed or built; scanning it produces false positives.
     - _archive/**

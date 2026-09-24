@@ -5,10 +5,12 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
-# Set WORKERS_RUNTIME=true so esbuild dead-code eliminates the Winston branch
-# in shared/src/logger.ts at build time.
 [define]
 "WORKERS_RUNTIME" = "true"
+
+[[routes]]
+pattern = "api.opensphinx.online/*"
+zone_name = "opensphinx.online"
 
 [[durable_objects.bindings]]
 name = "GAME_ROOM"
@@ -25,6 +27,8 @@ database_id = "dea2ad50-7797-4921-885e-a5cd4d1569b4"
 
 [vars]
 ALLOWED_DOMAIN = "opensphinx.online"
+# Comma-separated allowed CORS origins. Not a secret — visible in network responses.
+CLIENT_URLS = "https://opensphinx.online,https://opensphinx.pages.dev,capacitor://localhost,http://localhost:5173,http://127.0.0.1:5173"
 
 [env.staging]
 name = "opensphinx-server-staging"
@@ -33,6 +37,10 @@ compatibility_flags = ["nodejs_compat"]
 
 [env.staging.define]
 "WORKERS_RUNTIME" = "true"
+
+[env.staging.vars]
+ALLOWED_DOMAIN = "opensphinx-server-staging.workers.dev"
+CLIENT_URLS = "http://localhost:5173,http://127.0.0.1:5173"
 
 [[env.staging.durable_objects.bindings]]
 name = "GAME_ROOM"
@@ -47,9 +55,6 @@ binding = "DB"
 database_name = "opensphinx-staging"
 database_id = "<to-be-filled>"
 
-[env.staging.vars]
-ALLOWED_DOMAIN = "opensphinx-server-staging.workers.dev"
-
 [env.production]
 name = "opensphinx-server"
 compatibility_date = "2024-09-23"
@@ -57,6 +62,14 @@ compatibility_flags = ["nodejs_compat"]
 
 [env.production.define]
 "WORKERS_RUNTIME" = "true"
+
+[[env.production.routes]]
+pattern = "api.opensphinx.online/*"
+zone_name = "opensphinx.online"
+
+[env.production.vars]
+ALLOWED_DOMAIN = "opensphinx.online"
+CLIENT_URLS = "https://opensphinx.online,https://opensphinx.pages.dev,capacitor://localhost"
 
 [[env.production.durable_objects.bindings]]
 name = "GAME_ROOM"
@@ -70,6 +83,3 @@ new_sqlite_classes = ["GameRoom"]
 binding = "DB"
 database_name = "opensphinx"
 database_id = "dea2ad50-7797-4921-885e-a5cd4d1569b4"
-
-[env.production.vars]
-ALLOWED_DOMAIN = "opensphinx.online"

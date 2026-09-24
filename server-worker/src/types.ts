@@ -1,11 +1,11 @@
-import type { GameConfig, GameState } from '@laser/shared/types';
+ï»¿import type { GameConfig, GameState } from '@laser/shared/types';
 
 /**
  * Cloudflare Workers environment bindings and secrets.
  * All fields map directly to bindings/vars/secrets declared in wrangler.toml.
  */
 export interface Env {
-  /** Durable Object namespace for game rooms — one instance per room ID */
+  /** Durable Object namespace for game rooms â€” one instance per room ID */
   GAME_ROOM: DurableObjectNamespace;
 
   /** D1 database holding users, saved_games, game_replays, player_stats */
@@ -56,7 +56,7 @@ export interface JwtPayload {
 
 /**
  * A player or spectator connected to a game room.
- * `clientId` replaces Socket.IO's socket ID — assigned when the SSE connection opens.
+ * `clientId` replaces Socket.IO's socket ID â€” assigned when the SSE connection opens.
  */
 export interface PlayerInfo {
   /** UUID assigned at SSE connection time */
@@ -74,7 +74,7 @@ export interface PlayerInfo {
  */
 export interface PublicRoomState {
   roomId: string;
-  players: Array<{ name: string; color: 'RED' | 'SILVER' }>;
+  players: Array<{ clientId: string; name: string; color: 'RED' | 'SILVER' }>;
   spectatorCount: number;
   state: GameState;
   config: GameConfig;

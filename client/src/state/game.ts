@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Game state management module using Zustand.
  *
  * Provides centralised state management for game rooms, moves, save/load
@@ -282,15 +282,23 @@ export const useGame = create<GameStore>((set, get) => ({
    * the join action so the server adds this client to the room.
    */
   connectRoom: (roomId, name, password) => {
+    // Create the EventSource but DO NOT open it yet — we need to attach all
+    // listeners first so no event can fire before a handler is registered.
+    // connectToRoom() returns the EventSource immediately after construction;
+    // the browser connects asynchronously, so this is safe.
     const es = connectToRoom(roomId);
     set({ roomId });
 
     es.addEventListener('room:state', (e: MessageEvent) => {
       const payload = JSON.parse(e.data) as RoomStatePayload;
-      // Determine this client's colour from the player list
+      // Update board state. Only update color if the server echoes our clientId
+      // back in the player list — never overwrite a color already set by the
+      // join response with undefined.
       const clientId = getClientId();
       const self = payload.players.find((p) => p.clientId === clientId);
-      set({ state: payload.state, color: self?.color });
+      const update: Partial<Parameters<typeof set>[0]> = { state: payload.state };
+      if (self?.color) update.color = self.color;
+      set(update);
     });
 
     es.addEventListener('game:state', (e: MessageEvent) => {
@@ -313,7 +321,7 @@ export const useGame = create<GameStore>((set, get) => ({
       }
     });
 
-    // Join the room — fire-and-forget; errors surfaced via modal
+    // Join the room â€” fire-and-forget; errors surfaced via modal
     const { csrfToken } = get();
     const token = csrfToken ?? '';
     postToRoom(roomId, 'join', { name, password }, token)

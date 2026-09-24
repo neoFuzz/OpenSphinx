@@ -35,7 +35,9 @@ jobs:
         uses: actions/configure-pages@v5
 
       - name: Install dependencies
-        run: npm ci --workspaces
+        # Root install picks up typedoc (root devDependency).
+        # --include=dev ensures devDependencies are not skipped.
+        run: npm ci
 
       - name: Build JSDoc
         run: npm run generate-docs

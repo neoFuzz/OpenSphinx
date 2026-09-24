@@ -1,4 +1,4 @@
-import type { GameConfig, GameState, Move } from '@laser/shared/types';
+﻿import type { GameConfig, GameState, Move } from '@laser/shared/types';
 import { applyMove, createInitialState } from '@laser/shared/engine';
 import { DatabaseManager } from './database';
 import type { Env, PlayerInfo, PublicRoomState } from './types';
@@ -29,6 +29,16 @@ interface Connection {
 const ENC = new TextEncoder();
 
 // ---------------------------------------------------------------------------
+// Idle-timeout constants
+// ---------------------------------------------------------------------------
+
+/** How long an empty room (no players, no spectators) waits before self-destructing. */
+const EMPTY_ROOM_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+/** How long a room with no SSE connections but with persisted state waits before cleanup. */
+const IDLE_ROOM_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+// ---------------------------------------------------------------------------
 // GameRoom Durable Object
 // ---------------------------------------------------------------------------
 
@@ -36,18 +46,18 @@ const ENC = new TextEncoder();
  * One instance of `GameRoom` exists per room, keyed by room ID.
  *
  * Storage split:
- * - KV (`this.ctx.storage.put/get`): `room_meta` (config, players, …) and `game_state`
+ * - KV (`this.ctx.storage.put/get`): `room_meta` (config, players, â€¦) and `game_state`
  * - DO SQLite (`this.ctx.storage.sql`): `game_history` table (append-only move log)
  * - In-memory only: `connections` map (SSE writers can't be serialised)
  *
- * @see design.md — GameRoom Durable Object
+ * @see design.md â€” GameRoom Durable Object
  */
 export class GameRoom implements DurableObject {
   // -------------------------------------------------------------------------
   // In-memory state (hydrated from KV + DO SQLite on wake)
   // -------------------------------------------------------------------------
 
-  /** Unique room identifier — set on first POST /create */
+  /** Unique room identifier â€” set on first POST /create */
   private _id: string = '';
 
   /** Up to 2 players in the room */
@@ -59,7 +69,7 @@ export class GameRoom implements DurableObject {
   /** Current authoritative game state */
   private gameState: GameState = createInitialState();
 
-  /** Full move history — one entry per applied move */
+  /** Full move history â€” one entry per applied move */
   private gameStates: GameState[] = [];
 
   /** Game config (rules + setup variant) */
@@ -75,19 +85,19 @@ export class GameRoom implements DurableObject {
   private finishedAt?: number;
 
   // -------------------------------------------------------------------------
-  // SSE connections (in-memory only — rebuilt on each reconnect)
+  // SSE connections (in-memory only â€” rebuilt on each reconnect)
   // -------------------------------------------------------------------------
 
-  /** clientId → SSE writer for each connected client */
+  /** clientId â†’ SSE writer for each connected client */
   private connections: Map<string, Connection> = new Map();
 
   // -------------------------------------------------------------------------
-  // Constructor — hydrates in-memory state from DO storage on wake
+  // Constructor â€” hydrates in-memory state from DO storage on wake
   // -------------------------------------------------------------------------
 
   /**
    * @param ctx  - Durable Object state; exposes `.storage` (KV + SQL) and lifecycle hooks
-   * @param env  - Worker environment bindings (D1, secrets, …)
+   * @param env  - Worker environment bindings (D1, secrets, â€¦)
    */
   constructor(
     private readonly ctx: DurableObjectState,
@@ -154,7 +164,7 @@ export class GameRoom implements DurableObject {
    * 1. Appends to `game_history` (DO SQLite)
    * 2. Overwrites `game_state` in KV
    *
-   * 2 writes per move — stays well within CF free tier limits.
+   * 2 writes per move â€” stays well within CF free tier limits.
    *
    * @param newState - The validated game state produced by `applyMove`
    */
@@ -203,7 +213,7 @@ export class GameRoom implements DurableObject {
       try {
         await conn.writer.write(payload);
       } catch {
-        // Write failed — connection is dead; schedule for removal
+        // Write failed â€” connection is dead; schedule for removal
         dead.push(clientId);
       }
     }
@@ -251,10 +261,14 @@ export class GameRoom implements DurableObject {
     this.spectators.delete(clientId);
 
     if (wasPlayer) {
-      // Persist updated players list asynchronously (fire-and-forget here;
-      // errors are non-critical as the DO will re-derive from KV on next wake)
       void this._persistMeta();
       void this._broadcast('room:state', this._publicState());
+    }
+
+    // If the room is now completely empty, schedule cleanup.
+    // This covers abandoned games and rooms where nobody ever joined.
+    if (this.players.length === 0 && this.spectators.size === 0 && this.connections.size === 0) {
+      void this.ctx.storage.setAlarm(Date.now() + EMPTY_ROOM_TTL_MS);
     }
   }
 
@@ -268,7 +282,7 @@ export class GameRoom implements DurableObject {
   private _publicState(): PublicRoomState {
     return {
       roomId: this._id,
-      players: this.players.map((p) => ({ name: p.name, color: p.color })),
+      players: this.players.map((p) => ({ clientId: p.clientId, name: p.name, color: p.color })),
       spectatorCount: this.spectators.size,
       state: this.gameState,
       config: this.config,
@@ -277,7 +291,7 @@ export class GameRoom implements DurableObject {
   }
 
   // ---------------------------------------------------------------------------
-  // alarm() — Storage Alarm for room cleanup
+  // alarm() â€” Storage Alarm for room cleanup
   // ---------------------------------------------------------------------------
 
   /**
@@ -285,24 +299,29 @@ export class GameRoom implements DurableObject {
    * Clears all DO storage so the runtime can evict the instance.
    */
   async alarm(): Promise<void> {
+    // Fires for three cases:
+    //   1. Game ended — scheduled 30 s after winner declared
+    //   2. Room emptied — all players/spectators disconnected (EMPTY_ROOM_TTL_MS)
+    //   3. Idle room — created but nobody ever joined (IDLE_ROOM_TTL_MS)
+    // In all cases the correct action is to wipe storage so CF can evict the instance.
     await this.ctx.storage.deleteAll();
   }
 
   // ---------------------------------------------------------------------------
-  // fetch() — DO HTTP interface
+  // fetch() â€” DO HTTP interface
   // ---------------------------------------------------------------------------
 
   /**
    * Entry point for all requests forwarded from the Worker fetch handler.
    *
    * Routes:
-   * - `POST /create`  — initialise the room (called once by the Worker)
-   * - `GET  /events`  — open SSE stream
-   * - `POST /join`    — add client as player or spectator
-   * - `POST /move`    — validate + apply a game move
-   * - `POST /save`    — save current state to D1
-   * - `POST /leave`   — remove a client
-   * - `GET  /state`   — return current room state (for reconnect / HTTP fallback)
+   * - `POST /create`  â€” initialise the room (called once by the Worker)
+   * - `GET  /events`  â€” open SSE stream
+   * - `POST /join`    â€” add client as player or spectator
+   * - `POST /move`    â€” validate + apply a game move
+   * - `POST /save`    â€” save current state to D1
+   * - `POST /leave`   â€” remove a client
+   * - `GET  /state`   â€” return current room state (for reconnect / HTTP fallback)
    *
    * @param request - Incoming HTTP request forwarded from the Worker
    * @returns HTTP response
@@ -335,7 +354,7 @@ export class GameRoom implements DurableObject {
   // ---------------------------------------------------------------------------
 
   /**
-   * `POST /create` — Initialises this room instance.
+   * `POST /create` â€” Initialises this room instance.
    *
    * Body: `{ roomId: string; config?: GameConfig; isPrivate?: boolean; password?: string }`
    */
@@ -363,11 +382,14 @@ export class GameRoom implements DurableObject {
     await this._persistMeta();
     await this._persistMove(this.gameState);
 
+    // Idle alarm: if nobody joins within 30 minutes, clean up.
+    await this.ctx.storage.setAlarm(Date.now() + IDLE_ROOM_TTL_MS);
+
     return Response.json({ ok: true, roomId: this._id });
   }
 
   /**
-   * `GET /events` — Opens an SSE stream for a client.
+   * `GET /events` â€” Opens an SSE stream for a client.
    *
    * The client's `clientId` is expected as a query param: `?clientId=<uuid>`.
    * Immediately pushes the full `room:state` event so the client is in sync
@@ -387,8 +409,14 @@ export class GameRoom implements DurableObject {
 
     this.connections.set(clientId, { writer, userId });
 
-    // Push current room state immediately (handles reconnect after DO eviction)
-    await this._sendTo(clientId, 'room:state', this._publicState());
+    // Defer the initial room:state push by one microtask so the HTTP response
+    // is returned (and the client's EventSource `open` event fires) before any
+    // SSE data arrives. Without this, the first event can arrive before the
+    // client has attached its addEventListener handlers.
+    //
+    // We still push on connect (not just after join) so that reconnecting
+    // clients (e.g. after a DO cold-start) immediately resync their state.
+    void Promise.resolve().then(() => this._sendTo(clientId, 'room:state', this._publicState()));
 
     return new Response(readable, {
       headers: {
@@ -401,7 +429,7 @@ export class GameRoom implements DurableObject {
   }
 
   /**
-   * `POST /join` — Adds a client as a player or spectator.
+   * `POST /join` â€” Adds a client as a player or spectator.
    *
    * Body: `{ clientId: string; name: string; password?: string; userId?: string; config?: GameConfig }`
    */
@@ -460,7 +488,7 @@ export class GameRoom implements DurableObject {
   }
 
   /**
-   * `POST /move` — Validates and applies a player move.
+   * `POST /move` â€” Validates and applies a player move.
    *
    * Body: `{ clientId: string; move: Move; userId?: string }`
    *
@@ -530,7 +558,7 @@ export class GameRoom implements DurableObject {
   }
 
   /**
-   * `POST /save` — Saves the current game state to D1 on user request.
+   * `POST /save` â€” Saves the current game state to D1 on user request.
    *
    * Body: `{ clientId: string; name: string; userId?: string }`
    */
@@ -569,7 +597,7 @@ export class GameRoom implements DurableObject {
   }
 
   /**
-   * `POST /leave` — Removes a client from the room.
+   * `POST /leave` â€” Removes a client from the room.
    *
    * Body: `{ clientId: string }`
    */
