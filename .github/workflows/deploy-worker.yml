@@ -1,14 +1,4 @@
-﻿# Deploy the Cloudflare Worker backend on every push to main.
-# Also supports manual dispatch and tag pushes for versioned releases.
-#
-# Required secrets (set in repo Settings → Secrets and variables → Actions):
-#   CLOUDFLARE_API_TOKEN  — CF API token with Workers:Edit + D1:Edit permissions
-#   CLOUDFLARE_ACCOUNT_ID — numeric Cloudflare account ID
-#
-# The Worker-level secrets (JWT_SECRET, DISCORD_CLIENT_ID, etc.) are managed
-# separately via `wrangler secret put` and do not need to be in GitHub secrets.
-
-name: Deploy Worker
+﻿name: Deploy Worker
 
 on:
   push:
@@ -25,7 +15,7 @@ permissions:
 
 concurrency:
   group: deploy-worker
-  cancel-in-progress: false   # never cancel an in-flight deploy mid-flight
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -39,11 +29,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
-          cache: "npm"
+          node-version: '22'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm install --workspaces
+        run: npm ci --workspaces
 
       - name: Type-check Worker
         working-directory: server-worker
@@ -55,8 +45,6 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: server-worker
-          # Deploys the top-level (production) environment defined in wrangler.toml.
-          # Remove this comment and add --env staging to target the staging env instead.
           command: deploy
 
       - name: Apply D1 schema migrations
@@ -65,6 +53,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: server-worker
-          # --remote targets the production D1 database.
-          # schema.sql uses CREATE TABLE IF NOT EXISTS so re-running is safe.
           command: d1 execute opensphinx --file=schema.sql --remote
